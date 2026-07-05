@@ -1,0 +1,119 @@
+from .base import HighlighterExpert, HighlightBlock, HighlightToken
+
+import json
+import os
+import re
+
+
+_KEYWORDS: set[str] = set()
+_KEYWORDS_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'keywords', 'python.json')
+try:
+    with open(_KEYWORDS_PATH, encoding='utf-8') as _f:
+        _KEYWORDS.update(json.load(_f))
+except (FileNotFoundError, json.JSONDecodeError):
+    _KEYWORDS.update([
+        'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
+        'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
+        'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
+        'lambda', 'match', 'case', 'nonlocal', 'not', 'or', 'pass', 'raise',
+        'return', 'try', 'type', 'while', 'with', 'yield',
+    ])
+
+_BUILTINS: set[str] = {
+    'abs', 'all', 'any', 'bin', 'bool', 'bytearray', 'bytes', 'callable',
+    'chr', 'classmethod', 'compile', 'complex', 'delattr', 'dict', 'dir',
+    'divmod', 'enumerate', 'eval', 'exec', 'filter', 'float', 'format',
+    'frozenset', 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex',
+    'id', 'input', 'int', 'isinstance', 'issubclass', 'iter', 'len', 'list',
+    'locals', 'map', 'max', 'memoryview', 'min', 'next', 'object', 'oct',
+    'open', 'ord', 'pow', 'print', 'property', 'range', 'repr', 'reversed',
+    'round', 'set', 'setattr', 'slice', 'sorted', 'staticmethod', 'str',
+    'sum', 'super', 'tuple', 'type', 'vars', 'zip', '__import__',
+}
+
+_STR_PREFIX = r'(?:[rR][bBfF]|[bBfF][rR]|[bBuUfFrR])?'
+
+_TOKEN_RE = re.compile(
+    f'(?P<string>'
+    f'{_STR_PREFIX}"""(?:[^"\\\\]|\\\\.|"(?!""))*"""|'
+    f'{_STR_PREFIX}\'\'\'(?:[^\'\\\\]|\\\\.|\'(?!\'\'))*\'\'\'|'
+    f'{_STR_PREFIX}"(?:[^"\\\\]|\\\\.)*"|'
+    f"{_STR_PREFIX}'(?:[^'\\\\]|\\\\.)*'"
+    r')'
+    r'|(?P<comment>#.*)'
+    r'|(?P<decorator>@[A-Za-z_][A-Za-z0-9_.]*)'
+    r'|(?P<number>'
+    r'0[xX][0-9a-fA-F_]+l?|'
+    r'0[bB][01_]+l?|'
+    r'0[oO][0-7_]+l?|'
+    r'\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[jJ]?l?|'
+    r'\d+[jJ]'
+    r')'
+    r'|(?P<identifier>[A-Za-z_][A-Za-z0-9_]*)'
+    r'|(?P<operator>'
+    r'->|\*\*=|//=|<<=|>>=|\*\*|//|<<|>>|<=|>=|==|!=|'
+    r'\+=|-=|\*=|/=|%=|&=|\|=|\^=|::|[\+\-*/%=&|^~<>!]'
+    r')'
+    r'|(?P<punctuation>[()\[\]{}:;,.\-])'
+)
+
+
+class PythonHighlighterExpert(HighlighterExpert):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def get_languange_exts(self) -> list:
+        return ['py']
+
+    def highlight(self, block: HighlightBlock) -> HighlightBlock:
+        tokens = self._tokenize(block.code)
+        return HighlightBlock(code=block.code, tokens=tokens)
+
+    def _tokenize(self, code: str) -> list[HighlightToken]:
+        tokens: list[HighlightToken] = []
+        last_def_or_class: tuple[str, int] | None = None
+
+        for m in _TOKEN_RE.finditer(code):
+            kind = m.lastgroup
+            start = m.start()
+            end = m.end()
+
+            if kind == 'string':
+                tokens.append(HighlightToken(start, end, 'string'))
+
+            elif kind == 'comment':
+                tokens.append(HighlightToken(start, end, 'comment'))
+
+            elif kind == 'decorator':
+                tokens.append(HighlightToken(start, end, 'decorator'))
+
+            elif kind == 'number':
+                tokens.append(HighlightToken(start, end, 'number'))
+
+            elif kind == 'identifier':
+                word = m.group()
+                if word in _KEYWORDS:
+                    tokens.append(HighlightToken(start, end, 'keyword'))
+                    if word in ('def', 'class'):
+                        last_def_or_class = (word, end)
+                elif word in _BUILTINS:
+                    tokens.append(HighlightToken(start, end, 'builtin'))
+                else:
+                    if last_def_or_class is not None:
+                        kw, kw_end = last_def_or_class
+                        between = code[kw_end:start]
+                        if between.strip() == '':
+                            type_ = 'function' if kw == 'def' else 'class'
+                            tokens.append(HighlightToken(start, end, type_))
+                            last_def_or_class = None
+                            continue
+                        last_def_or_class = None
+                    tokens.append(HighlightToken(start, end, 'identifier'))
+
+            elif kind == 'operator':
+                tokens.append(HighlightToken(start, end, 'operator'))
+
+            elif kind == 'punctuation':
+                tokens.append(HighlightToken(start, end, 'punctuation'))
+
+        return tokens
