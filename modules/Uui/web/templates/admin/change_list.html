@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+{% block breadcrumb %}
+<a href="/admin/">Home</a> &rsaquo; <a href="/admin/{{ app_label }}/">{{ app_label }}</a> &rsaquo; {{ admin.verbose_name_plural }}
+{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ title }}</h1>
+  {% if admin.has_add_permission %}
+  <a class="btn btn-primary" href="/admin/{{ app_label }}/{{ model_name }}/add/">+ Add {{ admin.verbose_name }}</a>
+  {% endif %}
+</div>
+
+<form method="get" class="toolbar" style="margin-bottom:12px;">
+  <input type="text" name="q" value="{{ search or '' }}" placeholder="Search..." style="max-width:280px; padding:6px 10px; border:1px solid #d0d7de; border-radius:6px;">
+  <button class="btn" type="submit">Search</button>
+</form>
+
+<table>
+<thead>
+<tr>
+  {% for col in list_display %}<th>{{ col }}</th>{% endfor %}
+  <th style="width: 120px;"></th>
+</tr>
+</thead>
+<tbody>
+{% for item in items %}
+<tr>
+  {% for col in list_display %}
+  <td>{{ item|attr(col) if col != '__str__' else item }}</td>
+  {% endfor %}
+  <td>
+    <a href="/admin/{{ app_label }}/{{ model_name }}/{{ item.id }}/change/">Edit</a>
+    ·
+    <a href="/admin/{{ app_label }}/{{ model_name }}/{{ item.id }}/delete/" style="color:#cf222e;">Delete</a>
+  </td>
+</tr>
+{% else %}
+<tr><td colspan="{{ list_display|length + 1 }}"><em>No items.</em></td></tr>
+{% endfor %}
+</tbody>
+</table>
+
+<div class="pagination">
+  <span>{{ total }} item{{ '' if total == 1 else 's' }}</span>
+  {% if page > 1 %}<a href="?p={{ page - 1 }}">&laquo;</a>{% endif %}
+  <span class="current">{{ page }} / {{ total_pages }}</span>
+  {% if page < total_pages %}<a href="?p={{ page + 1 }}">&raquo;</a>{% endif %}
+</div>
+{% endblock %}

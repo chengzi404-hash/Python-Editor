@@ -112,32 +112,36 @@ class CppSuggestionExpert(SuggestionExpert):
         current_line = lines[line_no] if line_no < len(lines) else ''
         before_cursor = current_line[:col]
 
-        word_start = col
-        while word_start > 0 and (current_line[word_start - 1].isalnum() or current_line[word_start - 1] == '_' or current_line[word_start - 1] == ':'):
-            word_start -= 1
-        prefix = current_line[word_start:col]
-
-        if word_start > 0 and current_line[word_start - 1] == '.':
-            obj_end = word_start - 1
-            obj_start = obj_end - 1
-            while obj_start >= 0 and (current_line[obj_start].isalnum() or current_line[obj_start] == '_'):
-                obj_start -= 1
-            obj_name = current_line[obj_start + 1:obj_end]
-            suggestions = self._suggest_attributes(block, line_no, obj_name)
-        elif word_start > 0 and word_start > 1 and current_line[word_start - 2:word_start] == '->':
-            obj_end = word_start - 2
-            obj_start = obj_end - 1
-            while obj_start >= 0 and (current_line[obj_start].isalnum() or current_line[obj_start] == '_'):
-                obj_start -= 1
-            obj_name = current_line[obj_start + 1:obj_end]
-            suggestions = self._suggest_attributes(block, line_no, obj_name)
-        elif word_start > 0 and current_line[word_start - 1] == ':' and word_start > 1 and current_line[word_start - 2] == ':':
+        if col >= 2 and current_line[col - 2:col] == '::':
+            prefix = ''
             suggestions = self._suggest_scope(block, line_no)
         else:
-            suggestions = self._suggest_names(block, line_no)
+            word_start = col
+            while word_start > 0 and (current_line[word_start - 1].isalnum() or current_line[word_start - 1] == '_'):
+                word_start -= 1
+            prefix = current_line[word_start:col]
 
-        if prefix:
-            suggestions = [s for s in suggestions if s.startswith(prefix)]
+            if word_start >= 2 and current_line[word_start - 2:word_start] == '::':
+                suggestions = self._suggest_scope(block, line_no)
+            elif word_start > 0 and current_line[word_start - 1] == '.':
+                obj_end = word_start - 1
+                obj_start = obj_end - 1
+                while obj_start >= 0 and (current_line[obj_start].isalnum() or current_line[obj_start] == '_'):
+                    obj_start -= 1
+                obj_name = current_line[obj_start + 1:obj_end]
+                suggestions = self._suggest_attributes(block, line_no, obj_name)
+            elif word_start > 0 and word_start > 1 and current_line[word_start - 2:word_start] == '->':
+                obj_end = word_start - 2
+                obj_start = obj_end - 1
+                while obj_start >= 0 and (current_line[obj_start].isalnum() or current_line[obj_start] == '_'):
+                    obj_start -= 1
+                obj_name = current_line[obj_start + 1:obj_end]
+                suggestions = self._suggest_attributes(block, line_no, obj_name)
+            else:
+                suggestions = self._suggest_names(block, line_no)
+
+            if prefix:
+                suggestions = [s for s in suggestions if s.startswith(prefix)]
 
         return sorted(set(suggestions))
 

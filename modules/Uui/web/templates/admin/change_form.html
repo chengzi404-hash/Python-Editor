@@ -1,0 +1,42 @@
+{% extends "admin/base.html" %}
+{% block breadcrumb %}
+<a href="/admin/">Home</a> &rsaquo;
+<a href="/admin/{{ app_label }}/">{{ app_label }}</a> &rsaquo;
+<a href="/admin/{{ app_label }}/{{ model_name }}/">{{ admin.verbose_name_plural }}</a> &rsaquo;
+{% if obj %}{{ obj }}{% else %}Add{% endif %}
+{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+
+{% if errors %}
+<div class="errors">
+  <strong>Please correct the errors below.</strong>
+  <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="post" action="">
+  <input type="hidden" name="_action" value="save">
+  {% for f in fields %}
+  <div class="row">
+    <label for="id_{{ f }}">{{ f }}</label>
+    {% set fld = admin.opts.fields[f] %}
+    {% if fld.__class__.__name__ == 'BooleanField' %}
+      <input type="checkbox" id="id_{{ f }}" name="{{ f }}" value="1"
+             {% if form_data[f] %}checked{% endif %}>
+    {% elif fld.__class__.__name__ == 'TextField' %}
+      <textarea id="id_{{ f }}" name="{{ f }}">{{ form_data[f] or '' }}</textarea>
+    {% else %}
+      <input type="text" id="id_{{ f }}" name="{{ f }}" value="{{ form_data[f] or '' }}">
+    {% endif %}
+  </div>
+  {% endfor %}
+  <div class="actions">
+    <button type="submit" class="btn btn-primary">Save</button>
+    {% if obj %}
+    <a class="btn btn-danger" href="/admin/{{ app_label }}/{{ model_name }}/{{ obj.id }}/delete/">Delete</a>
+    {% endif %}
+    <a class="btn" href="/admin/{{ app_label }}/{{ model_name }}/">Cancel</a>
+  </div>
+</form>
+{% endblock %}

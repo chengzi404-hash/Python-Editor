@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% block breadcrumb %}
+<a href="/admin/">Home</a> &rsaquo;
+<a href="/admin/{{ app_label }}/">{{ app_label }}</a> &rsaquo;
+<a href="/admin/{{ app_label }}/{{ model_name }}/">{{ admin.verbose_name_plural }}</a> &rsaquo;
+<a href="/admin/{{ app_label }}/{{ model_name }}/{{ obj.id }}/change/">{{ obj }}</a> &rsaquo; Delete
+{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p>Are you sure you want to delete &ldquo;{{ obj }}&rdquo;? This action cannot be undone.</p>
+<form method="post" action="">
+  <div class="actions">
+    <button type="submit" class="btn btn-danger">Yes, delete</button>
+    <a class="btn" href="/admin/{{ app_label }}/{{ model_name }}/{{ obj.id }}/change/">Cancel</a>
+  </div>
+</form>
+{% endblock %}

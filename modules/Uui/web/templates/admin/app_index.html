@@ -1,0 +1,12 @@
+{% extends "admin/base.html" %}
+{% block breadcrumb %}
+<a href="/admin/">Home</a> &rsaquo; {{ app_label }}
+{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+<ul>
+  {% for m in models %}
+  <li><a href="/admin/{{ m.app_label }}/{{ m.model_name }}/">{{ m.verbose_name_plural }}</a></li>
+  {% endfor %}
+</ul>
+{% endblock %}

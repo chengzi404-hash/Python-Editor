@@ -136,7 +136,7 @@ class CcppHighlighterExpert(HighlighterExpert):
                     if last_struct_class is not None:
                         between = code[last_struct_class:start]
                         if between.strip() == '':
-                            type_ = 'class' if code[start - 7:start] == 'class ' else 'struct'
+                            type_ = 'class' if start >= 6 and code[start - 6:start] == 'class ' else 'struct'
                             tokens.append(HighlightToken(start, end, type_))
                             last_struct_class = None
                             continue

@@ -1,0 +1,61 @@
+name: Bug 报告
+description: 报告问题以帮助我们改进
+labels: bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您抽出时间填写此 bug 报告！
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug 描述
+      description: 清晰描述 bug 是什么。
+      placeholder: 在此描述 bug...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 复现 bug 的步骤。
+      placeholder: |
+        1. 进入 '...'
+        2. 点击 '...'
+        3. 看到错误
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      description: 你期望发生什么。
+      placeholder: 期望行为...
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 实际发生了什么。
+      placeholder: 实际行为...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 软件版本号。
+      placeholder: 例如 1.0.0
+  - type: input
+    id: os
+    attributes:
+      label: 操作系统
+      description: 发生 bug 的操作系统。
+      placeholder: 例如 Windows 10, macOS, Linux
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      description: 任何错误消息或日志。
+      placeholder: 在此粘贴错误日志...
