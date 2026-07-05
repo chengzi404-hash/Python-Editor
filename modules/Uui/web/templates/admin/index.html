@@ -1,0 +1,16 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="apps">
+  {% for app_label, models in apps.items() %}
+  <div class="app-card">
+    <h2>{{ app_label }}</h2>
+    <ul>
+      {% for m in models %}
+      <li><a href="{{ m.url }}">{{ m.name }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

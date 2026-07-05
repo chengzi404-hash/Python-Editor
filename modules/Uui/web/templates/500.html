@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Server error</title>
+<style>
+body { font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
+       display: flex; align-items: center; justify-content: center;
+       min-height: 100vh; margin: 0; background: #1f1f1f; color: #d4d4d4; }
+.container { text-align: center; max-width: 640px; padding: 24px; }
+h1 { font-size: 96px; font-weight: 200; margin: 0; color: #f48771; }
+h2 { font-weight: 400; color: #858585; margin: 0 0 24px; }
+pre { text-align: left; background: #0d0d0d; border: 1px solid #3a3a3a;
+      border-radius: 6px; padding: 16px; overflow-x: auto;
+      font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+a { color: #7eb6ff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>500</h1>
+  <h2>Internal server error</h2>
+  {% if message %}<p style="color:#d4d4d4;">{{ message }}</p>{% endif %}
+  {% if traceback %}<pre>{{ traceback }}</pre>{% endif %}
+  <p><a href="/">← Go home</a></p>
+</div>
+</body>
+</html>

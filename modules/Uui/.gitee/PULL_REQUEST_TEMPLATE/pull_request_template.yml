@@ -1,0 +1,50 @@
+name: Pull Request
+description: 提交更改到项目
+labels:
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您提交 pull request！请填写以下模板。
+  - type: textarea
+    id: description
+    attributes:
+      label: 描述
+      description: 简要说明此 PR 的内容。
+      placeholder: PR 描述...
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: 变更类型
+      options:
+        - Bug 修复
+        - 新功能
+        - 代码重构
+        - 文档更新
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: related
+    attributes:
+      label: 相关 Issue
+      description: 关联的 Issue 链接（例如 "Closes #123"）。
+      placeholder: 关联的 issue #...
+  - type: textarea
+    id: testing
+    attributes:
+      label: 测试说明
+      description: 描述你执行的测试。
+      placeholder: 测试详情...
+  - type: textarea
+    id: checklist
+    attributes:
+      label: 检查清单
+      description: 确保满足所有要求
+      placeholder: |
+        - [ ] 代码符合项目风格规范
+        - [ ] 代码已测试
+        - [ ] 文档已更新（如需要）
+        - [ ] 无破坏性变更（或在下方说明）

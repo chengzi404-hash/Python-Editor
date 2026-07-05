@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 问题咨询
+    url: https://gitee.com/your-org/your-repo/discussions
+    about: 请在此处提问和回答问题。

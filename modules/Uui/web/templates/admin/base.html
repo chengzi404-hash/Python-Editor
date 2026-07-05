@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}{{ title|default('Uui admin') }}{% endblock %}</title>
+<style>
+:root { color-scheme: light dark; }
+body { font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
+       margin: 0; background: #f5f6f8; color: #1f2328; }
+header { background: #1f2328; color: #fff; padding: 12px 24px; }
+header a { color: #fff; text-decoration: none; margin-right: 16px; }
+header h1 { display: inline; font-size: 18px; font-weight: 600; margin: 0; }
+nav { background: #2a2e36; color: #cdd9e5; padding: 8px 24px; font-size: 13px; }
+nav .crumb { color: #cdd9e5; }
+nav .crumb a { color: #7eb6ff; text-decoration: none; }
+main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+h1, h2 { color: #1f2328; }
+table { width: 100%; border-collapse: collapse; background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); border-radius: 8px; overflow: hidden; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eef0f3; font-size: 14px; }
+th { background: #f9fafb; font-weight: 600; }
+tr:hover { background: #fafbfd; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.btn { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 13px;
+       border: 1px solid #d0d7de; background: #fff; color: #1f2328; cursor: pointer; }
+.btn:hover { background: #f3f4f6; }
+.btn-primary { background: #0969da; color: #fff; border-color: #0969da; }
+.btn-primary:hover { background: #0860c7; }
+.btn-danger { background: #cf222e; color: #fff; border-color: #cf222e; }
+.btn-danger:hover { background: #b51a25; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.pagination { margin-top: 16px; display: flex; gap: 8px; }
+.pagination a, .pagination span { padding: 4px 10px; border: 1px solid #d0d7de; border-radius: 4px;
+                                 font-size: 13px; color: #1f2328; }
+.pagination .current { background: #0969da; color: #fff; border-color: #0969da; }
+form .row { margin-bottom: 12px; }
+form label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 13px; }
+form input[type=text], form input[type=email], form input[type=password], form textarea, form select {
+    width: 100%; max-width: 480px; padding: 6px 10px; border: 1px solid #d0d7de; border-radius: 6px;
+    font-size: 14px; background: #fff;
+}
+form textarea { min-height: 120px; font-family: inherit; }
+.errors { background: #ffebe9; border: 1px solid #cf222e; color: #82071e;
+          padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
+.errors ul { margin: 0; padding-left: 20px; }
+.actions { margin-top: 20px; display: flex; gap: 8px; }
+.apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.app-card { background: #fff; border-radius: 8px; padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.app-card h2 { margin: 0 0 8px 0; font-size: 14px; color: #57606a; text-transform: uppercase; }
+.app-card ul { list-style: none; padding: 0; margin: 0; }
+.app-card li { padding: 6px 0; border-bottom: 1px solid #eef0f3; }
+.app-card li:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+<header>
+<a href="/admin/"><h1>Uui administration</h1></a>
+{% if user.is_authenticated %}
+<span style="float:right; font-size:13px;">
+  {{ user.username }} ·
+  <a href="/admin/logout/">Log out</a>
+</span>
+{% endif %}
+</header>
+<nav>
+<span class="crumb">
+{% block breadcrumb %}
+<a href="/admin/">Home</a>
+{% endblock %}
+</span>
+</nav>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

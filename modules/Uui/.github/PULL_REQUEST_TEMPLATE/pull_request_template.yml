@@ -1,0 +1,50 @@
+name: Pull Request
+description: Submit changes to the project
+labels:
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for submitting a pull request! Please fill out the template below.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A brief description of what this PR does.
+      placeholder: PR description...
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type of Change
+      options:
+        - Bug fix
+        - New feature
+        - Code refactoring
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: related
+    attributes:
+      label: Related Issues
+      description: Link any related issues (e.g., "Closes #123").
+      placeholder: Related issue #...
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing Done
+      description: Describe the testing you performed.
+      placeholder: Testing details...
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Checklist
+      description: Ensure all requirements are met
+      placeholder: |
+        - [ ] Code follows project style guidelines
+        - [ ] Code has been tested
+        - [ ] Documentation updated (if needed)
+        - [ ] No breaking changes (or describe them below)
