@@ -14,7 +14,7 @@ class DOMScope:
     varibles: list
     functions: list
     classes: list
-    subDOM: list[DOMScope]
+    subDOM: "list[DOMScope]"
 
 class SuggestionExpert(ABC):
     def __init__(self) -> None:
