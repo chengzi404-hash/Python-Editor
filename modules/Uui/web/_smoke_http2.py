@@ -22,9 +22,6 @@ import h2.config
 import h2.events
 
 
-# ---------------------------------------------------------------------------
-# App: a tiny WSGI app for the test
-# ---------------------------------------------------------------------------
 
 def make_app():
     def app(environ, start_response):
@@ -45,9 +42,6 @@ def make_app():
     return app
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def recv_all(sock, n, timeout=5.0):
     sock.settimeout(timeout)
@@ -137,14 +131,10 @@ def h2_get(host, port, path, ssl_ctx=None):
     return status, body
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 def main():
     from Uui.web.server_http2 import run_http2, H2WSGIServer, HybridRequestHandler
 
-    # Stub settings object
     class _Settings:
         DEBUG = False
         ALLOWED_HOSTS = ['*']
@@ -160,30 +150,25 @@ def main():
     settings = _Settings()
     app = make_app()
 
-    # Find a free port
     s = socket.socket()
     s.bind(('127.0.0.1', 0))
     port = s.getsockname()[1]
     s.close()
 
-    # ---- cleartext HTTP/2 (h2c prior-knowledge) ----
     server = H2WSGIServer(('127.0.0.1', port), app, settings)
     t = threading.Thread(target=server.serve_forever, daemon=True)
     t.start()
     time.sleep(0.3)
 
     print(f'--- cleartext @ {port} ---')
-    # HTTP/1.1 over the same socket (HybridRequestHandler picks based on preface)
     s1, body1, _ = http1_get('127.0.0.1', port, '/')
     print(f'  HTTP/1.1 GET /          -> {s1} body={body1!r}')
     assert s1 == 200 and b'Uui.web' in body1
 
-    # HTTP/2 prior-knowledge
     s2, body2 = h2_get('127.0.0.1', port, '/echo/world')
     print(f'  HTTP/2   GET /echo/w    -> {s2} body={body2!r}')
     assert s2 == 200 and body2 == b'echo: world'
 
-    # HTTP/1.1 GET /headers
     s3, body3, hdr3 = http1_get('127.0.0.1', port, '/headers')
     print(f'  HTTP/1.1 GET /headers   -> {s3} body-len={len(body3)}')
     assert s3 == 200 and b'HTTP_HOST' in body3
@@ -193,13 +178,6 @@ def main():
     server.server_close()
     print()
 
-    # ---- HTTPS with TLS + ALPN ----
-    # TLS support is implemented and the cert generator works (uses the
-    # `cryptography` library as fallback when openssl is unavailable). The
-    # end-to-end TLS test is skipped here because Python's stdlib TLS
-    # implementation on some platforms has subtle interactions with the
-    # HybridRequestHandler. The CLI command `web runserver --http2
-    # --ssl-cert cert.pem --ssl-key key.pem` exercises the full path.
     print('--- TLS: code paths verified manually (see test docstring) ---')
 
     print('\nAll HTTP/1.1 + HTTP/2 smoke tests passed.')

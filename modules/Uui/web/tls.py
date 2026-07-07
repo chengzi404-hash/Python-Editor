@@ -92,7 +92,6 @@ def generate_self_signed_cert(cn: str = 'localhost',
     except ImportError:
         pass
 
-    # Last-ditch: try the pure-Python generator
     from .tls_pyfallback import generate_self_signed_cert as _gen
     return _gen(cn=cn, cert_path=cert_path, key_path=key_path)
 

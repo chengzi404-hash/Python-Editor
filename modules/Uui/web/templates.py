@@ -82,8 +82,6 @@ class Jinja2Backend(TemplateBackend):
             p = Path(app_file).parent / rel
             if p.is_dir():
                 search_paths.append(str(p))
-        # Add Uui.web's own templates directory so built-in admin/auth views
-        # can find their templates.
         own_templates = Path(__file__).parent / 'templates'
         if own_templates.is_dir():
             search_paths.append(str(own_templates))

@@ -15,9 +15,6 @@ from modules.checker import Checker, Output, OutputRow
 from modules.checker.base import Checker as DirectChecker
 
 
-# ---------------------------------------------------------------------------
-# OutputRow
-# ---------------------------------------------------------------------------
 
 
 class TestOutputRow:
@@ -44,9 +41,6 @@ class TestOutputRow:
             assert row.level == level
 
 
-# ---------------------------------------------------------------------------
-# Output
-# ---------------------------------------------------------------------------
 
 
 class TestOutput:
@@ -81,9 +75,6 @@ class TestOutput:
         assert out.row[0].level == "notice"
 
 
-# ---------------------------------------------------------------------------
-# Checker
-# ---------------------------------------------------------------------------
 
 
 class TestChecker:
@@ -95,7 +86,6 @@ class TestChecker:
 
     def test_subclass_without_check_cannot_instantiate(self) -> None:
         class Partial(Checker):
-            # 未实现 check
             pass
 
         with pytest.raises(TypeError):

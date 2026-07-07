@@ -63,9 +63,6 @@ class ModelMeta(type):
         }
 
         for fname, fld in fields.items():
-            # contribute_to_class will be called again later with the
-            # real class; this pre-pass lets fields know their attname
-            # / column so they can be stored in attrs.
             fld.attname = fname
             fld.column = fld.db_column or fname
             attrs[fname] = fld

@@ -71,9 +71,6 @@ NUMERIC_PROPS = {'x', 'y', 'width', 'height', 'maximum', 'value', 'from_', 'to'}
 BOOL_PROPS = {'show_value'}
 
 
-# ---------------------------------------------------------------------------
-# Palette groups (Qt Creator's Widget Box style)
-# ---------------------------------------------------------------------------
 
 WIDGET_GROUPS = [
     ('Layouts',      []),
@@ -104,9 +101,6 @@ WIDGET_ICON = {**WIDGET_ICON,
                'USlider':      '━'}
 
 
-# ---------------------------------------------------------------------------
-# Property groups (Qt Creator's Property Editor style)
-# ---------------------------------------------------------------------------
 
 COMMON_GEOMETRY = ['x', 'y', 'width', 'height']
 COMMON_OBJECT   = ['name']
@@ -129,7 +123,6 @@ TYPE_PROPS = {
                      ('Code',  ['command'])],
 }
 
-# Property human labels
 PROP_LABELS = {
     'name': 'objectName',
     'x': 'X', 'y': 'Y',
@@ -150,9 +143,6 @@ PROP_LABELS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Small helpers
-# ---------------------------------------------------------------------------
 
 class _FlatButton(tk.Frame):
     """Compact flat button used in the toolbar (icon + hover state)."""
@@ -301,9 +291,6 @@ class _SidebarTabBar(tk.Frame):
             self._command(idx)
 
 
-# ---------------------------------------------------------------------------
-# Designer
-# ---------------------------------------------------------------------------
 
 class DesignerApp(Window):
     def __init__(self, project_file=None):
@@ -347,9 +334,6 @@ class DesignerApp(Window):
 
         self.protocol('WM_DELETE_WINDOW', self._on_close)
 
-    # ------------------------------------------------------------------
-    # Menu + global bindings
-    # ------------------------------------------------------------------
 
     def _create_menu(self):
         self._menubar = UMenuBar(self)
@@ -392,9 +376,6 @@ class DesignerApp(Window):
         self.bind('<Delete>', lambda e: self._delete_selected())
         self.bind('<F2>', lambda e: self._rename_widget(self._selected_id) if self._selected_id else None)
 
-    # ------------------------------------------------------------------
-    # Toolbar
-    # ------------------------------------------------------------------
 
     def _create_toolbar(self):
         self._toolbar = tk.Frame(self, bg=theme.BG_TITLE, height=32)
@@ -463,9 +444,6 @@ class DesignerApp(Window):
             self._canvas_outer.config(bg=theme.BG_INPUT)
             self._redraw_checker()
 
-    # ------------------------------------------------------------------
-    # Body (3-pane PanedWindow)
-    # ------------------------------------------------------------------
 
     def _create_body(self):
         self._body = UFrame(self, variant='base')
@@ -496,9 +474,6 @@ class DesignerApp(Window):
         self._right_paned.add(self._center_outer, minsize=320, stretch='always')
         self._right_paned.add(self._right_frame, minsize=220, width=300)
 
-    # ------------------------------------------------------------------
-    # Left sidebar: Widget Box + Object Explorer
-    # ------------------------------------------------------------------
 
     def _build_left_sidebar(self):
         self._left_frame = UFrame(self._left_paned, variant='panel')
@@ -776,9 +751,6 @@ class DesignerApp(Window):
         self._explorer_page.pack(fill=tk.BOTH, expand=True)
         self._refresh_explorer()
 
-    # ------------------------------------------------------------------
-    # Center: canvas + form surface
-    # ------------------------------------------------------------------
 
     def _build_center(self):
         self._center_outer = UFrame(self._body, variant='base')
@@ -903,9 +875,6 @@ class DesignerApp(Window):
         self._canvas.config(scrollregion=(0, 0, self._surface_width + 40, self._surface_height + 40))
         self.after(50, self._redraw_checker)
 
-    # ------------------------------------------------------------------
-    # Right sidebar: Properties + Actions
-    # ------------------------------------------------------------------
 
     def _build_right_sidebar(self):
         self._right_frame = UFrame(self._right_paned, variant='panel')
@@ -1008,9 +977,6 @@ class DesignerApp(Window):
             UButton(self._actions_page, text=label, variant='ghost',
                     command=cmd).pack(fill=tk.X, padx=12, pady=3)
 
-    # ------------------------------------------------------------------
-    # Status bar
-    # ------------------------------------------------------------------
 
     def _create_status_bar(self):
         self._status_bar = tk.Frame(self, bg=theme.BG_TITLE, height=22)
@@ -1074,9 +1040,6 @@ class DesignerApp(Window):
         self._status_left.config(text=message)
         self.after(2000, lambda: self._status_left.config(text='Ready'))
 
-    # ------------------------------------------------------------------
-    # Property editing
-    # ------------------------------------------------------------------
 
     def _add_property_section(self, section_title: str, names):
         section = _PanelSection(self._props_inner, section_title)
@@ -1191,9 +1154,6 @@ class DesignerApp(Window):
         self._refresh_selection()
         self._update_status_bar()
 
-    # ------------------------------------------------------------------
-    # Title / geometry / theme
-    # ------------------------------------------------------------------
 
     def _set_title(self, value):
         self._window_title = value or 'Untitled'
@@ -1232,9 +1192,6 @@ class DesignerApp(Window):
             fg=theme.GREEN if self._mode == 'preview' else theme.BLUE,
         )
 
-    # ------------------------------------------------------------------
-    # Widget lifecycle
-    # ------------------------------------------------------------------
 
     def _new_project(self):
         self._clear_widgets()
@@ -1605,9 +1562,6 @@ class DesignerApp(Window):
             return value
         return str(value).lower() in ('true', '1', 'yes', 'on')
 
-    # ------------------------------------------------------------------
-    # Save / load / export
-    # ------------------------------------------------------------------
 
     def _load_xml(self, path):
         try:
@@ -1862,9 +1816,6 @@ class DesignerApp(Window):
             safe = 'w_' + safe
         return safe
 
-    # ------------------------------------------------------------------
-    # Misc
-    # ------------------------------------------------------------------
 
     def _reset_layout(self):
         self.geometry('1320x800+60+40')

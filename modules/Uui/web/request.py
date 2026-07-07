@@ -28,15 +28,11 @@ class URequest:
         self._method: str = environ.get('REQUEST_METHOD', 'GET').upper()
         self._query: Optional[List[Tuple[str, str]]] = None
         self.state: Dict[str, Any] = {}
-        # Middleware may attach pre-resolved user/session via environ
         if 'uui.user' in environ:
             self.state['user'] = environ['uui.user']
         if 'uui.session' in environ:
             self.state['session'] = environ['uui.session']
 
-    # ------------------------------------------------------------------
-    # Basic attributes
-    # ------------------------------------------------------------------
 
     @property
     def method(self) -> str:
@@ -78,9 +74,6 @@ class URequest:
         except (TypeError, ValueError):
             return 0
 
-    # ------------------------------------------------------------------
-    # Headers
-    # ------------------------------------------------------------------
 
     @property
     def headers(self) -> Dict[str, str]:
@@ -91,9 +84,6 @@ class URequest:
     def get_header(self, name: str, default: Optional[str] = None) -> Optional[str]:
         return self.headers.get(name.lower(), default)
 
-    # ------------------------------------------------------------------
-    # Query string
-    # ------------------------------------------------------------------
 
     @property
     def GET(self) -> Dict[str, object]:
@@ -107,9 +97,6 @@ class URequest:
                 return v
         return default
 
-    # ------------------------------------------------------------------
-    # Body
-    # ------------------------------------------------------------------
 
     @property
     def body(self) -> bytes:
@@ -133,17 +120,11 @@ class URequest:
             self._json = _parse_json(self.body, self.content_type)
         return self._json
 
-    # ------------------------------------------------------------------
-    # Cookies
-    # ------------------------------------------------------------------
 
     @property
     def cookies(self) -> Dict[str, str]:
         return _parse_cookies(self._environ.get('HTTP_COOKIE', ''))
 
-    # ------------------------------------------------------------------
-    # Misc
-    # ------------------------------------------------------------------
 
     @property
     def is_secure(self) -> bool:
@@ -156,9 +137,6 @@ class URequest:
     def __repr__(self) -> str:
         return f'<URequest {self._method} {self._path!r}>'
 
-    # ------------------------------------------------------------------
-    # Middleware conveniences
-    # ------------------------------------------------------------------
 
     @property
     def session(self):
@@ -177,9 +155,6 @@ class URequest:
         self.state['user'] = value
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _parse_headers(environ: Mapping[str, Any]) -> Dict[str, str]:
     headers: Dict[str, str] = {}

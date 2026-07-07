@@ -14,9 +14,6 @@ from .app import get_application
 SCAFFOLD_TEMPLATES = 'D:/Code/Uui/web/_scaffold'
 
 
-# ---------------------------------------------------------------------------
-# `web new` — scaffold a project
-# ---------------------------------------------------------------------------
 
 PROJECT_LAYOUT = {
     'manage.py': '''#!/usr/bin/env python

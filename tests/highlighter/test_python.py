@@ -15,9 +15,6 @@ import pytest
 from modules.highlighter import HighlightBlock, HighlightToken, PythonHighlighterExpert
 
 
-# ---------------------------------------------------------------------------
-# 工具函数
-# ---------------------------------------------------------------------------
 
 
 def _token_types(result: HighlightBlock) -> list[str]:
@@ -35,9 +32,6 @@ def _snippet(token: HighlightToken, code: str) -> str:
     return code[token.start:token.end]
 
 
-# ---------------------------------------------------------------------------
-# 基础接口
-# ---------------------------------------------------------------------------
 
 
 class TestPythonHighlighterExpertBasics:
@@ -67,9 +61,6 @@ class TestPythonHighlighterExpertBasics:
         assert result.tokens == []
 
 
-# ---------------------------------------------------------------------------
-# 关键字 / 内建名 / 标识符
-# ---------------------------------------------------------------------------
 
 
 class TestKeywordAndBuiltin:
@@ -103,9 +94,6 @@ class TestKeywordAndBuiltin:
         assert _token_types(result) == ["keyword"]
 
 
-# ---------------------------------------------------------------------------
-# def / class 后的名称
-# ---------------------------------------------------------------------------
 
 
 class TestDefAndClass:
@@ -137,7 +125,6 @@ class TestDefAndClass:
         result = expert.highlight(HighlightBlock(code=code))
 
         kinds = _token_types(result)
-        # async / def 都是 keyword;紧接着是 function
         assert "function" in kinds
         assert kinds.index("keyword") < kinds.index("function")
 
@@ -164,7 +151,6 @@ class TestDefAndClass:
 
         kinds = _token_types(result)
         assert "function" not in kinds
-        # foo 应被识别为 identifier
         ids = _tokens_of_type(result, "identifier")
         assert ids and _snippet(ids[0], code) == "foo"
 
@@ -185,9 +171,6 @@ class TestDefAndClass:
         assert _snippet(decorators[0], code) == "@module.decorator"
 
 
-# ---------------------------------------------------------------------------
-# 字符串
-# ---------------------------------------------------------------------------
 
 
 class TestString:
@@ -222,9 +205,6 @@ class TestString:
         assert "comment" in kinds
 
 
-# ---------------------------------------------------------------------------
-# 注释
-# ---------------------------------------------------------------------------
 
 
 class TestComment:
@@ -245,9 +225,6 @@ class TestComment:
         assert _snippet(comments[0], code).startswith("#")
 
 
-# ---------------------------------------------------------------------------
-# 数值
-# ---------------------------------------------------------------------------
 
 
 class TestNumber:
@@ -281,9 +258,6 @@ class TestNumber:
         assert _snippet(numbers[0], "1_000_000") == "1"
 
 
-# ---------------------------------------------------------------------------
-# 运算符与标点
-# ---------------------------------------------------------------------------
 
 
 class TestOperatorAndPunctuation:
@@ -323,9 +297,6 @@ class TestOperatorAndPunctuation:
         assert _token_types(result) == ["operator"]
 
 
-# ---------------------------------------------------------------------------
-# 端到端示例
-# ---------------------------------------------------------------------------
 
 
 class TestEndToEnd:
@@ -340,15 +311,12 @@ class TestEndToEnd:
         result = expert.highlight(HighlightBlock(code=code))
         kinds = _token_types(result)
 
-        # 关键类型都应至少出现一次
         for expected in ("keyword", "function", "identifier", "string", "punctuation", "operator"):
             assert expected in kinds, f"missing token type: {expected}"
 
-        # function 名必须是 ``greet``
         funcs = _tokens_of_type(result, "function")
         assert funcs and _snippet(funcs[0], code) == "greet"
 
-        # docstring 应被识别为字符串
         strings = _tokens_of_type(result, "string")
         assert any(_snippet(t, code).startswith('"""') for t in strings)
         assert any(_snippet(t, code).startswith('f"') for t in strings)
@@ -373,7 +341,6 @@ class TestEndToEnd:
         expert = PythonHighlighterExpert()
         original = HighlightBlock(code="def foo():\n    pass\n", tokens=None)
         _ = expert.highlight(original)
-        # 入参的 tokens 不应被填充
         assert original.tokens is None
 
     def test_token_snippets_concatenate_back_to_source(self) -> None:
@@ -383,9 +350,7 @@ class TestEndToEnd:
         result = expert.highlight(HighlightBlock(code=code))
         assert result.tokens
 
-        # 拼接所有 token 切片
         joined = "".join(code[t.start:t.end] for t in sorted(result.tokens, key=lambda t: t.start))
-        # 源码中非空字符都应被覆盖(空白可能没被覆盖,因为正则不匹配空白)
         non_ws_source = [c for c in code if not c.isspace()]
         non_ws_joined = [c for c in joined if not c.isspace()]
         assert non_ws_joined == non_ws_source

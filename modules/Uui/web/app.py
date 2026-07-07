@@ -39,9 +39,6 @@ def get_application(settings_path: Optional[str] = None) -> 'UWSGIApp':
     return UWSGIApp(settings)
 
 
-# ---------------------------------------------------------------------------
-# UWSGIApp
-# ---------------------------------------------------------------------------
 
 class UWSGIApp:
     """A WSGI-compliant application object. Wrap a :class:`UWSGIApp` with
@@ -52,7 +49,6 @@ class UWSGIApp:
         self.settings = settings
         self._router: Optional[URLRouter] = None
         self._middleware: List[Callable] = []
-        # Auto-configure database backends
         try:
             from .orm import connection as _db
             _db.configure(settings)
@@ -63,9 +59,6 @@ class UWSGIApp:
         global _GLOBAL_APP
         _GLOBAL_APP = self
 
-    # ------------------------------------------------------------------
-    # Setup
-    # ------------------------------------------------------------------
 
     def _init_middleware(self) -> None:
         for path in reversed(getattr(self.settings, 'MIDDLEWARE', []) or []):
@@ -87,9 +80,6 @@ class UWSGIApp:
         with the inner WSGI app when :meth:`wsgi` is called."""
         self._middleware.append(mw_class)
 
-    # ------------------------------------------------------------------
-    # WSGI
-    # ------------------------------------------------------------------
 
     def __call__(self, environ: Mapping[str, Any], start_response: Callable) -> List[bytes]:
         try:
@@ -138,9 +128,6 @@ class UWSGIApp:
             pass
         return _respond(start_response, error(404, str(exc)))
 
-    # ------------------------------------------------------------------
-    # Middleware application helper
-    # ------------------------------------------------------------------
 
     def wsgi(self) -> Callable:
         """Return a fully-wrapped WSGI callable (middleware applied).
@@ -158,9 +145,6 @@ class UWSGIApp:
         return self.__call__(environ, start_response)
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _import(path: str) -> Any:
     try:

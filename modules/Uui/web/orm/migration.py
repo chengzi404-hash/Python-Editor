@@ -37,9 +37,6 @@ class MigrationEngine:
     def __init__(self, apps_dir: str = 'apps') -> None:
         self.apps_dir = apps_dir
 
-    # ------------------------------------------------------------------
-    # Discovery
-    # ------------------------------------------------------------------
 
     def list_migrations(self, app: Optional[str] = None) -> List[Tuple[str, str, Path]]:
         """Return ``(app, migration_id, path)`` tuples sorted by id."""
@@ -71,9 +68,6 @@ class MigrationEngine:
             marker = 'X' if f'{a}.{mid}' in applied else ' '
             print(f'  [{marker}] {a}.{mid}')
 
-    # ------------------------------------------------------------------
-    # Application
-    # ------------------------------------------------------------------
 
     def run(self, app: Optional[str] = None) -> List[str]:
         backend = _conn.get_backend()
@@ -97,9 +91,6 @@ class MigrationEngine:
             new.append(key)
         return new
 
-    # ------------------------------------------------------------------
-    # Internals
-    # ------------------------------------------------------------------
 
     def _ensure_table(self, backend) -> None:
         backend.ensure_migrations_table()
@@ -159,7 +150,6 @@ def generate_migration(app: str, name: str = 'initial') -> Dict[str, Any]:
     the ORM registry — no project file is required.
     """
     import importlib
-    # Try to import the app's models module for side effects (e.g. signals).
     try:
         importlib.import_module(f'apps.{app}.models')
     except ImportError:

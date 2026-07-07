@@ -35,9 +35,6 @@ def _find_admin(request, parts: List[str]):
     return s, app_label, None
 
 
-# ---------------------------------------------------------------------------
-# Views
-# ---------------------------------------------------------------------------
 
 @staff_member_required
 def index(request):
@@ -208,7 +205,6 @@ def _save_form(request, admin, obj):
     errors: List[str] = []
     form_data: Dict[str, Any] = {}
     for fname in fields:
-        # POST may return list (multi-value) — flatten
         raw = request.POST.get(fname, '')
         if isinstance(raw, list):
             value = raw[0] if raw else ''

@@ -145,5 +145,4 @@ class PostgresqlBackend(Backend):
         ''')
 
     def convert_param(self, value: Any) -> Any:
-        # PostgreSQL accepts native bool and datetime values.
         return value

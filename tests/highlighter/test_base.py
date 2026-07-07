@@ -19,9 +19,6 @@ from modules.highlighter import (
 from modules.highlighter.base import HighlighterExpert as DirectHighlighterExpert
 
 
-# ---------------------------------------------------------------------------
-# HighlightToken
-# ---------------------------------------------------------------------------
 
 
 class TestHighlightToken:
@@ -54,9 +51,6 @@ class TestHighlightToken:
             HighlightToken(end=1, type="x")  # type: ignore[call-arg]
 
 
-# ---------------------------------------------------------------------------
-# HighlightBlock
-# ---------------------------------------------------------------------------
 
 
 class TestHighlightBlock:
@@ -86,9 +80,6 @@ class TestHighlightBlock:
         assert block.tokens is None
 
 
-# ---------------------------------------------------------------------------
-# HighlighterExpert
-# ---------------------------------------------------------------------------
 
 
 class TestHighlighterExpert:
@@ -102,7 +93,6 @@ class TestHighlighterExpert:
         """只实现 ``highlight`` 时,``get_languange_exts`` 仍是抽象的,无法实例化。"""
 
         class Partial(HighlighterExpert):
-            # 只覆盖 highlight,保留 get_languange_exts 为抽象
             def highlight(self, block: HighlightBlock) -> HighlightBlock:  # type: ignore[override]
                 return block
 
@@ -113,7 +103,6 @@ class TestHighlighterExpert:
         """只实现 ``get_languange_exts`` 时,``highlight`` 仍是抽象的,无法实例化。"""
 
         class Partial(HighlighterExpert):
-            # 只覆盖 get_languange_exts,保留 highlight 为抽象
             def get_languange_exts(self) -> list:  # type: ignore[override]
                 return ["x"]
 

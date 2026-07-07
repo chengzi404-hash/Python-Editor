@@ -196,7 +196,6 @@ class ForeignKey(Field):
         return self.to
 
 
-# Shortcut constants
 CASCADE = 'CASCADE'
 SET_NULL = 'SET_NULL'
 PROTECT = 'PROTECT'

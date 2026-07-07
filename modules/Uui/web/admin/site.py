@@ -75,5 +75,4 @@ class AdminSite:
         )
 
 
-# Default site singleton
 site = AdminSite()

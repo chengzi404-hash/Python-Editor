@@ -150,7 +150,6 @@ class OracleBackend(Backend):
         if limit is not None:
             sql += f' FETCH NEXT {int(limit)} ROWS ONLY'
         elif offset is not None:
-            # OFFSET requires FETCH in Oracle.
             sql += ' FETCH NEXT 9223372036854775807 ROWS ONLY'
         return sql
 
@@ -202,7 +201,6 @@ class OracleBackend(Backend):
         if isinstance(value, bool):
             return 1 if value else 0
         if isinstance(value, str):
-            # Oracle bind variables work best with native datetime objects.
             try:
                 if re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?', value):
                     return datetime.fromisoformat(value)

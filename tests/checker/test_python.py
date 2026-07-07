@@ -31,9 +31,6 @@ from modules.checker.python import (
 )
 
 
-# ---------------------------------------------------------------------------
-# 工具:伪 subprocess.run
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -43,7 +40,6 @@ class FakeProc:
     returncode: int = 0
     stdout: str = ""
     stderr: str = ""
-    # 如果指定,run() 直接抛出对应异常
     raise_exc: BaseException | None = None
 
 
@@ -67,16 +63,11 @@ def _make_run_script(
     return fake_run
 
 
-# ---------------------------------------------------------------------------
-# 临时文件工具
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
 def tmp_python_file(tmp_path):
     """返回一个简单合法 Python 文件的路径(无扩展名的盘符前缀)。"""
-    # 在 Windows 下绝对路径包含 ``C:``,与 flake8 / pyright 输出格式中的 ``:`` 冲突,
-    # 因此这里使用 POSIX 风格相对路径来构造输出。
     path = tmp_path / "ok.py"
     path.write_text("x = 1\n", encoding="utf-8")
     return str(path)
@@ -96,9 +87,6 @@ def tmp_bad_syntax_file(tmp_path):
     return str(path)
 
 
-# ---------------------------------------------------------------------------
-# Flake8Checker
-# ---------------------------------------------------------------------------
 
 
 class TestFlake8CheckerCodeToLevel:
@@ -140,9 +128,6 @@ class TestFlake8CheckerRuntime:
     def test_parses_flake8_lines(
         self, monkeypatch: pytest.MonkeyPatch, tmp_python_file: str, fake_path: str
     ) -> None:
-        # flake8 的 ``%(path)s:%(row)d:%(col)d: %(code)s %(text)s`` 格式中,
-        # ``path`` 会包含 ``C:\\`` 这种盘符前缀(在 Windows 上),会干扰按 ``:`` 切分。
-        # 因此测试用不含 ``:`` 的占位路径,真实环境下输出路径匹配实际文件即可。
         stdout = (
             f"{fake_path}:1:1: E501 line too long\n"
             f"{fake_path}:2:5: W291 trailing whitespace\n"
@@ -232,9 +217,6 @@ class TestFlake8CheckerRuntime:
         assert out.row[0].level == "warning"
 
 
-# ---------------------------------------------------------------------------
-# PyrightChecker
-# ---------------------------------------------------------------------------
 
 
 class TestPyrightCheckerRuntime:
@@ -337,9 +319,6 @@ class TestPyrightCheckerRuntime:
         assert levels == ["error", "warning", "info"]
 
 
-# ---------------------------------------------------------------------------
-# CPythonChecker
-# ---------------------------------------------------------------------------
 
 
 class TestCPythonCheckerRuntime:
@@ -356,8 +335,6 @@ class TestCPythonCheckerRuntime:
     ) -> None:
         bad = tmp_path / "runtime_err.py"
         bad.write_text("raise ValueError('boom')\n", encoding="utf-8")
-        # 实现中只过滤以两个空格 + ``File "`` 开头的行,
-        # 因此这里精确模拟同样格式。
         stderr = (
             "Traceback (most recent call last):\n"
             f'  File "{bad}", line 1, in <module>\n'
@@ -366,10 +343,8 @@ class TestCPythonCheckerRuntime:
         _make_run_script(monkeypatch, [FakeProc(returncode=1, stdout="", stderr=stderr)])
         out = CPythonChecker().check(str(bad))
         messages = [r.message for r in out.row]
-        # Traceback 与 File 行被过滤,只保留 ``ValueError: boom``
         assert "ValueError: boom" in messages
         assert not any("Traceback" in m for m in messages)
-        # 实现过滤 ``  File "..."  ``(两空格)开头的行
         assert not any(m.startswith('  File "') for m in messages)
 
     def test_timeout_returns_error_message(
@@ -390,7 +365,6 @@ class TestCPythonCheckerRuntime:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path
     ) -> None:
         missing = tmp_path / "missing.py"
-        # 不需要 mock subprocess,因为 FileNotFoundError 会在读取阶段抛出
         out = CPythonChecker().check(str(missing))
         assert len(out.row) == 1
         assert out.row[0].level == "error"
@@ -426,13 +400,9 @@ class TestCPythonCheckerRuntime:
         cmd = captured["cmd"]
         assert cmd[0] == sys.executable
         assert cmd[1:3] == ["-c", "x = 1\n"]
-        # 默认 30 秒超时
         assert captured["kwargs"].get("timeout") == 30
 
 
-# ---------------------------------------------------------------------------
-# 常量
-# ---------------------------------------------------------------------------
 
 
 class TestConstants:

@@ -21,9 +21,6 @@ from modules.suggestion.base import (
 )
 
 
-# ---------------------------------------------------------------------------
-# SuggestionBlock
-# ---------------------------------------------------------------------------
 
 
 class TestSuggestionBlock:
@@ -51,9 +48,6 @@ class TestSuggestionBlock:
             SuggestionBlock(code="x")  # type: ignore[call-arg]
 
 
-# ---------------------------------------------------------------------------
-# DOMScope
-# ---------------------------------------------------------------------------
 
 
 class TestDOMScope:
@@ -95,9 +89,6 @@ class TestDOMScope:
         assert s1 != s3
 
 
-# ---------------------------------------------------------------------------
-# SuggestionExpert
-# ---------------------------------------------------------------------------
 
 
 class TestSuggestionExpert:
@@ -107,7 +98,6 @@ class TestSuggestionExpert:
 
     def test_must_implement_suggest(self) -> None:
         class Partial(SuggestionExpert):
-            # 只实现 get_languange_exts,suggest 仍是抽象
             def get_languange_exts(self) -> list:  # type: ignore[override]
                 return ["x"]
 
@@ -135,9 +125,6 @@ class TestSuggestionExpert:
         assert c.suggest(SuggestionBlock(code="", position=0)) == []
 
 
-# ---------------------------------------------------------------------------
-# 包级 __init__ / 占位 c、cpp 文件
-# ---------------------------------------------------------------------------
 
 
 class TestPackageInit:

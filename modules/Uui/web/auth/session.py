@@ -54,9 +54,6 @@ class SessionStore:
         if not self._loaded:
             self._load()
 
-    # ------------------------------------------------------------------
-    # Mapping protocol
-    # ------------------------------------------------------------------
 
     def __getitem__(self, key: str) -> Any:
         self._ensure_loaded()
@@ -96,9 +93,6 @@ class SessionStore:
         self._data = {}
         self._modified = True
 
-    # ------------------------------------------------------------------
-    # Persistence
-    # ------------------------------------------------------------------
 
     def save(self) -> str:
         if not self._key:
@@ -132,9 +126,6 @@ class SessionStore:
         self._modified = False
 
 
-# ---------------------------------------------------------------------------
-# Serialisation helpers
-# ---------------------------------------------------------------------------
 
 def _serialize(data: Dict[str, Any]) -> str:
     import json
@@ -155,9 +146,6 @@ def _json_default(obj: Any) -> Any:
     raise TypeError(f'Not JSON serialisable: {type(obj).__name__}')
 
 
-# ---------------------------------------------------------------------------
-# Middleware
-# ---------------------------------------------------------------------------
 
 class SessionMiddleware:
     """WSGI middleware that attaches a :class:`SessionStore` to every request
@@ -174,13 +162,10 @@ class SessionMiddleware:
         cookies = _parse_cookies(environ.get('HTTP_COOKIE', ''))
         key = cookies.get(self.cookie_name)
         store = SessionStore(session_key=key, age_seconds=self.age)
-        # Expose the session store via environ so AuthenticationMiddleware
-        # (and views) can read it without re-parsing cookies.
         environ['uui.session'] = store
         environ['uui._session_old_key'] = key
 
         def _start(status, headers, exc_info=None):
-            # Inject Set-Cookie if session was modified and key changed
             if (store._modified or (store._key is None and bool(store._data))):
                 new_key = store.save()
                 old_key = environ.get('uui._session_old_key')

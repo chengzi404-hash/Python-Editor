@@ -37,9 +37,6 @@ class QuerySet:
         self._distinct: bool = False
         self._select: List[str] = []
 
-    # ------------------------------------------------------------------
-    # Query building
-    # ------------------------------------------------------------------
 
     def filter(self, **kwargs) -> 'QuerySet':
         clone = self._clone()
@@ -78,9 +75,6 @@ class QuerySet:
         clone._select = list(fields)
         return clone
 
-    # ------------------------------------------------------------------
-    # Terminal operations
-    # ------------------------------------------------------------------
 
     def all(self) -> List[Any]:
         return self._fetch()
@@ -166,9 +160,6 @@ class QuerySet:
         backend.execute(sql, tuple(values) + tuple(params))
         return -1
 
-    # ------------------------------------------------------------------
-    # SQL rendering
-    # ------------------------------------------------------------------
 
     def _build_sql(self, count: bool = False) -> Tuple[str, list]:
         backend = _conn.get_backend()
@@ -277,9 +268,6 @@ class QuerySet:
         return f'<QuerySet model={self._model.__name__}>'
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _parse_lookup(key: str, value: Any) -> Tuple[str, Tuple[str, Any]]:
     if '__' in key:

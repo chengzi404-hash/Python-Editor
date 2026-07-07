@@ -3,7 +3,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from .exceptions import Http404, Http405, ImproperlyConfigured
 
 
-# Path converters. Each maps a name to (regex, parser).
 PathConverter = Tuple[str, Callable[[str], Any]]
 
 CONVERTERS: Dict[str, PathConverter] = {
@@ -54,9 +53,6 @@ def _compile_pattern(pattern: str) -> Tuple[Any, List[str], Dict[str, Callable[[
     return _regex_lib.compile(full), param_names, converters
 
 
-# ---------------------------------------------------------------------------
-# Route representation
-# ---------------------------------------------------------------------------
 
 class Route:
     """A single URL pattern. Created by :func:`path` and :func:`include`."""
@@ -122,9 +118,6 @@ class Include:
         self._prefix: str = ''
 
 
-# ---------------------------------------------------------------------------
-# Router
-# ---------------------------------------------------------------------------
 
 class URLRouter:
     """Compiles a list of routes and sub-includes into a single resolver."""
@@ -149,9 +142,6 @@ class URLRouter:
             return
         if not isinstance(r, Route):
             raise ImproperlyConfigured(f'urlconf item must be Route or Include, got {type(r).__name__}')
-        # Compile against the route's own pattern (without our prefix) so
-        # ``match`` can be called with the sub-path that the parent router
-        # passes after stripping its prefix.
         compiled, params, converters = _compile_pattern(r.pattern)
         r._compiled = compiled
         r._params = params
@@ -174,17 +164,14 @@ class URLRouter:
             sub_path = path
         if not sub_path.startswith('/'):
             sub_path = '/' + sub_path
-        # Strip trailing slashes for consistent matching (but keep '/')
         if sub_path != '/':
             sub_path = sub_path.rstrip('/') or '/'
 
-        # Fast exact lookup
         try:
             route = self._exact_single[sub_path]
             return route.view, route.match(sub_path) or {}, {}
         except KeyError:
             pass
-        # Fall back to list-based exact (preserved for duplicate paths)
         candidates = self._exact.get(sub_path)
         if candidates:
             for route in candidates:
@@ -207,9 +194,6 @@ class URLRouter:
         raise Http404(f'No route matches {path!r}')
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 _INCLUDE_CACHE: Dict[str, 'URLRouter'] = {}
 

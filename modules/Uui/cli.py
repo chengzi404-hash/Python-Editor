@@ -231,9 +231,6 @@ def _py_repr(value) -> str:
     return repr(value)
 
 
-# ---------------------------------------------------------------------------
-# Terminal styling + interactive prompts
-# ---------------------------------------------------------------------------
 
 class _C:
     RESET = '\033[0m'
@@ -418,9 +415,6 @@ def _validate_geometry(value: str) -> str:
     return value
 
 
-# ---------------------------------------------------------------------------
-# Version-control helpers
-# ---------------------------------------------------------------------------
 
 def _detect_vcs_tools() -> list:
     import shutil
@@ -431,9 +425,6 @@ def _detect_vcs_tools() -> list:
     return found
 
 
-# ---------------------------------------------------------------------------
-# Python environment detection / creation
-# ---------------------------------------------------------------------------
 
 def _probe_python(path: str) -> str:
     """Return a 'X.Y.Z' version string for a python executable, or ''."""
@@ -693,9 +684,6 @@ def _init_svn(project_dir: str) -> None:
     print('    ' + _c(_C.CYAN, f'svn add {project_dir}-wc && svn commit -m "initial scaffold"'))
 
 
-# ---------------------------------------------------------------------------
-# `new` command (interactive + non-interactive)
-# ---------------------------------------------------------------------------
 
 def cmd_new(args: argparse.Namespace) -> int:
     if args.name:
@@ -880,8 +868,6 @@ def _new_apply(*, name: str, title: str, theme: str, geometry: str,
         print()
         _success(f'Project ready at {_c(_C.BOLD, name + "/")}')
 
-        # venv first so the gitignore (written by git init) correctly
-        # excludes it from the initial commit.
         if env_choice is not None:
             _create_python_env(name, env_choice)
 

@@ -9,7 +9,6 @@ from .exceptions import ImproperlyConfigured
 
 _STATUS_TEXT = _status_text
 
-# Pre-computed "STATUS_CODE STATUS_TEXT" strings for the common cases
 _STATUS_LINE: Dict[int, str] = {
     code: f'{code} {_STATUS_TEXT.get(code, "")}' for code in range(100, 600)
 }
@@ -68,9 +67,6 @@ class UResponse:
         if 'content-length' not in hdrs:
             hdrs['content-length'] = str(sum(len(c) for c in self.body))
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     def set_header(self, name: str, value: str) -> 'UResponse':
         self.headers[name.lower()] = str(value)
@@ -89,9 +85,6 @@ class UResponse:
     def __iter__(self) -> Iterator[bytes]:
         return iter(self.body)
 
-    # ------------------------------------------------------------------
-    # WSGI
-    # ------------------------------------------------------------------
 
     def __call__(self, environ: Dict[str, Any], start_response) -> Iterable[bytes]:
         header_list: List[Tuple[str, str]] = []
@@ -112,9 +105,6 @@ class UResponse:
         return f'<UResponse status={self.status_code!r} body={len(self.content)} bytes>'
 
 
-# ---------------------------------------------------------------------------
-# Constructors
-# ---------------------------------------------------------------------------
 
 def _new(body: Union[str, bytes],
          status: int = 200,

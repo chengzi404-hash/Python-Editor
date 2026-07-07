@@ -60,9 +60,6 @@ class UTestClient:
         self.cookies: Dict[str, str] = {}
         self.defaults: Dict[str, str] = {}
 
-    # ------------------------------------------------------------------
-    # HTTP verbs
-    # ------------------------------------------------------------------
 
     def get(self, path: str, **kwargs) -> 'UResponse':
         return self._request('GET', path, **kwargs)
@@ -95,9 +92,6 @@ class UTestClient:
     def options(self, path: str, **kwargs) -> 'UResponse':
         return self._request('OPTIONS', path, **kwargs)
 
-    # ------------------------------------------------------------------
-    # Auth helpers
-    # ------------------------------------------------------------------
 
     def login(self, username: str, password: str,
               login_url: str = '/login/') -> 'UResponse':
@@ -113,9 +107,6 @@ class UTestClient:
     def set_cookie(self, name: str, value: str) -> None:
         self.cookies[name] = value
 
-    # ------------------------------------------------------------------
-    # Core
-    # ------------------------------------------------------------------
 
     def _request(self, method: str, path: str, *,
                  data: Optional[Any] = None,

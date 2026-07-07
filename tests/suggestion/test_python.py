@@ -25,9 +25,6 @@ from modules.suggestion.python import (
 )
 
 
-# ---------------------------------------------------------------------------
-# 基础接口
-# ---------------------------------------------------------------------------
 
 
 class TestBasicInterface:
@@ -43,14 +40,10 @@ class TestBasicInterface:
     def test_suggest_is_sorted_and_unique(self) -> None:
         """返回结果应去重并按字母序排序。"""
         expert = PythonSuggestionExpert()
-        # 用一个不带前缀的位置触发完整结果集
         result = expert.suggest(SuggestionBlock(code="\n", position=0))
         assert result == sorted(set(result))
 
 
-# ---------------------------------------------------------------------------
-# iter_classes / iter_function
-# ---------------------------------------------------------------------------
 
 
 class TestIterClassesAndFunctions:
@@ -90,9 +83,6 @@ class TestIterClassesAndFunctions:
         assert result == []
 
 
-# ---------------------------------------------------------------------------
-# find_domin
-# ---------------------------------------------------------------------------
 
 
 class TestFindDomin:
@@ -108,7 +98,6 @@ class TestFindDomin:
 
     def test_finds_top_level_class(self) -> None:
         code = "class A:\n    pass\nclass B:\n    pass\n"
-        # 第 0 行处于 ``class A`` 中
         root = PythonSuggestionExpert.find_domin(
             SuggestionBlock(code=code, position=0), position=0
         )
@@ -120,24 +109,17 @@ class TestFindDomin:
             "    class B:\n"      # line 1
             "        pass\n"      # line 2
         )
-        # ``find_domin`` 的 ``position`` 参数实际是 **行号**(作用域以 ``begin``/``end`` 行号为单位)。
-        # 第 1 行处于 ``class B`` 中。
         scope = PythonSuggestionExpert.find_domin(
             SuggestionBlock(code=code, position=0), position=1
         )
-        # 应当是 ``class B``
         assert scope.begin == 1
 
 
-# ---------------------------------------------------------------------------
-# 标识符补全
-# ---------------------------------------------------------------------------
 
 
 class TestIdentifierSuggestion:
     def test_includes_keywords(self) -> None:
         expert = PythonSuggestionExpert()
-        # 光标在一个全新行的开头(prefix 为空)
         result = expert.suggest(SuggestionBlock(code="\n", position=0))
         for kw in ("if", "else", "def", "class", "return"):
             assert kw in result, f"missing keyword: {kw}"
@@ -228,9 +210,6 @@ class TestIdentifierSuggestion:
         assert "runner" in result
 
 
-# ---------------------------------------------------------------------------
-# 属性补全
-# ---------------------------------------------------------------------------
 
 
 class TestAttributeSuggestion:
@@ -244,7 +223,6 @@ class TestAttributeSuggestion:
             "    def greet(self):\n"
             "        return self.\n"
         )
-        # 光标放在 ``.`` 之后(行尾)
         pos = code.index("self.\n") + len("self.")
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
@@ -312,9 +290,6 @@ class TestAttributeSuggestion:
         assert result == ["upper"]
 
 
-# ---------------------------------------------------------------------------
-# _extract_variables 直接测试
-# ---------------------------------------------------------------------------
 
 
 class TestExtractVariables:
@@ -328,7 +303,6 @@ class TestExtractVariables:
         """当前 ``_extract_variables`` 的正则只覆盖 ``var = ...`` 形式,
         不支持 ``a, b = 1, 2`` 这样的元组解包。"""
         vars_ = PythonSuggestionExpert._extract_variables("a, b = 1, 2", 0, 1)
-        # 不会提取任何变量(已知实现局限)
         assert vars_ == []
 
     def test_for_loop_variable(self) -> None:
@@ -353,9 +327,6 @@ class TestExtractVariables:
             assert arg in vars_
 
 
-# ---------------------------------------------------------------------------
-# 内置常量
-# ---------------------------------------------------------------------------
 
 
 class TestBuiltinConstants:
@@ -367,7 +338,6 @@ class TestBuiltinConstants:
 
     def test_builtin_functions_does_not_contain_classes(self) -> None:
         """``range`` / ``int`` / ``str`` 应当属于 BUILTIN_CLASSES 而非 FUNCTIONS。"""
-        # 这些是 type,放在 BUILTIN_CLASSES 里
         for name in ("range", "int", "str", "list", "dict"):
             assert name not in BUILTIN_FUNCTIONS
             assert name in BUILTIN_CLASSES
@@ -397,9 +367,6 @@ class TestBuiltinConstants:
             assert len(BUILTIN_ATTRS[type_name]) > 0
 
 
-# ---------------------------------------------------------------------------
-# 端到端示例(来自 API_DOCS.md)
-# ---------------------------------------------------------------------------
 
 
 class TestEndToEnd:
@@ -420,17 +387,14 @@ class TestEndToEnd:
 
         expert = PythonSuggestionExpert()
 
-        # 属性补全:self.| 位置(光标停在 ``.`` 之后)
         pos = source.index("self.") + len("self.")
         block = SuggestionBlock(code=source, position=pos)
         attr_result = expert.suggest(block)
         assert "greet" in attr_result
         assert "__init__" in attr_result
 
-        # 标识符补全:print(| 位置(prefix 为空,触发全部候选)
         pos2 = source.index("print(") + len("print(")
         block2 = SuggestionBlock(code=source, position=pos2)
         ident_result = expert.suggest(block2)
-        # print 自身的 builtin + Greeter 类名 + g 局部变量
         assert "Greeter" in ident_result
         assert "print" in ident_result

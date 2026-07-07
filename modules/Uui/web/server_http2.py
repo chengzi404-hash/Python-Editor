@@ -33,9 +33,6 @@ except ImportError:  # pragma: no cover
 from .exceptions import ImproperlyConfigured
 
 
-# ---------------------------------------------------------------------------
-# h2 settings helper
-# ---------------------------------------------------------------------------
 
 def _h2_config(settings: Any) -> 'h2.config.H2Configuration':
     if not H2_AVAILABLE:
@@ -48,9 +45,6 @@ def _h2_config(settings: Any) -> 'h2.config.H2Configuration':
     )
 
 
-# ---------------------------------------------------------------------------
-# WSGI -> HTTP/2 response adapter
-# ---------------------------------------------------------------------------
 
 _STATUS_REASONS = {
     200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',
@@ -81,11 +75,9 @@ def _build_http2_headers(status: str, headers: List[Tuple[str, str]]) -> List[Tu
             kl = k.lower().encode('ascii')
         else:
             kl = k.lower()
-        # Hop-by-hop headers must not be sent on HTTP/2
         if kl in (b'connection', b'keep-alive', b'proxy-connection',
                   b'transfer-encoding', b'upgrade'):
             continue
-        # 'length' is not a valid HTTP/2 header; map to content-length
         if kl == b'length':
             kl = b'content-length'
         if not kl.startswith(b':'):
@@ -94,9 +86,6 @@ def _build_http2_headers(status: str, headers: List[Tuple[str, str]]) -> List[Tu
     return out
 
 
-# ---------------------------------------------------------------------------
-# Streaming WSGI response -> byte chunks
-# ---------------------------------------------------------------------------
 
 def _consume_app_iter(app_iter: Any, chunks: List[bytes], max_bytes: int) -> int:
     """Pull bytes from a WSGI app iterable into ``chunks``. Stops if more than
@@ -128,9 +117,6 @@ def _consume_app_iter(app_iter: Any, chunks: List[bytes], max_bytes: int) -> int
     return total
 
 
-# ---------------------------------------------------------------------------
-# Per-stream state
-# ---------------------------------------------------------------------------
 
 class _H2Stream:
     """Coordinates one HTTP/2 stream through the WSGI app."""
@@ -162,14 +148,12 @@ class _H2Stream:
     def start_response(self, status: str, headers: List[Tuple[str, str]],
                        exc_info: Any = None) -> Callable[[bytes], None]:
         self.response_status = status
-        # Merge duplicate headers (Set-Cookie in particular)
         merged: List[Tuple[str, str]] = []
         for k, v in headers:
             kl = k.lower()
             if kl == 'set-cookie':
                 merged.append((k, v))
             else:
-                # collapse repeated headers (rare)
                 found = False
                 for i, (mk, mv) in enumerate(merged):
                     if mk.lower() == kl:
@@ -184,7 +168,6 @@ class _H2Stream:
 
     def finish_response(self, app_iter: Any, max_bytes: int) -> None:
         if not self.response_started:
-            # App forgot to call start_response. Synthesize a default.
             self.start_response('500 Internal Server Error',
                                 [('content-type', 'text/plain')])
         _consume_app_iter(app_iter, self.response_chunks, max_bytes)
@@ -193,9 +176,6 @@ class _H2Stream:
         return _build_http2_headers(self.response_status, self.response_headers)
 
 
-# ---------------------------------------------------------------------------
-# Per-connection state
-# ---------------------------------------------------------------------------
 
 class _H2Connection:
     """One h2 connection + the per-stream dict for the underlying socket."""
@@ -211,9 +191,6 @@ class _H2Connection:
         if out:
             self.sock.sendall(out)
 
-    # ------------------------------------------------------------------
-    # Low-level
-    # ------------------------------------------------------------------
 
     def _send(self, data: bytes = b'') -> None:
         if data:
@@ -242,9 +219,6 @@ class _H2Connection:
             return b''
         return data or b''
 
-    # ------------------------------------------------------------------
-    # WSGI bridge
-    # ------------------------------------------------------------------
 
     def _dispatch_stream(self, stream: _H2Stream) -> None:
         environ = self._build_environ(stream)
@@ -323,9 +297,6 @@ class _H2Connection:
             except (BrokenPipeError, ConnectionResetError, OSError):
                 pass
 
-    # ------------------------------------------------------------------
-    # Event loop
-    # ------------------------------------------------------------------
 
     def _handle_event(self, event: 'h2.events.Event') -> None:
         if isinstance(event, h2.events.RequestReceived):
@@ -346,16 +317,12 @@ class _H2Connection:
                 except Exception:
                     pass
         elif isinstance(event, h2.events.PingReceived):
-            # h2 handles ping ack automatically when we call data_to_send
             pass
         elif isinstance(event, h2.events.ConnectionTerminated):
             raise _H2Closed()
 
     def _on_headers(self, event: 'h2.events.RequestReceived') -> None:
         stream = _H2Stream(event.stream_id)
-        # Read pseudo-headers. h2 4.x returns strings when header_encoding
-        # is 'utf-8' (our default); older versions returned bytes. Normalise
-        # to bytes here so downstream code can assume one type.
         for k, v in event.headers:
             if isinstance(k, str):
                 k_bytes = k.lower().encode('ascii')
@@ -377,7 +344,6 @@ class _H2Connection:
                 stream.request_headers.append((k_bytes, v_bytes))
         self.streams[event.stream_id] = stream
         if not event.stream_ended:
-            # Wait for body via DataReceived
             return
         self._dispatch_stream(stream)
 
@@ -471,9 +437,6 @@ class _StreamInput:
         return iter([self.read()])
 
 
-# ---------------------------------------------------------------------------
-# Hybrid (h2 + h1) request handler
-# ---------------------------------------------------------------------------
 
 _HTTP2_PREFACE = b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'
 
@@ -496,7 +459,6 @@ class HybridRequestHandler:
         self.h1_handler.wsgi_app = wsgi_app
 
     def __call__(self, request: 'socket.socket', client_address: Any, server: Any) -> None:
-        # ALPN-selected protocol wins
         alpn = getattr(request, 'selected_alpn_protocol', lambda: None)()
         if alpn and alpn.startswith('h2'):
             self._serve_h2(request, client_address, server)
@@ -509,7 +471,6 @@ class HybridRequestHandler:
             self.h1_handler(request, client_address, server)
             return
 
-        # No TLS: peek first 24 bytes for the h2c client preface
         try:
             request.settimeout(2.0)
         except Exception:
@@ -525,7 +486,6 @@ class HybridRequestHandler:
                 pass
             self._serve_h2(request, client_address, server)
             return
-        # h2c via HTTP/1.1 Upgrade
         if (head.startswith(b'GET ') or head.startswith(b'POST ') or
                 head.startswith(b'PUT ') or head.startswith(b'DELETE ') or
                 head.startswith(b'HEAD ') or head.startswith(b'OPTIONS ')):
@@ -535,7 +495,6 @@ class HybridRequestHandler:
                 pass
             self.h1_handler(request, client_address, server)
             return
-        # Unknown traffic: give up
         try:
             request.close()
         except Exception:
@@ -560,9 +519,6 @@ class HybridRequestHandler:
                 pass
 
 
-# ---------------------------------------------------------------------------
-# Public server
-# ---------------------------------------------------------------------------
 
 class H2WSGIServer(ThreadingMixIn, WSGIServer):
     """A threaded WSGI server that supports HTTP/1.1 + HTTP/2 (h2c / h2)."""
@@ -575,8 +531,6 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
         self.settings = settings
         self._wsgi_app = wsgi_app
         self._ssl_context = ssl_context
-        # WSGIServer uses self.application as the WSGI app; set it so the
-        # wsgiref WSGIRequestHandler dispatches correctly.
         self.application = wsgi_app
         self.server_address = server_address
         self.socket = socket.socket(self.address_family, self.socket_type)
@@ -587,7 +541,6 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
         self.server_address = self.socket.getsockname()
         self.socket.listen(5)
         self._is_shut_down = threading.Event()
-        # Populate base_environ by reusing WSGIServer's setup logic.
         try:
             self.setup_environ()
         except Exception:
@@ -605,15 +558,10 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
     def get_request(self) -> Tuple[socket.socket, Any]:
         conn, addr = self.socket.accept()
         if self._ssl_context is not None:
-            # h2 / hyperframe / h2.connection.H2Connection need a plain socket
-            # that they can read raw bytes from. The TLS layer has already
-            # been unwrapped by the time get_request returns because we
-            # wrapped the listening socket in server_side=True mode.
             pass
         return conn, addr
 
     def finish_request(self, request: Any, client_address: Any) -> None:
-        # Pass the WSGI app to a per-request handler that decides h1 vs h2.
         handler = HybridRequestHandler(self._wsgi_app, self.settings)
         handler(request, client_address, self)
 
@@ -665,9 +613,6 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
             pass
 
 
-# ---------------------------------------------------------------------------
-# Convenience runners
-# ---------------------------------------------------------------------------
 
 def run_http2(host: str, port: int, settings: Any,
               ssl_certfile: str = '', ssl_keyfile: str = '',

@@ -43,9 +43,6 @@ class User(Model):  # type: ignore[misc]
         app = 'auth'
         table = 'auth_user'
 
-    # ------------------------------------------------------------------
-    # Python-side API (not stored in DB)
-    # ------------------------------------------------------------------
 
     @property
     def pk(self):  # type: ignore[override]

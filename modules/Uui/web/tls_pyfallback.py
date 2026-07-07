@@ -21,9 +21,6 @@ from pathlib import Path
 from typing import Tuple
 
 
-# ---------------------------------------------------------------------------
-# ASN.1 / DER helpers
-# ---------------------------------------------------------------------------
 
 def _b64(n: int) -> bytes:
     """Encode a positive integer as a DER INTEGER."""
@@ -56,9 +53,6 @@ def _encode_length(n: int) -> bytes:
     return b'\x83' + n.to_bytes(3, 'big')
 
 
-# ---------------------------------------------------------------------------
-# RSA key pair
-# ---------------------------------------------------------------------------
 
 def _is_probable_prime(n: int, rounds: int = 16) -> bool:
     if n < 2:
@@ -111,9 +105,6 @@ def _rsa_keypair(bits: int = 2048) -> Tuple[Tuple[int, int], Tuple[int, int, int
             return (e, n), (d, n, p, q)
 
 
-# ---------------------------------------------------------------------------
-# X.509
-# ---------------------------------------------------------------------------
 
 _OID_SIG_SHA256_RSA = b'\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x0b'
 _OID_RSA_ENCRYPTION = b'\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01'
@@ -122,18 +113,13 @@ _OID_SAN = b'\x06\x03\x55\x1d\x11'
 
 
 def _name(cn: str) -> bytes:
-    # AttributeTypeAndValue ::= SEQUENCE { type OID, value ANY }
-    # For commonName (OID 2.5.4.3), value is a UTF8String.
     atv = _seq(_OID_COMMON_NAME + b'\x0c' + bytes([len(cn.encode('utf-8'))]) + cn.encode('utf-8'))
-    # RelativeDistinguishedName ::= SET SIZE (1..MAX) OF AttributeTypeAndValue
     rdn = b'\x31' + _encode_length(len(atv)) + atv
-    # Name ::= SEQUENCE OF RelativeDistinguishedName
     return _seq(rdn)
 
 
 def _spki(e: int, n: int) -> bytes:
     rsa_pub = _seq(_b64(n), _b64(e))
-    # BIT STRING { 0x00 unused-bits, rsa_pub } — length includes the 0x00 byte
     bit_string_value = b'\x00' + rsa_pub
     algorithm = _seq(_OID_RSA_ENCRYPTION)
     return _seq(algorithm + b'\x03' + _encode_length(len(bit_string_value)) + bit_string_value)
@@ -147,13 +133,9 @@ def _validity(not_before: datetime.datetime, not_after: datetime.datetime) -> by
 
 
 def _extension_san(dns: str) -> bytes:
-    # GeneralName for dNSName (tag [2] IMPLICIT IA5String)
     san = b'\x82' + bytes([len(dns)]) + dns.encode('utf-8')
-    # SEQUENCE OF GeneralName
     san_seq = b'\x30' + _encode_length(len(san)) + san
-    # extnValue: OCTET STRING wrapping the SAN sequence
     octets = b'\x04' + _encode_length(len(san_seq)) + san_seq
-    # Extension ::= SEQUENCE { extnID, extnValue } (no critical => not critical)
     return _seq(_OID_SAN + octets)
 
 
@@ -175,7 +157,6 @@ def _tbs(cn: str, e: int, n: int, not_before: datetime.datetime,
 def _sign(tbs: bytes, d: int, n: int) -> bytes:
     import hashlib
     digest = hashlib.sha256(tbs).digest()
-    # DigestInfo :: SEQUENCE { AlgorithmIdentifier, OCTET STRING }
     alg_id = _seq(_OID_SIG_SHA256_RSA + b'\x05\x00')
     digest_info = _seq(alg_id + b'\x04' + bytes([len(digest)]) + digest)
     sig_int = pow(int.from_bytes(digest_info, 'big'), d, n)
@@ -193,7 +174,6 @@ def generate_self_signed_cert(cn: str = 'localhost',
 
     tbs = _tbs(cn, e, n, not_before, not_after)
     sig_value = _sign(tbs, d, n)
-    # Certificate ::= SEQUENCE { tbsCertificate, signatureAlgorithm, signatureValue }
     signature_algorithm = _seq(_OID_SIG_SHA256_RSA + b'\x05\x00')
     cert_der = _seq(tbs + signature_algorithm + sig_value)
 
@@ -201,7 +181,6 @@ def generate_self_signed_cert(cn: str = 'localhost',
     cert_pem += base64.encodebytes(cert_der)
     cert_pem += b'-----END CERTIFICATE-----\n'
 
-    # PKCS#1 RSAPrivateKey
     pkcs1 = _seq(
         b'\x02\x01\x00' + _b64(n2) + _b64(e) + _b64(d) +
         _b64(p) + _b64(q) +
