@@ -19,10 +19,15 @@ class UMenu:
         self._items.append(('check', label, shortcut, command,
                             variable if variable is not None else tk.BooleanVar()))
 
-    def add_radiobutton(self, label: str, value, variable: Optional[tk.StringVar] = None,
+    def add_radiobutton(self, label: str, value, variable: Optional[tk.Variable] = None,
                         command: Optional[Callable] = None, shortcut: str = ''):
         self._items.append(('radio', label, shortcut, command, value,
                             variable if variable is not None else tk.StringVar()))
+
+    def add_cascade(self, label: str) -> 'UMenu':
+        sub = UMenu()
+        self._items.append(('cascade', label, sub))
+        return sub
 
 
 class _MenuItemRow(tk.Frame):
@@ -40,6 +45,33 @@ class _MenuItemRow(tk.Frame):
         if kind == 'separator':
             self._sep_line = tk.Frame(self, bg=theme.BORDER, height=1)
             self._sep_line.pack(fill=tk.X, padx=8, pady=4)
+            return
+
+        if kind == 'cascade':
+            label, sub = args[0], args[1]
+            self.prefix = tk.Label(self, text='', bg=theme.BG_PANEL,
+                                   fg=theme.FG_PRIMARY, font=theme.MENU_FONT,
+                                   width=2, anchor='center')
+            self.prefix.pack(side=tk.LEFT, padx=(10, 0))
+
+            self.text = tk.Label(self, text=label, bg=theme.BG_PANEL,
+                                  fg=theme.FG_PRIMARY, font=theme.MENU_FONT, anchor='w')
+            self.text.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(6, 6), pady=3)
+
+            self.arrow = tk.Label(self, text='\u25B6', bg=theme.BG_PANEL,
+                                   fg=theme.FG_SECONDARY, font=theme.MENU_FONT, anchor='e',
+                                   width=2)
+            self.arrow.pack(side=tk.RIGHT, padx=(6, 10))
+
+            def on_click(e=None):
+                self._dropdown._open_submenu(self, sub)
+
+            for w in (self, self.prefix, self.text, self.arrow):
+                w.bind('<Button-1>', on_click)
+                w.bind('<Enter>', self._on_enter)
+                w.bind('<Leave>', self._on_leave)
+
+            self._widgets = (self.prefix, self.text, self.arrow)
             return
 
         label, shortcut, command = args[0], args[1], args[2]
@@ -136,6 +168,8 @@ class _MenuDropdown(tk.Toplevel):
         for it in items:
             if it[0] == 'separator':
                 h += _MenuItemRow._SEP_HEIGHT
+            elif it[0] == 'cascade':
+                h += _MenuItemRow._ITEM_HEIGHT
             else:
                 h += _MenuItemRow._ITEM_HEIGHT
         h += 4
@@ -169,6 +203,11 @@ class _MenuDropdown(tk.Toplevel):
                 _MenuItemRow(inner, 'check', item[1], item[2], item[3], item[4], dropdown=self)
             elif kind == 'radio':
                 _MenuItemRow(inner, 'radio', item[1], item[2], item[3], item[4], item[5], dropdown=self)
+            elif kind == 'cascade':
+                _MenuItemRow(inner, 'cascade', item[1], item[2], dropdown=self)
+
+    def _open_submenu(self, parent_item: _MenuItemRow, sub_menu: UMenu):
+        self._menu_bar._open_submenu_at(parent_item, sub_menu)
 
     def _apply_theme(self):
         try:
@@ -188,7 +227,9 @@ class UMenuBar(tk.Frame):
             bg = theme.BG_TITLE
         super().__init__(parent, bg=bg, highlightthickness=0, bd=0, **kwargs)
         self._open_dropdown: Optional[_MenuDropdown] = None
+        self._open_submenu_dropdown: Optional[_MenuDropdown] = None
         self._root_bind: Optional[str] = None
+        self._sub_root_bind: Optional[str] = None
         self._buttons: List[Tuple[tk.Label, UMenu]] = []
 
 
@@ -234,6 +275,19 @@ class UMenuBar(tk.Frame):
             self._root_bind = None
 
     def _close_dropdown(self):
+        if self._open_submenu_dropdown is not None:
+            try:
+                self._open_submenu_dropdown.destroy()
+            except tk.TclError:
+                pass
+            self._open_submenu_dropdown = None
+        if self._sub_root_bind is not None:
+            try:
+                top = self.winfo_toplevel()
+                top.unbind('<Button-1>', self._sub_root_bind)
+            except tk.TclError:
+                pass
+            self._sub_root_bind = None
         if self._open_dropdown is not None:
             try:
                 self._open_dropdown.destroy()
@@ -253,26 +307,95 @@ class UMenuBar(tk.Frame):
             except tk.TclError:
                 pass
 
+    def _open_submenu_at(self, parent_item: _MenuItemRow, sub_menu: UMenu):
+        if self._open_submenu_dropdown is not None:
+            try:
+                self._open_submenu_dropdown.destroy()
+            except tk.TclError:
+                pass
+            self._open_submenu_dropdown = None
+
+        top = self.winfo_toplevel()
+        sub = tk.Toplevel(top)
+        sub.overrideredirect(True)
+        sub.configure(bg=theme.BG_PANEL)
+
+        inner = tk.Frame(sub, bg=theme.BG_PANEL,
+                          highlightthickness=1, highlightbackground=theme.BORDER, bd=0)
+        inner.pack(fill=tk.BOTH, expand=True)
+
+        h = 4
+        for it in sub_menu._items:
+            if it[0] == 'separator':
+                h += _MenuItemRow._SEP_HEIGHT
+            else:
+                h += _MenuItemRow._ITEM_HEIGHT
+        h += 4
+
+        x = parent_item.winfo_rootx() + parent_item.winfo_width()
+        y = parent_item.winfo_rooty()
+        w = 220
+
+        sw = top.winfo_screenwidth()
+        sh = top.winfo_screenheight()
+        if y + h > sh:
+            y = max(0, sh - h)
+        if x + w > sw:
+            x = max(0, parent_item.winfo_rootx() - w)
+
+        sub.geometry(f'{w}x{h}+{x}+{y}')
+        sub.update_idletasks()
+
+        sub._menu_bar = self
+        sub._owner = parent_item
+
+        for item in sub_menu._items:
+            kind = item[0]
+            if kind == 'separator':
+                row = _MenuItemRow(inner, 'separator', dropdown=sub)
+            elif kind == 'command':
+                row = _MenuItemRow(inner, 'command', item[1], item[2], item[3], dropdown=sub)
+            elif kind == 'check':
+                row = _MenuItemRow(inner, 'check', item[1], item[2], item[3], item[4], dropdown=sub)
+            elif kind == 'radio':
+                row = _MenuItemRow(inner, 'radio', item[1], item[2], item[3], item[4], item[5], dropdown=sub)
+            elif kind == 'cascade':
+                row = _MenuItemRow(inner, 'cascade', item[1], item[2], dropdown=sub)
+
+        self._open_submenu_dropdown = sub
+        try:
+            self._sub_root_bind = top.bind('<Button-1>', self._on_root_click, add='+')
+        except tk.TclError:
+            self._sub_root_bind = None
+
     def _on_root_click(self, e: Optional[tk.Event] = None):
         dd = self._open_dropdown
-        if dd is None or e is None:
+        sub = self._open_submenu_dropdown
+        if dd is None and sub is None or e is None:
             return
         try:
-            if not dd.winfo_exists():
-                self._close_dropdown()
-                return
-            dx, dy = dd.winfo_rootx(), dd.winfo_rooty()
-            dw, dh = dd.winfo_width(), dd.winfo_height()
-            owner = dd._owner
-            bx, by = owner.winfo_rootx(), owner.winfo_rooty()
-            bw, bh = owner.winfo_width(), owner.winfo_height()
-            xr, yr = e.x_root, e.y_root
+            in_main = False
+            in_sub = False
+            in_owner = False
+            if dd is not None and dd.winfo_exists():
+                dx, dy = dd.winfo_rootx(), dd.winfo_rooty()
+                dw, dh = dd.winfo_width(), dd.winfo_height()
+                if dx <= e.x_root <= dx + dw and dy <= e.y_root <= dy + dh:
+                    in_main = True
+                owner = dd._owner
+                bx, by = owner.winfo_rootx(), owner.winfo_rooty()
+                bw, bh = owner.winfo_width(), owner.winfo_height()
+                if bx <= e.x_root <= bx + bw and by <= e.y_root <= by + bh:
+                    in_owner = True
+            if sub is not None and sub.winfo_exists():
+                sx, sy = sub.winfo_rootx(), sub.winfo_rooty()
+                sw, sh = sub.winfo_width(), sub.winfo_height()
+                if sx <= e.x_root <= sx + sw and sy <= e.y_root <= sy + sh:
+                    in_sub = True
         except tk.TclError:
             self._close_dropdown()
             return
-        if dx <= xr <= dx + dw and dy <= yr <= dy + dh:
-            return
-        if bx <= xr <= bx + bw and by <= yr <= by + bh:
+        if in_main or in_sub or in_owner:
             return
         self._close_dropdown()
 

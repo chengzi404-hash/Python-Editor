@@ -30,10 +30,15 @@ class WindowPlacement(ctypes.Structure):
 class Window(tk.Tk):
     def __init__(self, screenName: str | None = None, baseName: str | None = None,
                  className: str = "Tk", useTk: bool = True, sync: bool = False, use: str | None = None,
-                 title: str = "Uui Sample Window", title_font=None, debug: bool = False) -> None:
+                 title: str = "Uui Sample Window", title_font=None, debug: bool = False,
+                 custom_titlebar: bool = True) -> None:
+        self._custom_titlebar = custom_titlebar
         super().__init__(screenName, baseName, className, useTk, sync, use)
 
         super().title(title)
+
+        if not custom_titlebar:
+            return
 
         self.withdraw()
         self.update_idletasks()
@@ -41,7 +46,6 @@ class Window(tk.Tk):
         self._remove_title_bar()
         if sys.platform.startswith('win'):
             self._ensure_taskbar_button()
-        self.tk_setPalette(theme.BG_TITLE)
 
         self.drag_offset_x = 0
         self.drag_offset_y = 0
@@ -117,6 +121,8 @@ class Window(tk.Tk):
         ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, ex_style)
 
     def _show_window(self):
+        if not self._custom_titlebar:
+            return
         self._remove_title_bar()
         self.deiconify()
         self._remove_title_bar()
@@ -166,8 +172,9 @@ class Window(tk.Tk):
         return super().title()
 
     def _apply_theme(self):
+        if not self._custom_titlebar:
+            return
         try:
-            self.tk_setPalette(theme.BG_TITLE)
             self.config(bg=theme.BG_BASE)
             self._title_frame.config(bg=theme.BG_TITLE)
             self._dot_canvas.config(bg=theme.BG_TITLE)
