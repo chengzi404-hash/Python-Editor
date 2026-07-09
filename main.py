@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -17,6 +17,11 @@ from modules.suggestion import PythonSuggestionExpert, CSuggestionExpert, CppSug
 from modules.checker import Flake8Checker, PyrightChecker, CPythonChecker
 from modules.runner import RunResult, run_blocking, stream_command
 from modules.settings import SettingsManager, SettingsScope, SettingsChangeEvent
+from modules.plugins import (
+    PluginManager,
+    LanguageContribution,
+    HookEvents,
+)
 
 
 class _Debouncer:
@@ -162,6 +167,20 @@ class CodeEditor:
         self._build_output_panel()
         self._build_status_bar()
 
+        # 插件系统: 先建 manager, 在菜单/编辑器建好之后 attach,
+        # 这样插件注册的命令 / 语言可以立刻渲染到菜单和下拉框。
+        # Project 级插件在 _attach_project 时按需加载。
+        self._plugin_manager = PluginManager()
+        self._plugin_menus: Dict[str, Any] = {}
+        self._plugin_lang_combo_added: List[str] = []
+        self._plugin_manager.attach_editor(self)
+        try:
+            self._plugin_manager.load_global_plugins()
+        except Exception:
+            pass
+        self._refresh_plugin_menu()
+        self._refresh_plugin_languages()
+
         # 在所有控件都已构造后再注册 listener, 避免启动期触发未初始化控件。
         self._settings.add_listener(self._on_settings_changed)
 
@@ -305,6 +324,13 @@ class CodeEditor:
             return
         self._cancel_pending_highlight()
         self._cancel_pending_suggestions()
+        # 给插件一次"编辑器即将关闭"的回调, 适合保存状态/清理资源。
+        self._emit(HookEvents.EDITOR_CLOSING)
+        try:
+            self._plugin_manager.unload_all()
+        except Exception:
+            pass
+        self._plugin_manager.detach_editor()
         self._settings.detach_project()
         try:
             self._settings.save_all()
@@ -452,6 +478,12 @@ class CodeEditor:
         help_menu.add_command('关于', self._show_about)
         help_menu.add_command('检查更新...', self._check_updates)
         help_menu.add_command('报告问题...', self._report_issue)
+
+        # 插件菜单: 插件命令按 menu 分组作为子菜单挂在这里, 同时有
+        # "管理插件..." 进入插件管理窗口。该菜单在 _refresh_plugin_menu 里
+        # 重建, 这里只占位。
+        self._plugin_menu = self._menubar.add_cascade('插件(P)')
+        self._plugin_menu.add_command('管理插件...', self._open_plugin_manager)
 
     def _bind_shortcuts(self):
         self.window.bind('<Control-n>', lambda e: self._new_file())
@@ -673,6 +705,13 @@ class CodeEditor:
         # 此处刻意不触发, 避免对几十 MB 文本跑高亮)。
         if not is_large:
             self._apply_highlight()
+        # 通知插件文件已加载; 大文件在流式加载期间 _last_emit_code 还没刷新,
+        # 流式 path 自己负责在结束时强制发一次。
+        if is_large:
+            self._last_emit_code = None
+        else:
+            self._last_emit_code = self._editor.get('1.0', 'end-1c')
+        self._emit(HookEvents.EDITOR_FILE_OPENED, path)
 
     def _stream_insert_into_editor(self, path: str, total_size: int) -> None:
         """分块读取 ``path`` 并插入编辑器; 通过 ``after(1)`` 让 Tk 事件循环
@@ -730,6 +769,13 @@ class CodeEditor:
                 self._status_label.config(
                     text=f'Opened: {os.path.basename(path)}'
                 )
+                # 大文件流式加载完成: 把内容快照刷新, 让下次按键的
+                # content_changed 钩子能正确触发。
+                try:
+                    self._last_emit_code = self._editor.get('1.0', 'end-1c')
+                except tk.TclError:
+                    pass
+                self._emit(HookEvents.EDITOR_FILE_OPENED, path)
                 return
 
             # 'end-1c' 是隐式换行前的最后一个真实字符位置, chunk 插在它之前,
@@ -791,8 +837,14 @@ class CodeEditor:
         if hasattr(self, '_lang_tk_var') and self._lang_tk_var is not None:
             self._lang_tk_var.set(lang)
         config = LANG_CONFIG[lang]
-        self._highlighter = config['highlighter']()
-        self._suggestion_expert = config['suggestion']()
+        # 插件注册的语言存的是 factory, 而不是已实例化的类 — 这里统一
+        # 优先用 factory (动态), 没有再退回类构造 (内置)。
+        if 'highlighter_factory' in config:
+            self._highlighter = config['highlighter_factory']()
+            self._suggestion_expert = config['suggestion_factory']()
+        else:
+            self._highlighter = config['highlighter']()
+            self._suggestion_expert = config['suggestion']()
         self._lang_label.config(text=lang)
         # 切语言相当于"打开新的示例文本", 同样需要取消可能的 in-flight 大文件流
         # 并退出大文件模式(示例文本永远是小文件)。
@@ -803,6 +855,7 @@ class CodeEditor:
         self._editor._text.insert('1.0', config['sample'])
         self._apply_highlight()
         self._update_status()
+        self._emit(HookEvents.EDITOR_LANGUAGE_CHANGED, lang)
 
     def _on_lang_changed(self, value):
         self._switch_language(value)
@@ -812,6 +865,7 @@ class CodeEditor:
         self._schedule_highlight()
         if self._suggestions_enabled:
             self._schedule_suggestions()
+        self._emit_content_changed()
 
     def _schedule_highlight(self) -> None:
         """按 ``editor.highlight_delay_ms`` 防抖地触发高亮刷新。
@@ -871,9 +925,26 @@ class CodeEditor:
         # 保证停顿 _suggest_delay_ms 毫秒后才真正触发,避免连续点击时抖动。
         if self._suggestions_enabled:
             self._schedule_suggestions()
+        self._emit_cursor_moved()
 
     def _on_focus_in(self, event=None):
         self._update_status()
+        self._emit_cursor_moved()
+
+    def _emit_cursor_moved(self) -> None:
+        """发出光标位置变化事件, 但只在线号或列号真正变化时触发。"""
+
+        try:
+            cursor = self._editor._text.index(tk.INSERT)
+            line, col = cursor.split('.')
+            line_i, col_i = int(line), int(col)
+        except Exception:
+            return
+        last = getattr(self, '_last_cursor', None)
+        if last == (line_i, col_i):
+            return
+        self._last_cursor = (line_i, col_i)
+        self._emit(HookEvents.EDITOR_CURSOR_MOVED, line_i, col_i)
 
     def _apply_highlight(self):
         if self._large_file_mode:
@@ -991,7 +1062,9 @@ class CodeEditor:
         self._editor._text.delete('1.0', tk.END)
         self._current_file = None
         self._dirty = False
+        self._last_emit_code = ''
         self._status_label.config(text='New file')
+        self._emit(HookEvents.EDITOR_FILE_CREATED)
 
     def _open_file(self):
         if self._dirty and not messagebox.askyesno('未保存', '丢弃当前修改？'):
@@ -1059,6 +1132,7 @@ class CodeEditor:
             return
         self._dirty = False
         self._status_label.config(text=f'Saved: {os.path.basename(path)}')
+        self._emit(HookEvents.EDITOR_FILE_SAVED, path)
 
     def _undo(self):
         try:
@@ -1441,6 +1515,12 @@ class CodeEditor:
         root = os.path.abspath(root)
         if self._current_project_root == root:
             return
+        # 切项目: 先卸载旧项目的项目级插件, 再 attach 新项目, 再加载新插件。
+        # 顺序避免"加载新插件时还在用旧项目 settings"的混淆。
+        try:
+            self._plugin_manager.unload_project_plugins()
+        except Exception:
+            pass
         self._settings.detach_project()
         try:
             self._settings.attach_project(root)
@@ -1452,6 +1532,13 @@ class CodeEditor:
         tree = getattr(self, '_file_tree', None)
         if tree is not None:
             tree.set_root(root)
+        # 加载项目级插件 (<root>/plugins/)
+        try:
+            self._plugin_manager.load_project_plugins(root)
+        except Exception:
+            pass
+        self._refresh_plugin_menu()
+        self._refresh_plugin_languages()
 
     def _reset_settings(self):
         if not messagebox.askyesno('重置设置', '确认将全局设置恢复为默认值?', parent=self.window):
@@ -1467,6 +1554,214 @@ class CodeEditor:
             messagebox.showerror('重置失败', str(exc), parent=self.window)
             return
         self._status_label.config(text='Settings reset')
+
+    # ------------------------------------------------------------------
+    # 插件系统集成
+    # ------------------------------------------------------------------
+    #
+    # 以下方法给 :class:`PluginManager` 调用, 编辑器对外暴露一组受限接口:
+    #
+    # * :meth:`_add_plugin_command` —— 把插件命令挂到菜单。
+    # * :meth:`_add_plugin_language` —— 把插件声明的语言加入 LANG_CONFIG + 下拉框。
+    # * :meth:`_refresh_plugin_menu` —— 重建"插件"主菜单的子菜单 (命令分组)。
+    # * :meth:`_refresh_plugin_languages` —— 把插件语言重新同步到下拉框。
+    #
+    # 钩子事件通过 :meth:`_emit` 在编辑器关键节点发出 (打开/保存/内容变更等)。
+    #
+
+    def _emit(self, hook: str, *args: Any, **kwargs: Any) -> None:
+        """发出一个钩子事件给所有已订阅插件。
+
+        出错被吞掉, 单个坏插件不影响编辑器主流程。
+        """
+
+        manager = getattr(self, '_plugin_manager', None)
+        if manager is None:
+            return
+        try:
+            manager.emit(hook, *args, **kwargs)
+        except Exception:
+            pass
+
+    def _emit_content_changed(self) -> None:
+        """按当前编辑器内容是否真的发生变化来决定是否 emit content_changed。
+
+        简单的"最近一次 emit 的内容快照"对比 — 不依赖 Tk 的 edit_modified,
+        因为后者会因为 undo 之后还触发而误报。
+        """
+
+        if not hasattr(self, '_last_emit_code'):
+            self._last_emit_code = None
+        try:
+            code = self._editor.get('1.0', 'end-1c')
+        except tk.TclError:
+            return
+        if code == self._last_emit_code:
+            return
+        self._last_emit_code = code
+        try:
+            cursor = int(self._editor._text.index(tk.INSERT).split('.')[1])
+        except Exception:
+            cursor = 0
+        self._emit(HookEvents.EDITOR_CONTENT_CHANGED, code, cursor)
+
+    def _add_plugin_command(self, record: Any, cmd: Any) -> None:
+        """插件命令注册入口: 添加到 _plugin_menus 字典里, 由 ``_refresh_plugin_menu`` 渲染。"""
+
+        groups = self._plugin_menus.setdefault(cmd.menu, [])
+        # 同一个 (plugin_id, label) 已存在则跳过 (manager 已做防御, 这里双保险)
+        for existing in groups:
+            if existing['plugin_id'] == cmd.plugin_id and existing['label'] == cmd.label:
+                return
+        groups.append({
+            'plugin_id': cmd.plugin_id,
+            'label': cmd.label,
+            'callback': cmd.callback,
+            'shortcut': cmd.shortcut,
+        })
+
+    def _add_plugin_language(self, plugin_id: str, contrib: LanguageContribution) -> None:
+        """插件声明新语言: 加进 LANG_CONFIG + 下拉框。"""
+
+        if contrib.name in LANG_CONFIG:
+            # 已有同名语言 (内置或别的插件) → 拒绝
+            return
+        LANG_CONFIG[contrib.name] = {
+            'ext': contrib.ext,
+            'highlighter': type(contrib.highlighter_factory()),
+            'suggestion': type(contrib.suggestion_factory()),
+            'highlighter_factory': contrib.highlighter_factory,
+            'suggestion_factory': contrib.suggestion_factory,
+            'sample': contrib.sample,
+            'plugin_id': plugin_id,
+        }
+        if contrib.name not in self._plugin_lang_combo_added:
+            self._plugin_lang_combo_added.append(contrib.name)
+        self._lang_combo.set_values(list(LANG_CONFIG.keys()))
+
+    def _refresh_plugin_menu(self) -> None:
+        """重建插件主菜单: 按 ``menu`` 分组的子菜单 + 每条命令 + 末尾的"管理插件"。"""
+
+        menu = getattr(self, '_plugin_menu', None)
+        if menu is None:
+            return
+        menu._items.clear()
+        loaded = self._plugin_manager.list_loaded()
+        if not loaded:
+            menu.add_command('(尚未加载任何插件)', lambda: None)
+        else:
+            for rec in loaded:
+                status = '启用' if rec.enabled else '禁用'
+                err = f'  [错误: {rec.error}]' if rec.error else ''
+                menu.add_command(
+                    f'● {rec.manifest.name}  ({status}){err}',
+                    lambda r=rec: self._show_plugin_info(r),
+                )
+        menu.add_separator()
+        # 命令按 menu 分组
+        for group_name, items in self._plugin_menus.items():
+            sub = menu.add_cascade(group_name)
+            sub._items.clear()
+            if not items:
+                sub.add_command('(空)', lambda: None)
+                continue
+            for item in items:
+                label = item['label']
+                if item['shortcut']:
+                    label = f"{label}\t{item['shortcut']}"
+                sub.add_command(
+                    label,
+                    lambda cb=item['callback']: self._safe_run_plugin_command(cb),
+                )
+        menu.add_separator()
+        menu.add_command('管理插件...', self._open_plugin_manager)
+        menu.add_command('重新扫描插件目录', self._reload_all_plugins)
+
+    def _refresh_plugin_languages(self) -> None:
+        """同步下拉框: 把插件新增的语言值塞进去。"""
+
+        if not hasattr(self, '_lang_combo'):
+            return
+        self._lang_combo.set_values(list(LANG_CONFIG.keys()))
+
+    def _safe_run_plugin_command(self, callback: Any) -> None:
+        """包装一层 try/except, 避免插件崩溃搞坏编辑器。"""
+
+        try:
+            callback()
+        except Exception as exc:
+            self._append_output(f'[ERROR] 插件命令执行失败: {exc}\n')
+            try:
+                messagebox.showerror('插件错误', str(exc), parent=self.window)
+            except Exception:
+                pass
+
+    def _show_plugin_info(self, record: Any) -> None:
+        """弹窗显示单个插件的元信息 + 来源路径 + 错误。"""
+
+        m = record.manifest
+        text = (
+            f"名称: {m.name}\n"
+            f"ID: {m.id}\n"
+            f"版本: {m.version}\n"
+            f"作者: {m.author or '(未提供)'}\n"
+            f"作用域: {m.scope}\n"
+            f"来源: {record.location}\n"
+            f"状态: {'启用' if record.enabled else '禁用'}"
+        )
+        if record.error:
+            text += f"\n错误:\n{record.error}"
+        if m.description:
+            text += f"\n\n{m.description}"
+        messagebox.showinfo(f'插件: {m.name}', text, parent=self.window)
+
+    def _open_plugin_manager(self) -> None:
+        """打开插件管理窗口。"""
+
+        try:
+            from modules.plugins.widgets import UPluginManagerWindow
+        except Exception as exc:
+            messagebox.showerror(
+                '插件管理', f'加载插件管理窗口失败: {exc}', parent=self.window,
+            )
+            return
+        try:
+            win = UPluginManagerWindow(self, self._plugin_manager)
+            self._plugin_manager_window = win
+        except Exception as exc:
+            messagebox.showerror(
+                '插件管理', f'打开插件管理失败: {exc}', parent=self.window,
+            )
+
+    def _reload_all_plugins(self) -> None:
+        """手动触发完整 reload: 卸载 + 重新扫描 + 加载。"""
+
+        try:
+            self._plugin_manager.unload_all()
+        except Exception:
+            pass
+        # 清菜单缓存
+        self._plugin_menus = {}
+        for name in list(LANG_CONFIG.keys()):
+            if LANG_CONFIG[name].get('plugin_id'):
+                LANG_CONFIG.pop(name, None)
+        self._plugin_lang_combo_added = []
+        try:
+            self._plugin_manager.load_global_plugins()
+        except Exception:
+            pass
+        if self._current_project_root:
+            try:
+                self._plugin_manager.load_project_plugins(self._current_project_root)
+            except Exception:
+                pass
+        self._refresh_plugin_menu()
+        self._refresh_plugin_languages()
+        self._status_label.config(text='Plugins reloaded')
+
+    # ------------------------------------------------------------------
+    # 钩子触发点 (各业务方法内部调用 self._emit)
+    # ------------------------------------------------------------------
 
     def _show_documentation(self):
         messagebox.showinfo('文档',
@@ -1572,11 +1867,13 @@ class CodeEditor:
                 self._append_output('No issues found.\n')
             self._output._text.config(state='disabled')
             self._status_label.config(text='Check complete')
+            self._emit(HookEvents.EDITOR_CHECK_FINISHED, self._lang, results)
         except Exception as e:
             self._output._text.config(state='normal')
             self._append_output(f'Check error: {e}\n')
             self._output._text.config(state='disabled')
             self._status_label.config(text='Check failed')
+            self._emit(HookEvents.EDITOR_CHECK_FINISHED, self._lang, [])
         finally:
             try:
                 os.unlink(temp_path)
@@ -1629,6 +1926,8 @@ class CodeEditor:
                 self._settings.effective('runner.timeout_ms', 30000)
             )
             timeout_s = max(0.5, timeout_ms / 1000.0)
+
+            self._emit(HookEvents.EDITOR_RUN_STARTED, self._lang, temp_path)
 
             if streaming:
                 # 流式: temp_path 由 _run_streaming_path 在 done 回调里
@@ -1732,6 +2031,13 @@ class CodeEditor:
                 self._append_output(f'\n[Exit code: {result.returncode}]\n')
             self._output._text.config(state='disabled')
             self._status_label.config(text='Run complete')
+            self._emit(
+                HookEvents.EDITOR_RUN_FINISHED,
+                self._lang,
+                result.returncode,
+                result.stdout or '',
+                result.stderr or '',
+            )
         except subprocess.TimeoutExpired:
             self._output._text.config(state='normal')
             if clear_first:
@@ -1739,6 +2045,10 @@ class CodeEditor:
             self._append_output('Execution timed out.\n')
             self._output._text.config(state='disabled')
             self._status_label.config(text='Timeout')
+            self._emit(
+                HookEvents.EDITOR_RUN_FINISHED,
+                self._lang, -1, '', 'Execution timed out',
+            )
         except Exception as e:
             self._output._text.config(state='normal')
             if clear_first:
@@ -1746,6 +2056,10 @@ class CodeEditor:
             self._append_output(f'Run error: {e}\n')
             self._output._text.config(state='disabled')
             self._status_label.config(text='Run failed')
+            self._emit(
+                HookEvents.EDITOR_RUN_FINISHED,
+                self._lang, -1, '', str(e),
+            )
         finally:
             try:
                 os.unlink(temp_path)
@@ -1786,6 +2100,10 @@ class CodeEditor:
 
         line_q: queue.Queue = queue.Queue()
         self._stream_drain_after_id: Any = None
+        # 流式输出收集: 用于在结束时给插件回调传完整 stdout/stderr。
+        # 字符串拼接为简单实现, 因为运行输出一般 KB 量级。
+        captured_stdout: List[str] = []
+        captured_stderr: List[str] = []
 
         def on_line(stream_name: str, line: str) -> None:
             try:
@@ -1821,8 +2139,20 @@ class CodeEditor:
                         except OSError:
                             pass
                         self._stream_drain_after_id = None
+                        # 通知插件: 流式运行结束
+                        self._emit(
+                            HookEvents.EDITOR_RUN_FINISHED,
+                            self._lang,
+                            result.returncode,
+                            ''.join(captured_stdout),
+                            ''.join(captured_stderr),
+                        )
                         return
                     stream_name, line = item
+                    if stream_name == 'stdout':
+                        captured_stdout.append(line)
+                    elif stream_name == 'stderr':
+                        captured_stderr.append(line)
                     self._output._text.config(state='normal')
                     self._append_output(line)
                     self._output._text.config(state='disabled')

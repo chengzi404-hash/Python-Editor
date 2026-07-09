@@ -47,12 +47,16 @@ class JsonFileSettings(Settings):
         self._lock = threading.RLock()
         self._path: Optional[str] = path
         self._values: Dict[str, Any] = {}
+        # 旁路存储: 插件专属键 (plugins.<id>.*) 不走 schema 校验,
+        # 因为插件 id 是动态的、schema 注册时还未知。
+        self._extras: Dict[str, Any] = {}
 
         if self._path is not None and auto_load:
             try:
                 self.load()
             except Exception:
                 self._values = {}
+                self._extras = {}
 
 
     def _resolve_path(self) -> str:
@@ -88,15 +92,46 @@ class JsonFileSettings(Settings):
         return spec.default if spec is not None else None
 
 
+    @staticmethod
+    def _is_plugin_key(key: str) -> bool:
+        """判断 ``key`` 是否属于插件命名空间 (``plugins.<id>.*``)。
+
+        该命名空间允许任意字符串 id, 不走 schema 校验, 由插件系统
+        自行保证值的合理性。
+        """
+
+        if not isinstance(key, str) or not key:
+            return False
+        return key.startswith("plugins.") and key.count(".") >= 2
+
     def get(self, key: str, default: Any = None) -> Any:
         with self._lock:
             if key in self._values:
                 return self._values[key]
+            if key in self._extras:
+                return self._extras[key]
             if default is None:
                 return self._raw_default(key)
             return default
 
     def set(self, key: str, value: Any) -> None:
+        # 插件命名空间: 走 _extras 旁路, 不校验 schema, 但仍然发事件
+        # 让 PluginContext.set_setting 之外的监听者也能感知。
+        if self._is_plugin_key(key):
+            with self._lock:
+                old = self._extras.get(key)
+                if old == value and key in self._extras:
+                    return
+                self._extras[key] = value
+                event = SettingsChangeEvent(
+                    scope=self.scope,
+                    key=key,
+                    old=old,
+                    new=value,
+                )
+            self._notify(event)
+            return
+
         spec = self.spec(key)
         if spec is None:
             raise KeyError(
@@ -120,7 +155,7 @@ class JsonFileSettings(Settings):
 
     def has(self, key: str) -> bool:
         with self._lock:
-            return key in self._values
+            return key in self._values or key in self._extras
 
     def all(self) -> Dict[str, Any]:
         """所有键的当前值，缺失字段填充默认值。"""
@@ -129,19 +164,24 @@ class JsonFileSettings(Settings):
             result: Dict[str, Any] = {}
             for spec in self._schema:
                 result[spec.key] = self._values.get(spec.key, spec.default)
+            for k, v in self._extras.items():
+                result[k] = v
             return result
 
     def defined(self) -> Dict[str, Any]:
         with self._lock:
-            return dict(self._values)
+            merged = dict(self._values)
+            merged.update(self._extras)
+            return merged
 
     def reset(self, key: Optional[str] = None) -> None:
         with self._lock:
             if key is None:
-                if not self._values:
+                if not self._values and not self._extras:
                     return
                 old_snapshot = self.all()
                 self._values.clear()
+                self._extras.clear()
                 new_snapshot = self.all()
                 event = SettingsChangeEvent(
                     scope=self.scope,
@@ -152,6 +192,16 @@ class JsonFileSettings(Settings):
                 self._notify(event)
                 return
 
+            if key in self._extras:
+                old = self._extras.pop(key)
+                event = SettingsChangeEvent(
+                    scope=self.scope,
+                    key=key,
+                    old=old,
+                    new=None,
+                )
+                self._notify(event)
+                return
             if key not in self._values:
                 return  # 已经是默认状态,无需重置
             old = self._values.pop(key)
@@ -170,10 +220,12 @@ class JsonFileSettings(Settings):
         self._ensure_parent_dir(path)
 
         with self._lock:
+            merged_values = dict(self._values)
+            merged_values.update(self._extras)
             payload = {
                 "version": CURRENT_VERSION,
                 "scope": self.scope.value,
-                "values": self._values,
+                "values": merged_values,
             }
 
         parent = os.path.dirname(path) or "."
@@ -213,7 +265,11 @@ class JsonFileSettings(Settings):
             return
 
         new_values: Dict[str, Any] = {}
+        new_extras: Dict[str, Any] = {}
         for key, value in raw_values.items():
+            if self._is_plugin_key(key):
+                new_extras[key] = value
+                continue
             spec = self.spec(key)
             if spec is None:
                 continue
@@ -224,6 +280,7 @@ class JsonFileSettings(Settings):
 
         with self._lock:
             self._values = new_values
+            self._extras = new_extras
 
 
 __all__ = ["JsonFileSettings", "CURRENT_VERSION"]
