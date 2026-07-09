@@ -18,8 +18,15 @@ import ssl
 import sys
 import threading
 from socketserver import ThreadingMixIn, BaseServer
-from typing import Any, Callable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
+
+if TYPE_CHECKING:
+    import h2  # type: ignore[import-not-found]
+    import h2.connection  # type: ignore[import-not-found]
+    import h2.config  # type: ignore[import-not-found]
+    import h2.events  # type: ignore[import-not-found]
+    import h2.exceptions  # type: ignore[import-not-found]
 
 try:
     import h2.connection
@@ -325,7 +332,7 @@ class _H2Connection:
         stream = _H2Stream(event.stream_id)
         for k, v in event.headers:
             if isinstance(k, str):
-                k_bytes = k.lower().encode('ascii')
+                k_bytes = k.lower().encode('ascii')  # type: ignore[union-attr]
             else:
                 k_bytes = k.lower()
             if isinstance(v, str):
@@ -456,7 +463,7 @@ class HybridRequestHandler:
         self.wsgi_app = wsgi_app
         self.settings = settings
         self.h1_handler = WSGIRequestHandler  # fallback
-        self.h1_handler.wsgi_app = wsgi_app
+        self.h1_handler.wsgi_app = wsgi_app  # type: ignore[attr-defined]
 
     def __call__(self, request: 'socket.socket', client_address: Any, server: Any) -> None:
         alpn = getattr(request, 'selected_alpn_protocol', lambda: None)()

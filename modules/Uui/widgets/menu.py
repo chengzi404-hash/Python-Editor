@@ -346,23 +346,23 @@ class UMenuBar(tk.Frame):
         sub.geometry(f'{w}x{h}+{x}+{y}')
         sub.update_idletasks()
 
-        sub._menu_bar = self
-        sub._owner = parent_item
+        sub._menu_bar = self  # type: ignore[attr-defined]
+        sub._owner = parent_item  # type: ignore[attr-defined]
 
         for item in sub_menu._items:
             kind = item[0]
             if kind == 'separator':
-                row = _MenuItemRow(inner, 'separator', dropdown=sub)
+                row = _MenuItemRow(inner, 'separator', dropdown=sub)  # type: ignore[arg-type]
             elif kind == 'command':
-                row = _MenuItemRow(inner, 'command', item[1], item[2], item[3], dropdown=sub)
+                row = _MenuItemRow(inner, 'command', item[1], item[2], item[3], dropdown=sub)  # type: ignore[arg-type]
             elif kind == 'check':
-                row = _MenuItemRow(inner, 'check', item[1], item[2], item[3], item[4], dropdown=sub)
+                row = _MenuItemRow(inner, 'check', item[1], item[2], item[3], item[4], dropdown=sub)  # type: ignore[arg-type]
             elif kind == 'radio':
-                row = _MenuItemRow(inner, 'radio', item[1], item[2], item[3], item[4], item[5], dropdown=sub)
+                row = _MenuItemRow(inner, 'radio', item[1], item[2], item[3], item[4], item[5], dropdown=sub)  # type: ignore[arg-type]
             elif kind == 'cascade':
-                row = _MenuItemRow(inner, 'cascade', item[1], item[2], dropdown=sub)
+                row = _MenuItemRow(inner, 'cascade', item[1], item[2], dropdown=sub)  # type: ignore[arg-type]
 
-        self._open_submenu_dropdown = sub
+        self._open_submenu_dropdown = sub  # type: ignore[assignment]
         try:
             self._sub_root_bind = top.bind('<Button-1>', self._on_root_click, add='+')
         except tk.TclError:

@@ -102,7 +102,7 @@ class TestSuggestionExpert:
                 return ["x"]
 
         with pytest.raises(TypeError):
-            Partial()
+            Partial()  # type: ignore[abstract]
 
     def test_must_implement_get_languange_exts(self) -> None:
         class Partial(SuggestionExpert):
@@ -110,7 +110,7 @@ class TestSuggestionExpert:
                 return []
 
         with pytest.raises(TypeError):
-            Partial()
+            Partial()  # type: ignore[abstract]
 
     def test_subclass_can_be_instantiated(self) -> None:
         class Concrete(SuggestionExpert):

@@ -89,7 +89,7 @@ class TestChecker:
             pass
 
         with pytest.raises(TypeError):
-            Partial()
+            Partial()  # type: ignore[abstract]
 
     def test_subclass_with_check_can_instantiate(self) -> None:
         class Concrete(Checker):

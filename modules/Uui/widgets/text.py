@@ -1,12 +1,19 @@
 import tkinter as tk
+from typing import Literal, Optional
 from . import theme
+from .scrollbar import UScrollBar
+from .line_number import LineNumberCanvas
 
 
 class UText(tk.Frame):
     def __init__(self, parent, width: int = 40, height: int = 10,
-                 wrap: str = 'word', font=None, **kwargs):
+                 wrap: Literal['none', 'char', 'word'] = 'word', font=None,
+                 show_line_numbers: bool = False, **kwargs):
         bg = kwargs.pop('bg', theme.BG_BASE)
         super().__init__(parent, bg=bg, highlightthickness=0, bd=0, **kwargs)
+
+        self._show_line_numbers = show_line_numbers
+        self._line_numbers: Optional[LineNumberCanvas] = None
 
         self._text = tk.Text(
             self, width=width, height=height,
@@ -22,15 +29,17 @@ class UText(tk.Frame):
             undo=True,
             padx=8, pady=8,
         )
-        self._scroll = tk.Scrollbar(
+        # 收口到 :class:`UScrollBar` — 主题色、autohide 行为都集中维护。
+        self._scroll = UScrollBar(
             self, orient='vertical', command=self._text.yview,
-            bg=theme.BG_PANEL, troughcolor=theme.BG_INPUT,
-            activebackground=theme.BG_HOVER,
-            relief='flat', bd=0, width=10,
-            highlightthickness=0,
         )
-        self._text.config(yscrollcommand=self._scroll.set)
+        self._text.config(yscrollcommand=self._on_yview)
 
+        # 布局顺序 (从左到右): gutter (可选) | text | scrollbar。
+        # 行号栏必须在 text 之前 pack, 否则切语言时重构布局顺序会很乱。
+        if show_line_numbers:
+            self._line_numbers = LineNumberCanvas(self._text)
+            self._line_numbers.pack(side=tk.LEFT, fill=tk.Y)
         self._scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self._text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -55,6 +64,21 @@ class UText(tk.Frame):
             self._text.config(state=cnf.pop('state'))
         super().config(**cnf)
 
+    def _on_yview(self, *args):
+        """text 的 yscrollcommand 钩子: 同时驱动滚动条 + 行号栏.
+
+        :class:`LineNumberCanvas` 也会在自身 yscrollcommand 钩子里调用
+        我们的 set; 这里只关心"行号栏没启用时也要把滚动事件给 scrollbar"。
+        """
+
+        self._scroll.set(*args)
+        if self._line_numbers is not None:
+            # 让行号栏跟一次重画; 内部已经做了防抖, 重复触发也无副作用。
+            try:
+                self._line_numbers.redraw()
+            except tk.TclError:
+                pass
+
     def _apply_theme(self):
         try:
             bg = self.master.cget('bg')
@@ -70,9 +94,18 @@ class UText(tk.Frame):
             highlightcolor=theme.BORDER_FOCUS,
             highlightbackground=theme.BORDER,
         )
-        self._scroll.config(
-            bg=theme.BG_PANEL, troughcolor=theme.BG_INPUT,
-            activebackground=theme.BG_HOVER,
-        )
+        # UScrollBar 自己实现 _apply_theme, 转发即可 (troughcolor /
+        # activebackground 跟随, bg 仅在未显式指定时跟随)。
+        if hasattr(self._scroll, "_apply_theme"):
+            try:
+                self._scroll._apply_theme()
+            except Exception:
+                pass
+        # 行号栏: 颜色 + 重画一次。
+        if self._line_numbers is not None:
+            try:
+                self._line_numbers._apply_theme()
+            except Exception:
+                pass
 
-    configure = config
+    configure = config  # type: ignore[assignment]

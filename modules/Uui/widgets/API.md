@@ -268,16 +268,18 @@ print(var.get())
 **构造**：
 
 ```python
-UText(parent, width=40, height=10, wrap='word', font=None, **kwargs)
+UText(parent, width=40, height=10, wrap='word', font=None,
+      show_line_numbers=False, **kwargs)
 ```
 
-| 参数     | 类型          | 默认值    | 说明                                                                  |
-| -------- | ------------- | --------- | --------------------------------------------------------------------- |
-| `width`  | `int`         | `40`      | 文本区宽度（字符数）                                                  |
-| `height` | `int`         | `10`      | 文本区高度（行数）                                                    |
-| `wrap`   | `str`         | `'word'`  | 换行模式：`'char'` / `'word'` / `'none'`                              |
-| `font`   | `tuple|None`  | `None`    | 字体；缺省使用 `theme.MONO_FONT`                                      |
-| `**kwargs` | —           | —         | 透传给父 `tk.Frame`                                                   |
+| 参数                | 类型          | 默认值    | 说明                                                                  |
+| ------------------- | ------------- | --------- | --------------------------------------------------------------------- |
+| `width`             | `int`         | `40`      | 文本区宽度（字符数）                                                  |
+| `height`            | `int`         | `10`      | 文本区高度（行数）                                                    |
+| `wrap`              | `str`         | `'word'`  | 换行模式：`'char'` / `'word'` / `'none'`                              |
+| `font`              | `tuple|None`  | `None`    | 字体；缺省使用 `theme.MONO_FONT`                                      |
+| `show_line_numbers` | `bool`        | `False`   | 是否在文本区左侧显示行号（基于 `LineNumberCanvas` / Canvas 实现）；当前行号会用 `theme.FG_PRIMARY`，其他行用 `theme.FG_TERTIARY`，宽度按最大行号位数自动留白 |
+| `**kwargs`          | —             | —         | 透传给父 `tk.Frame`                                                   |
 
 **方法**：
 
@@ -295,7 +297,39 @@ t = UText(root, height=8)
 t.insert('1.0', 'Hello, UUI\n')
 print(t.get('1.0', tk.END))
 t.clear()
+
+# 带行号的编辑器
+t2 = UText(root, height=8, show_line_numbers=True)
 ```
+
+---
+
+### LineNumberCanvas —— 基于 Canvas 的代码行号栏
+
+`UText` 在 `show_line_numbers=True` 时内部使用的行号控件，通常无需直接调用；在需要自己挂到其他 `tk.Text` 上时可单独使用。继承自 `tkinter.Frame`，内部为 `tk.Canvas`。
+
+**导入**：`from widgets import LineNumberCanvas`
+
+**构造**：
+
+```python
+LineNumberCanvas(text, pad_x=6, min_width=28, **kwargs)
+```
+
+| 参数        | 类型        | 默认值 | 说明                                                                                          |
+| ----------- | ----------- | ------ | --------------------------------------------------------------------------------------------- |
+| `text`      | `tk.Text`   | —      | 被观察的 `tk.Text`；构造时会接管其 `yscrollcommand` 并保留原回调转发                              |
+| `pad_x`     | `int`       | `6`    | 行号文字与分隔线之间的水平内边距（像素）                                                       |
+| `min_width` | `int`       | `28`   | gutter 最小宽度（像素）；防止文件为空时缩成 0                                                  |
+| `**kwargs`  | —           | —      | 透传给父 `tk.Frame`                                                                            |
+
+**行为**：
+
+- 行号宽度按当前最大行号位数自动留白（多 1 位按 2 位预留，避免加 1 行后 gutter 突然变宽推动光标）。
+- 文本变更（`<<Modified>>`）、光标移动（`KeyRelease` / `ButtonRelease`）、滚动（`yscrollcommand`）以及 text 几何变化（`Configure`）都会触发重画，重画经过 `after_idle` 防抖。
+- 当前行号用 `theme.FG_PRIMARY` 高亮，其他行用 `theme.FG_TERTIARY`。
+- 鼠标滚轮在 gutter 上时转发给 text，与在 text 上滚动一致。
+- 主题切换通过 `_apply_theme()` 重画，背景跟随 `theme.BG_INPUT`。
 
 ---
 

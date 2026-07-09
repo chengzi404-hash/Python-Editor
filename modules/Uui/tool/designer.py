@@ -11,6 +11,7 @@ from Uui.widgets import (
     UFrame, ULabel, UButton, UEntry, UText,
     UCheckButton, URadioButton, UComboBox,
     UProgressBar, USlider, UMenuBar,
+    UScrollBar,
 )
 
 
@@ -501,13 +502,12 @@ class DesignerApp(Window):
             self._palette_scroll_outer, bg=theme.BG_PANEL,
             highlightthickness=0, bd=0,
         )
-        self._palette_vsb = tk.Scrollbar(
+        self._palette_vsb = UScrollBar(
             self._palette_scroll_outer, orient=tk.VERTICAL,
             command=self._palette_canvas.yview,
-            bg=theme.BG_PANEL, troughcolor=theme.BG_PANEL,
-            activebackground=theme.BG_HOVER, relief=tk.FLAT, bd=0,
-            highlightthickness=0, width=8,
+            troughcolor=theme.BG_PANEL, width=8,
         )
+        self._palette_vsb._theme_key_trough = 'BG_PANEL'
         self._palette_canvas.config(yscrollcommand=self._palette_vsb.set)
         self._palette_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self._palette_vsb.pack(side=tk.RIGHT, fill=tk.Y)
@@ -586,7 +586,7 @@ class DesignerApp(Window):
         cell = tk.Frame(parent, bg=theme.BG_RAISED,
                         highlightthickness=1, highlightbackground=theme.BORDER,
                         bd=0, cursor='hand2')
-        cell._wtype = wtype
+        cell._wtype = wtype  # type: ignore[attr-defined]
 
         icon_box = tk.Label(
             cell, text=WIDGET_ICON.get(wtype, '?'),
@@ -635,13 +635,12 @@ class DesignerApp(Window):
             self._explorer_page, bg=theme.BG_PANEL,
             highlightthickness=0, bd=0,
         )
-        self._explorer_vsb = tk.Scrollbar(
+        self._explorer_vsb = UScrollBar(
             self._explorer_page, orient=tk.VERTICAL,
             command=self._explorer_canvas.yview,
-            bg=theme.BG_PANEL, troughcolor=theme.BG_PANEL,
-            activebackground=theme.BG_HOVER, relief=tk.FLAT, bd=0,
-            highlightthickness=0, width=8,
+            troughcolor=theme.BG_PANEL, width=8,
         )
+        self._explorer_vsb._theme_key_trough = 'BG_PANEL'
         self._explorer_canvas.config(yscrollcommand=self._explorer_vsb.set)
         self._explorer_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
                                    padx=(8, 0), pady=(0, 8))
@@ -731,8 +730,8 @@ class DesignerApp(Window):
             w.bind('<Leave>', _leave)
             w.bind('<Button-1>', _click)
 
-        row._widgets = (row, icon_lbl, name_lbl, kind_lbl)
-        row._selected = selected
+        row._widgets = (row, icon_lbl, name_lbl, kind_lbl)  # type: ignore[attr-defined]
+        row._selected = selected  # type: ignore[attr-defined]
         return row
 
     def _on_left_tab_change(self, idx: int):
@@ -798,17 +797,11 @@ class DesignerApp(Window):
         self._canvas_outer = UFrame(self._center_outer, variant='input')
         self._canvas_outer.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
 
-        self._hscroll = tk.Scrollbar(
+        self._hscroll = UScrollBar(
             self._canvas_outer, orient=tk.HORIZONTAL,
-            bg=theme.BG_PANEL, troughcolor=theme.BG_INPUT,
-            activebackground=theme.BG_HOVER, relief=tk.FLAT, bd=0,
-            highlightthickness=0,
         )
-        self._vscroll = tk.Scrollbar(
+        self._vscroll = UScrollBar(
             self._canvas_outer, orient=tk.VERTICAL,
-            bg=theme.BG_PANEL, troughcolor=theme.BG_INPUT,
-            activebackground=theme.BG_HOVER, relief=tk.FLAT, bd=0,
-            highlightthickness=0,
         )
         self._canvas = tk.Canvas(
             self._canvas_outer, bg=theme.BG_INPUT,
@@ -908,13 +901,12 @@ class DesignerApp(Window):
             self._props_page, bg=theme.BG_PANEL,
             highlightthickness=0, bd=0,
         )
-        self._props_vsb = tk.Scrollbar(
+        self._props_vsb = UScrollBar(
             self._props_page, orient=tk.VERTICAL,
             command=self._props_canvas.yview,
-            bg=theme.BG_PANEL, troughcolor=theme.BG_PANEL,
-            activebackground=theme.BG_HOVER, relief=tk.FLAT, bd=0,
-            highlightthickness=0, width=8,
+            troughcolor=theme.BG_PANEL, width=8,
         )
+        self._props_vsb._theme_key_trough = 'BG_PANEL'
         self._props_canvas.config(yscrollcommand=self._props_vsb.set)
         self._props_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True,
                                  padx=(4, 0), pady=4)

@@ -34,7 +34,7 @@ class UProgressBar(tk.Canvas):
     def get(self) -> float:
         return self._value
 
-    def configure(self, **kwargs):
+    def configure(self, **kwargs):  # type: ignore[override]
         cnf = dict(kwargs)
         if 'value' in cnf:
             self.set(cnf.pop('value'))

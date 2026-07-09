@@ -92,6 +92,27 @@ class HighlighterExpert(ABC):
 
 ---
 
+## 集成层: 防抖高亮延迟
+
+``HighlighterExpert`` 本身是**纯函数式**的同步实现 — 调用
+:meth:`HighlighterExpert.highlight` 会立刻完成分词,适合作为底层算子。
+
+但 ``main.py`` 在编辑器中集成本模块时,出于性能考虑引入了**防抖延迟**:
+
+* 全局设置 ``editor.highlight_delay_ms``(默认 ``300`` ms,范围 ``0``–``5000``)。
+* ``CodeEditor._on_key_release`` 不会立即调用 :meth:`HighlighterExpert.highlight`,
+  而是调用 :meth:`CodeEditor._schedule_highlight`,后者通过 ``tk.after`` 调度一个
+  延迟任务。**每次新按键都会取消上次尚未执行的 ``after``**,从而实现"连续
+  输入时只在停顿后才解析一次"的典型防抖语义。
+* ``delay == 0`` 时退化为 ``after(0, ...)``,仍会延迟到当前事件循环 tick 之后。
+* 文件加载、撤销/重做、语言切换、F7 ``刷新高亮`` 等动作走
+  :meth:`CodeEditor._apply_highlight` 的**立即**路径,与延迟路径互斥 —
+  立即路径会先取消任何 pending 任务。
+* 关闭高亮(``completion.enabled = False``)同样会取消 pending 任务。
+* 建议(suggestion)复用同一个延迟值,避免在快速输入时频繁发起轻量解析。
+
+---
+
 ## 使用示例
 
 ```python

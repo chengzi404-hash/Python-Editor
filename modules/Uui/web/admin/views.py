@@ -242,4 +242,4 @@ def _save_form(request, admin, obj):
                 pass
         setattr(obj, fname, raw)
     admin.save_model(request, obj, form_data, change=obj is not None and obj.id is not None)
-    return response.redirect(f'/admin/{admin.app_label}/{admin.model_name}/{obj.id}/change/')
+    return response.redirect(f'/admin/{admin.app_label}/{admin.model_name}/{obj.id}/change/')  # type: ignore[union-attr]

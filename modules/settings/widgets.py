@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from typing import Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from .base import (
     Settings,
@@ -26,7 +26,8 @@ from .base import (
 )
 from .manager import SettingsManager
 
-try:
+if TYPE_CHECKING:
+    # 类型检查器看到的类型 - 用于静态分析
     from modules.Uui.widgets import (
         UButton,
         UCheckButton,
@@ -34,12 +35,37 @@ try:
         UEntry,
         UFrame,
         ULabel,
+        USettingsNavBar,
+        NavSelection,
+        theme,
+    )
+else:
+    # 运行时变量 - 实际从 UUI 包导入; 失败时退化为 None
+    UButton: Any = None  # type: ignore[assignment,misc]
+    UCheckButton: Any = None  # type: ignore[assignment,misc]
+    UComboBox: Any = None  # type: ignore[assignment,misc]
+    UEntry: Any = None  # type: ignore[assignment,misc]
+    UFrame: Any = None  # type: ignore[assignment,misc]
+    ULabel: Any = None  # type: ignore[assignment,misc]
+    USettingsNavBar: Any = None  # type: ignore[assignment,misc]
+    NavSelection: Any = None  # type: ignore[assignment,misc]
+    theme: Any = None  # type: ignore[assignment,misc]
+
+try:
+    from modules.Uui.widgets import (  # type: ignore[assignment]
+        UButton,
+        UCheckButton,
+        UComboBox,
+        UEntry,
+        UFrame,
+        ULabel,
+        USettingsNavBar,
+        NavSelection,
         theme,
     )
     _UUI_AVAILABLE = True
 except Exception:  # pragma: no cover - 允许在无 tk 环境下被 import
     _UUI_AVAILABLE = False
-    UButton = UCheckButton = UComboBox = UEntry = UFrame = ULabel = theme = None  # type: ignore
 
 
 
@@ -128,7 +154,11 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
                 self._build_row(row, spec)
                 row += 1
 
-        self.columnconfigure(1, weight=1)
+        # 列宽策略:列 1(输入控件)承载剩余空间且有最小宽度,保证输入框
+        # 不会被描述文本挤掉;列 0/2 设置最小宽度,避免标签或说明被裁切到不可读。
+        self.columnconfigure(0, minsize=110)
+        self.columnconfigure(1, weight=1, minsize=160)
+        self.columnconfigure(2, minsize=180)
 
     def _build_row(self, row: int, spec: SettingSpec) -> None:
         label = ULabel(self, text=spec.label or spec.key, variant='primary')
@@ -138,9 +168,21 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         widget.grid(row=row, column=1, sticky='ew', padx=4, pady=4)
         self._widgets[spec.key] = widget
 
-        desc = ULabel(self, text=spec.description or '', variant='tertiary',
-                      font=theme.LABEL_FONT_SMALL)
-        desc.grid(row=row, column=2, sticky='w', padx=(4, 12), pady=4)
+        # 关键修复:为说明列设置明确的字符宽度上限 + 像素级 wraplength,
+        # 这样长说明会按 240px 自动换行,而不会按"最长一行"的像素宽度
+        # 把整列撑开、把输入框挤没。``anchor='w'`` + ``justify='left'`` 保证
+        # 多行文本左上对齐;``sticky='nw'`` 让单元格纵向也顶格。
+        desc = ULabel(
+            self,
+            text=spec.description or '',
+            variant='tertiary',
+            font=theme.LABEL_FONT_SMALL,
+            width=30,
+            wraplength=240,
+            anchor='w',
+            justify='left',
+        )
+        desc.grid(row=row, column=2, sticky='nw', padx=(4, 12), pady=4)
 
     def _make_widget(self, spec: SettingSpec):
         """根据 spec.type 实例化对应控件."""
@@ -323,23 +365,26 @@ class UProjectSettingsWindow:
         ULabel(header, text=self._title, variant='primary',
                font=theme.LABEL_FONT_BOLD).pack(side=tk.LEFT, padx=12, pady=8)
 
-        self._tab_frame = UFrame(self._root, variant='panel')
-        self._tab_frame.pack(fill=tk.X)
-        self._btn_global = UButton(
-            self._tab_frame, text='全局', variant='primary',
-            command=lambda: self._switch(SettingsScope.GLOBAL),
-            width=80, height=28,
+        # 中部: 左侧导航树 + 右侧设置面板, 用水平 PanedWindow 分隔。
+        # sashrelief / sashwidth 让分隔条可见可拖动; 与主窗口里的项目
+        # 文件树 PanedWindow 完全同构。
+        self._paned = tk.PanedWindow(
+            self._root, orient=tk.HORIZONTAL,
+            sashwidth=4, sashrelief='flat',
+            bg=theme.BORDER, bd=0, showhandle=False,
         )
-        self._btn_global.pack(side=tk.LEFT, padx=4, pady=6)
-        self._btn_project = UButton(
-            self._tab_frame, text='项目', variant='default',
-            command=lambda: self._switch(SettingsScope.PROJECT),
-            width=80, height=28,
-        )
-        self._btn_project.pack(side=tk.LEFT, padx=4, pady=6)
+        self._paned.pack(fill=tk.BOTH, expand=True)
+        self._paned.bind('<Map>', self._init_paned_position, add='+')
 
-        self._body = UFrame(self._root, variant='base')
-        self._body.pack(fill=tk.BOTH, expand=True)
+        self._nav: Any = USettingsNavBar(
+            self._paned,
+            title='设置',
+            on_select=self._on_nav_select,
+        )
+        self._paned.add(self._nav, minsize=160, stretch='never')
+
+        self._body = UFrame(self._paned, variant='base')
+        self._paned.add(self._body, minsize=200, stretch='always')
 
         footer = UFrame(self._root, variant='title')
         footer.pack(fill=tk.X)
@@ -362,13 +407,51 @@ class UProjectSettingsWindow:
 
         self._current_scope: SettingsScope = SettingsScope.GLOBAL
         self._panel: Optional[USettingPanel] = None
-        self._switch(self._current_scope)
+        # 先把树按当前 manager 状态建好; set_roots 会自动选中第一片
+        # 叶子并触发 on_select, 顺势完成首屏的右侧面板渲染。
+        self._load_nav()
+
+    def _init_paned_position(self, event=None) -> None:
+        """首次显示后, 把分隔条放到 220px 处, 与项目里其它 PanedWindow 同构."""
+
+        try:
+            total = self._paned.winfo_width()
+            if total <= 1:
+                # 还未真正布局完成, 推迟一帧
+                self._root.after(10, self._init_paned_position)
+                return
+            self._paned.sash_place(0, max(220, 160), 0)
+            self._paned.unbind('<Map>')
+        except tk.TclError:
+            pass
+
+    def _load_nav(self) -> None:
+        """根据当前 ``SettingsManager`` 状态重新构建导航树.
+
+        项目未挂载时不传 project_schema, 树里就不出现"项目"分支;
+        后续 ``_switch(PROJECT)`` 若检测到未挂项目会引导用户选择目录,
+        选完后由 :meth:`_switch` 再次调用本方法刷新树。
+        """
+
+        project = self._manager.project_settings
+        self._nav.set_roots(
+            global_schema=self._manager.global_settings.schema,
+            project_schema=project.schema if project is not None else None,
+        )
 
 
     def _switch(self, scope: SettingsScope) -> None:
-        # 若切到项目 Tab 但未挂载项目, 提示附加; 用户取消则不切换.
+        """导航到指定 scope 根节点 (兼容 :meth:`CodeEditor._open_global_settings`
+        / :meth:`CodeEditor._open_project_settings` 的旧调用形式).
+
+        行为:
+            * 若切到 PROJECT 但未挂项目, 弹提示让用户选目录, 选完后刷新
+              导航树使"项目"分支出现。
+            * 否则仅让左侧导航树跟随到对应 scope 根, 真正渲染交由
+              :meth:`_on_nav_select` 处理 (它会重建右侧面板)。
+        """
+
         if scope is SettingsScope.PROJECT and self._manager.project_settings is None:
-            self._refresh_tab_states()
             if not messagebox.askyesno(
                 "项目设置",
                 "当前没有附加项目。是否选择一个项目目录?",
@@ -387,34 +470,66 @@ class UProjectSettingsWindow:
                     "项目设置", f"无法挂载项目:{exc}", parent=self._root,
                 )
                 return
-        if getattr(self, "_panel", None) is not None:
+            # 挂载成功后重新构建树 (让"项目"分支出现)。
+            self._load_nav()
+
+        self._current_scope = scope
+        if self._nav is not None:
+            self._nav.set_selected(scope)
+
+    def _on_nav_select(self, selection: Any) -> None:
+        """导航树节点被选中: 用 selection 的范围重建右侧 :class:`USettingPanel`.
+
+        * selection.group_key 为 ``None`` 且 keys 为空 → scope 根, 显示全部
+        * selection.keys 非空 → 叶子节点, ``show_only_keys=keys`` 精确过滤
+        * 其它情况 (group 节点) → ``filter_group_keys=[group_key]`` 保留
+          :class:`USettingPanel` 自带的"分组标题"渲染
+        """
+
+        if selection is None:
+            return
+        self._current_scope = selection.scope
+        self._rebuild_panel(selection)
+
+    def _rebuild_panel(self, selection: Any) -> None:
+        """根据 selection 重建右侧 ``USettingPanel``."""
+
+        if self._panel is not None:
             try:
                 self._panel.destroy()
             except Exception:
                 pass
             self._panel = None
 
-        self._current_scope = scope
+        scope = selection.scope
         if scope is SettingsScope.GLOBAL:
             settings = self._manager.global_settings
-        else:
+        elif scope is SettingsScope.PROJECT:
             settings = self._manager.project_settings
-
-        self._refresh_tab_states()
-        assert settings is not None
-        self._panel = USettingPanel(self._body, settings=settings)
-        self._panel.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
-
-    def _refresh_tab_states(self) -> None:
-        """让两个 Tab 按钮的可点击状态始终反映 ``project_settings`` 的实际值."""
-
-        has_project = self._manager.project_settings is not None
-        if self._current_scope is SettingsScope.GLOBAL:
-            self._btn_global._set_state('disabled')  # type: ignore[attr-defined]
-            self._btn_project._set_state('normal' if has_project else 'disabled')  # type: ignore[attr-defined]
         else:
-            self._btn_project._set_state('disabled')  # type: ignore[attr-defined]
-            self._btn_global._set_state('normal')  # type: ignore[attr-defined]
+            return
+        if settings is None:
+            return
+
+        if selection.keys:
+            # 叶子节点: 精确到单个 key
+            panel = USettingPanel(
+                self._body, settings=settings,
+                show_only_keys=list(selection.keys),
+            )
+        elif selection.group_key is not None:
+            # 分组节点: 走 filter_group_keys, 保留 USettingPanel 的
+            # "分组标题 + 多个设置行"渲染风格
+            panel = USettingPanel(
+                self._body, settings=settings,
+                filter_group_keys=[selection.group_key],
+            )
+        else:
+            # scope 根: 渲染该 scope 全部
+            panel = USettingPanel(self._body, settings=settings)
+
+        panel.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        self._panel = panel
 
 
     def _on_apply(self) -> None:
@@ -457,7 +572,13 @@ class UProjectSettingsWindow:
         ):
             return
         self._manager.reset(self._current_scope)
-        self._switch(self._current_scope)
+        # 保留用户当前所在节点, 仅重建面板让默认值显示出来;
+        # 若导航树还未建好(异常路径)再回退到 _switch。
+        sel = self._nav.get_selected() if self._nav is not None else None
+        if sel is not None:
+            self._rebuild_panel(sel)
+        else:
+            self._switch(self._current_scope)
 
 
     def show(self) -> None:

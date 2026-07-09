@@ -117,4 +117,4 @@ class UButton(tk.Frame):
             pass
         return theme.BG_BASE
 
-    configure = config
+    configure = config  # type: ignore[assignment]

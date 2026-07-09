@@ -159,6 +159,7 @@ class TestProjectSwitch:
         root = tmp_path / "brand_new_proj"
         root.mkdir()
         manager.attach_project(str(root))
+        assert manager.project_settings is not None
         assert manager.project_settings.path == str(
             root / ".pyeditor" / "settings.json"
         )
@@ -321,6 +322,7 @@ class TestSchemas:
 
     def test_default_project_keys_present(self, tmp_path):
         manager, _ = _make_manager(tmp_path)
+        assert manager.project_settings is not None
         for key in ("project.python_interpreter", "project.c_compiler",
                     "checker.enabled", "project.exclude_paths"):
             assert key in manager.project_settings.schema

@@ -97,4 +97,4 @@ class UEntry(tk.Frame):
         if self._has_placeholder:
             self._entry.config(fg=theme.FG_SECONDARY)
 
-    configure = config
+    configure = config  # type: ignore[assignment]

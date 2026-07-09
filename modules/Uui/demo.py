@@ -5,6 +5,7 @@ from .widgets import (
     UFrame, ULabel, UButton, UMenuBar,
     UEntry, UText, UCheckButton, URadioButton,
     UComboBox, UProgressBar, USlider,
+    UScrollBar,
 )
 from .widgets import theme
 
@@ -150,13 +151,14 @@ class _ThemeCanvas(tk.Canvas):
         self.config(bg=theme.BG_BASE)
 
 
-class _ThemeScrollbar(tk.Scrollbar):
-    def _apply_theme(self):
-        self.config(
-            bg=theme.BG_PANEL,
-            troughcolor=theme.BG_BASE,
-            activebackground=theme.BG_HOVER,
-        )
+class _ThemeScrollbar(UScrollBar):
+    """Demo 面板滚动条 — 与原有的 _ThemeCanvas (BG_BASE) 色调一致."""
+
+    _theme_key_trough = 'BG_BASE'
+
+    def __init__(self, parent, **kwargs):
+        kwargs.setdefault('troughcolor', theme.BG_BASE)
+        super().__init__(parent, **kwargs)
 
 
 def _build_scrollable_body(window: Window):
@@ -168,7 +170,6 @@ def _build_scrollable_body(window: Window):
 
     scroll = _ThemeScrollbar(
         outer, orient='vertical', command=canvas.yview,
-        relief='flat', bd=0, width=10, highlightthickness=0,
     )
     scroll.pack(side=tk.RIGHT, fill=tk.Y)
     canvas.config(yscrollcommand=scroll.set)

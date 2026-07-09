@@ -1,20 +1,63 @@
 import sys
 import os
+import queue
 import subprocess
 import tempfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
-from typing import Optional
+from typing import Any, List, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from modules.Uui.widgets import UFrame, ULabel, UButton, UText, UComboBox, UMenuBar, UMenu, theme
+from modules.Uui.widgets import UFrame, ULabel, UButton, UText, UComboBox, UMenuBar, UMenu, theme, UFileTree
 from modules.Uui.widgets.window import Window
 from modules.Uui.widgets.editor_suggestion import UEditorSuggestion, CompletionItem
 from modules.highlighter import PythonHighlighterExpert, CcppHighlighterExpert, HighlightBlock
 from modules.suggestion import PythonSuggestionExpert, CSuggestionExpert, CppSuggestionExpert, SuggestionBlock
 from modules.checker import Flake8Checker, PyrightChecker, CPythonChecker
+from modules.runner import RunResult, run_blocking, stream_command
 from modules.settings import SettingsManager, SettingsScope, SettingsChangeEvent
+
+
+class _Debouncer:
+    """轻量级防抖调度器,可在多次 ``schedule`` 时只保留最后一次的回调。
+
+    与具体 GUI 框架解耦:构造时注入 ``after(ms, cb)`` 与 ``cancel(id)`` 两个钩子。
+    ``delay_ms`` 在每次 ``schedule`` 时读取,因此支持运行时动态修改延迟值。
+    任何 ``schedule`` 都会取消前一个未触发的任务,确保**只有最后一次按键的
+    回调**会在停顿 ``delay_ms`` 毫秒后真正执行。
+    """
+
+    def __init__(self, after, cancel):
+        self._after = after
+        self._cancel = cancel
+        self._after_id = None
+
+    def schedule(self, callback, delay_ms: int) -> None:
+        if self._after_id is not None:
+            try:
+                self._cancel(self._after_id)
+            except Exception:
+                pass
+            self._after_id = None
+        delay = max(0, int(delay_ms))
+        try:
+            self._after_id = self._after(delay, callback)
+        except Exception:
+            self._after_id = None
+
+    def cancel(self) -> None:
+        if self._after_id is None:
+            return
+        try:
+            self._cancel(self._after_id)
+        except Exception:
+            pass
+        self._after_id = None
+
+    @property
+    def pending_id(self):
+        return self._after_id
 
 HIGHLIGHT_TOKENS = {
     'keyword': {'foreground': '#569cd6'},
@@ -86,6 +129,19 @@ class CodeEditor:
         self._font_family = gs.get('ui.font_family', 'Consolas')
         self._font_size = int(gs.get('ui.font_size', 10))
         self._tab_width = int(gs.get('editor.tab_size', 4))
+        self._highlight_delay_ms = int(
+            gs.get('editor.highlight_delay_ms', 300)
+        )
+        self._suggest_delay_ms = int(
+            gs.get('editor.suggestion_delay_ms', 200)
+        )
+
+        self._highlight_debouncer = _Debouncer(
+            self.window.after, self.window.after_cancel,
+        )
+        self._suggest_debouncer = _Debouncer(
+            self.window.after, self.window.after_cancel,
+        )
 
         self._find_dialog: Optional[tk.Toplevel] = None
         self._find_query = ''
@@ -172,6 +228,16 @@ class CodeEditor:
             self._autosave_enabled = bool(event.new)
             if hasattr(self, '_autosave_tk_var'):
                 self._autosave_tk_var.set(bool(event.new))
+        elif key == 'editor.highlight_delay_ms':
+            try:
+                self._highlight_delay_ms = max(0, int(event.new))
+            except (TypeError, ValueError):
+                self._highlight_delay_ms = 300
+        elif key == 'editor.suggestion_delay_ms':
+            try:
+                self._suggest_delay_ms = max(0, int(event.new))
+            except (TypeError, ValueError):
+                self._suggest_delay_ms = 200
 
     def _refresh_all_from_settings(self) -> None:
         """设置面板整体保存后,把全局值同步回 UI。"""
@@ -184,6 +250,12 @@ class CodeEditor:
         self._font_family = gs.get('ui.font_family', self._font_family)
         self._font_size = int(gs.get('ui.font_size', self._font_size))
         self._tab_width = int(gs.get('editor.tab_size', self._tab_width))
+        self._highlight_delay_ms = int(
+            gs.get('editor.highlight_delay_ms', self._highlight_delay_ms)
+        )
+        self._suggest_delay_ms = int(
+            gs.get('editor.suggestion_delay_ms', self._suggest_delay_ms)
+        )
         if hasattr(self, '_font_family_tk_var'):
             self._font_family_tk_var.set(self._font_family)
         if hasattr(self, '_font_size_tk_var'):
@@ -222,12 +294,62 @@ class CodeEditor:
 
         if self._dirty and not messagebox.askyesno('未保存', '有未保存的修改,确认退出?'):
             return
+        self._cancel_pending_highlight()
+        self._cancel_pending_suggestions()
         self._settings.detach_project()
         try:
             self._settings.save_all()
         except Exception as exc:
             messagebox.showerror('保存设置失败', str(exc))
         self.window.destroy()
+
+    # ------------------------------------------------------------------
+    # 文件系统小工具
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_within(path: str, root: str) -> bool:
+        """判断 ``path`` 是否在 ``root`` 目录内(或等于 root).
+
+        跨平台处理大小写(Windows 不区分大小写),避免 ``/foo/bar``
+        误判为 ``/foo/barbaz`` 的祖先。
+        """
+        if not path or not root:
+            return False
+        try:
+            p = os.path.normcase(os.path.abspath(path))
+            r = os.path.normcase(os.path.abspath(root))
+        except (OSError, ValueError):
+            return False
+        if p == r:
+            return True
+        return p.startswith(r + os.sep)
+
+    def _should_reattach_for_path(self, path: str) -> Optional[str]:
+        """根据当前已挂载项目,决定打开 ``path`` 后是否需要切换项目根.
+
+        规则:
+        * 当前没挂载项目 -> 切到 ``path`` 的父目录;
+        * ``path`` 不在当前项目内 -> 切到 ``path`` 的父目录;
+        * 否则返回 ``None``(保持当前项目根不变,避免把项目视图
+          切碎成只剩某个子目录)。
+
+        这个函数是修"侧边栏打开深层文件时,其它文件全消失"的根因:
+        旧实现无条件把 ``os.path.dirname(path)`` 设成项目根,导致
+        双击 ``src/lib/utils.py`` 后,文件树变成 ``src/lib/`` 的内容,
+        外层的 ``src/``、``tests/`` 等全部消失。
+        """
+        abs_path = os.path.abspath(path)
+        file_dir = os.path.dirname(abs_path)
+        current_root = self._current_project_root
+        if not current_root:
+            return file_dir or None
+        if not file_dir:
+            return None
+        if self._is_within(file_dir, current_root):
+            # 文件在当前项目内,保留视图
+            return None
+        return file_dir
 
 
     def _build_menubar(self):
@@ -237,6 +359,7 @@ class CodeEditor:
         file_menu = self._menubar.add_cascade('文件(F)')
         file_menu.add_command('新建', self._new_file, 'Ctrl+N')
         file_menu.add_command('打开...', self._open_file, 'Ctrl+O')
+        file_menu.add_command('打开项目...', self._open_project, 'Ctrl+Shift+O')
         file_menu.add_separator()
         file_menu.add_command('保存', self._save_file, 'Ctrl+S')
         file_menu.add_command('另存为...', self._save_file_as, 'Ctrl+Shift+S')
@@ -324,6 +447,7 @@ class CodeEditor:
     def _bind_shortcuts(self):
         self.window.bind('<Control-n>', lambda e: self._new_file())
         self.window.bind('<Control-o>', lambda e: self._open_file())
+        self.window.bind('<Control-Shift-O>', lambda e: self._open_project())
         self.window.bind('<Control-s>', lambda e: self._save_file())
         self.window.bind('<Control-Shift-S>', lambda e: self._save_file_as())
         self.window.bind('<Control-r>', lambda e: self._run_check())
@@ -396,14 +520,77 @@ class CodeEditor:
         body = UFrame(self.window, variant='base')
         body.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
 
-        self._editor = UText(body, width=80, height=20)
-        self._editor.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
+        # 水平 PanedWindow: 左 = 编辑器, 右 = Solution Explorer 风格的文件树。
+        # sashrelief / sashwidth 让分隔条可见可拖动。
+        self._paned = tk.PanedWindow(
+            body, orient=tk.HORIZONTAL,
+            sashwidth=4, sashrelief='flat',
+            bg=theme.BORDER, bd=0,
+            showhandle=False,
+        )
+        self._paned.pack(fill=tk.BOTH, expand=True)
+
+        self._editor = UText(self._paned, width=80, height=20, show_line_numbers=True)
+        self._paned.add(self._editor, minsize=200, stretch='always')
+
+        self._file_tree = UFileTree(
+            self._paned,
+            title='Project',
+            on_activate=self._open_path_from_tree,
+            width=260,
+        )
+        self._paned.add(self._file_tree, minsize=160, stretch='never')
+        # 默认把分隔条放到窗口右侧 260px 处。
+        self._paned.bind('<Map>', self._init_paned_position, add='+')
 
         self._editor._text.bind('<KeyRelease>', self._on_key_release)
         self._editor._text.bind('<KeyPress>', self._on_key_press)
         self._editor._text.bind('<ButtonRelease-1>', self._on_click)
         self._editor._text.bind('<FocusIn>', self._on_focus_in)
         self._editor._text.config(undo=True)
+
+    def _init_paned_position(self, event=None) -> None:
+        """在 PanedWindow 首次显示后,把分隔条放到合适位置(右 260px)."""
+        try:
+            total = self._paned.winfo_width()
+            if total <= 1:
+                # 还未真正布局完成,推迟一帧
+                self.window.after(10, self._init_paned_position)
+                return
+            self._paned.sash_place(0, max(total - 260, 200), 0)
+            self._paned.unbind('<Map>')
+        except tk.TclError:
+            pass
+
+    def _open_path_from_tree(self, path: str) -> None:
+        """文件树双击回调: 复用 ``_load_file_into_editor`` 加载文件."""
+        self._load_file_into_editor(path)
+
+    def _load_file_into_editor(self, path: str) -> None:
+        """把 ``path`` 读进编辑器,按现有 dirty / language 流程走.
+
+        与 :meth:`_open_file` 共享主体逻辑,避免双击树时绕开"未保存提示"。
+        """
+        if self._dirty and not messagebox.askyesno('未保存', '丢弃当前修改?'):
+            return
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                code = f.read()
+        except OSError as e:
+            messagebox.showerror('打开失败', str(e))
+            return
+        self._editor._text.delete('1.0', tk.END)
+        self._editor._text.insert('1.0', code)
+        self._current_file = path
+        self._dirty = False
+        self._status_label.config(text=f'Opened: {os.path.basename(path)}')
+        # 关键修复: 打开文件时**只在文件不在当前项目内**时才更新项目根,
+        # 避免把项目视图切碎成只剩某个子目录(原本双击 src/lib/foo.py 会
+        # 让整个 src/lib/ 之外的兄弟目录从文件树里消失)。
+        new_root = self._should_reattach_for_path(path)
+        if new_root:
+            self._attach_project(new_root)
+        self._apply_highlight()
 
     def _build_output_panel(self):
         self._output_frame = UFrame(self.window, variant='panel', height=120)
@@ -454,10 +641,55 @@ class CodeEditor:
         self._switch_language(value)
 
     def _on_key_release(self, event=None):
-        self._apply_highlight()
         self._update_status()
+        self._schedule_highlight()
         if self._suggestions_enabled:
-            self._show_suggestions()
+            self._schedule_suggestions()
+
+    def _schedule_highlight(self) -> None:
+        """按 ``editor.highlight_delay_ms`` 防抖地触发高亮刷新。
+
+        每次调用都会取消上一次尚未执行的 ``after`` 任务并重新调度,
+        这样快速连续按键时,只有最后一次按键在停顿 ``delay`` 毫秒后
+        才会真正执行高亮。``delay`` 为 0 时退化为 ``after(0, ...)``,
+        仍会在当前事件循环 tick 之后立即执行。
+        """
+
+        if not self._highlighting_enabled:
+            self._highlight_debouncer.cancel()
+            return
+        self._highlight_debouncer.schedule(
+            self._run_scheduled_highlight, self._highlight_delay_ms,
+        )
+
+    def _cancel_pending_highlight(self) -> None:
+        self._highlight_debouncer.cancel()
+
+    def _run_scheduled_highlight(self) -> None:
+        """``after`` 回调入口:执行实际高亮。"""
+
+        self._apply_highlight()
+
+    def _schedule_suggestions(self) -> None:
+        """输入或光标主动移动后,按 ``editor.suggestion_delay_ms`` 延迟触发建议。
+
+        输入(字符键)与光标主动移动(方向键/Home/End/PageUp/PageDown/鼠标点击)
+        共享同一条 debounce 通道,因此连续触发时只保留最后一次的事件,
+        停顿 ``_suggest_delay_ms`` 毫秒后才真正执行建议刷新。
+        """
+
+        if not self._suggestions_enabled:
+            self._suggest_debouncer.cancel()
+            return
+        self._suggest_debouncer.schedule(
+            self._run_scheduled_suggestions, self._suggest_delay_ms,
+        )
+
+    def _cancel_pending_suggestions(self) -> None:
+        self._suggest_debouncer.cancel()
+
+    def _run_scheduled_suggestions(self) -> None:
+        self._show_suggestions()
 
     def _on_key_press(self, event=None):
         if self._suggestion_popup and self._suggestion_popup.winfo_exists():
@@ -468,8 +700,10 @@ class CodeEditor:
 
     def _on_click(self, event=None):
         self._update_status()
+        # 鼠标点击属于"光标主动移动",与键入共用同一条建议 debounce 通道,
+        # 保证停顿 _suggest_delay_ms 毫秒后才真正触发,避免连续点击时抖动。
         if self._suggestions_enabled:
-            self.window.after(100, self._show_suggestions)
+            self._schedule_suggestions()
 
     def _on_focus_in(self, event=None):
         self._update_status()
@@ -599,11 +833,38 @@ class CodeEditor:
         self._current_file = path
         self._dirty = False
         self._status_label.config(text=f'Opened: {os.path.basename(path)}')
-        # 打开文件时自动挂载该项目目录,以便加载 .pyeditor/settings.json。
-        project_root = os.path.dirname(os.path.abspath(path))
-        if project_root:
-            self._attach_project(project_root)
+        # 关键修复: 打开文件时**只在文件不在当前项目内**时才更新项目根,
+        # 避免把项目视图切碎成只剩某个子目录(原本双击 src/lib/foo.py 会
+        # 让整个 src/lib/ 之外的兄弟目录从文件树里消失)。
+        new_root = self._should_reattach_for_path(path)
+        if new_root:
+            self._attach_project(new_root)
         self._apply_highlight()
+
+    def _open_project(self):
+        """仅打开/切换项目目录, 不动编辑器内容.
+
+        与 :meth:`_open_file` 的区别: 本方法只把目录挂到
+        :class:`SettingsManager` 并刷新右侧文件树, 编辑器里的代码
+        不会被替换,适合"先选项目再写代码"或"切换到另一个项目"的场景。
+        若当前有未保存修改, 仍会先弹确认以免误操作。
+        """
+        if self._dirty and not messagebox.askyesno('未保存', '丢弃当前修改?'):
+            return
+        # 默认定位到当前项目根(若有), 方便连续切换。
+        initial = self._current_project_root or os.getcwd()
+        chosen = filedialog.askdirectory(
+            title='选择项目根目录',
+            initialdir=initial if os.path.isdir(initial) else None,
+            parent=self.window,
+        )
+        if not chosen:
+            return
+        self._attach_project(chosen)
+        if os.path.isdir(chosen):
+            self._status_label.config(
+                text=f'Project: {os.path.basename(chosen) or chosen}',
+            )
 
     def _save_file(self):
         if self._current_file:
@@ -618,9 +879,11 @@ class CodeEditor:
         if path:
             self._save_to_path(path)
             self._current_file = path
-            project_root = os.path.dirname(os.path.abspath(path))
-            if project_root:
-                self._attach_project(project_root)
+            # 同样: 仅当文件位置在当前项目之外时才更新项目根,
+            # 否则保留当前项目视图不变(避免另存为到子目录后,外层目录消失)。
+            new_root = self._should_reattach_for_path(path)
+            if new_root:
+                self._attach_project(new_root)
 
     def _save_to_path(self, path: str):
         code = self._editor.get('1.0', 'end-1c')
@@ -944,10 +1207,12 @@ class CodeEditor:
     def _toggle_highlighting(self):
         self._highlighting_enabled = bool(self._highlight_tk_var.get())
         if not self._highlighting_enabled:
+            self._cancel_pending_highlight()
             text = self._editor._text
             for tag in text.tag_names():
                 text.tag_delete(tag)
         else:
+            self._cancel_pending_highlight()
             self._apply_highlight()
         self._write_setting(
             SettingsScope.GLOBAL, 'completion.enabled', self._highlighting_enabled,
@@ -1007,7 +1272,7 @@ class CodeEditor:
             messagebox.showerror('项目设置', f'设置面板加载失败:{exc}', parent=self.window)
 
     def _attach_project(self, root: str) -> None:
-        """附加项目目录到 SettingsManager,记录当前根。"""
+        """附加项目目录到 SettingsManager,记录当前根,并刷新文件树。"""
 
         root = os.path.abspath(root)
         if self._current_project_root == root:
@@ -1018,6 +1283,11 @@ class CodeEditor:
             self._current_project_root = root
         except Exception as exc:
             messagebox.showerror('项目设置', f'无法挂载项目 {root}:{exc}', parent=self.window)
+            return
+        # 同步刷新右侧文件树。
+        tree = getattr(self, '_file_tree', None)
+        if tree is not None:
+            tree.set_root(root)
 
     def _reset_settings(self):
         if not messagebox.askyesno('重置设置', '确认将全局设置恢复为默认值?', parent=self.window):
@@ -1052,6 +1322,7 @@ class CodeEditor:
             "文件:\n"
             "  新建         Ctrl+N\n"
             "  打开         Ctrl+O\n"
+            "  打开项目     Ctrl+Shift+O\n"
             "  保存         Ctrl+S\n"
             "  另存为       Ctrl+Shift+S\n"
             "  运行         F5\n"
@@ -1163,28 +1434,132 @@ class CodeEditor:
 
         try:
             if self._lang == 'Python':
-                cmd = [sys.executable, temp_path]
+                cmd: List[str] = [sys.executable, temp_path]
             elif self._lang in ('C', 'C++'):
-                binary = temp_path.rsplit('.', 1)[0] + '.exe'
-                compiler = 'g++' if self._lang == 'C++' else 'gcc'
-                compile_result = subprocess.run(
-                    [compiler, temp_path, '-o', binary],
-                    capture_output=True, text=True, timeout=30,
-                )
-                if compile_result.returncode != 0:
-                    self._output._text.config(state='normal')
-                    self._output.clear()
-                    self._append_output(f'Compile error:\n{compile_result.stderr}\n')
-                    self._output._text.config(state='disabled')
-                    self._status_label.config(text='Compile failed')
+                ok, artifact = self._compile_c_cpp(temp_path)
+                if not ok:
+                    # 编译失败 / 编译器找不到: 错误已写到 output, 这里
+                    # 只负责把临时源文件清掉。
+                    try:
+                        os.unlink(temp_path)
+                    except OSError:
+                        pass
                     return
-                cmd = [binary]
+                cmd = [artifact]
             else:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
                 return
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            # 取 runner 相关设置; 默认值与 schema 中保持一致, 即使在
+            # 旧的 (无该字段的) global settings.json 下也不会 KeyError。
+            clear_first = bool(
+                self._settings.effective('runner.clear_output_before_run', True)
+            )
+            streaming = bool(
+                self._settings.effective('runner.stream_output', True)
+            )
+            timeout_ms = int(
+                self._settings.effective('runner.timeout_ms', 30000)
+            )
+            timeout_s = max(0.5, timeout_ms / 1000.0)
+
+            if streaming:
+                # 流式: temp_path 由 _run_streaming_path 在 done 回调里
+                # unlink, 这里不立即删除, 否则子进程打开文件可能失败。
+                self._run_streaming_path(
+                    cmd, temp_path, clear_first, timeout_s,
+                )
+            else:
+                # 阻塞: temp_path 在 _run_blocking_path 的 finally 里
+                # unlink, 行为与改造前一致。
+                self._run_blocking_path(
+                    cmd, temp_path, clear_first, timeout_s,
+                )
+        except FileNotFoundError:
+            # 理论上不会到这里 (Python 走 sys.executable, C/C++ 的
+            # FileNotFoundError 已被 _compile_c_cpp 消化), 兜底以防
+            # 未来新增语言的 cmd 找不到解释器。
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
             self._output._text.config(state='normal')
             self._output.clear()
+            self._append_output(
+                'Compiler not found. Please install GCC/G++ for C/C++ support.\n'
+            )
+            self._output._text.config(state='disabled')
+            self._status_label.config(text='Compiler not found')
+        except Exception as e:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            self._output._text.config(state='normal')
+            self._output.clear()
+            self._append_output(f'Run error: {e}\n')
+            self._output._text.config(state='disabled')
+            self._status_label.config(text='Run failed')
+
+    def _compile_c_cpp(self, temp_path: str) -> tuple:
+        """编译 C / C++ 源文件; 返回 ``(ok, binary_path_or_stderr)``.
+
+        失败时 ``ok=False`` 且错误信息已写到 output widget; 成功时
+        ``ok=True`` 且第二项是产物可执行文件路径。
+
+        与原 ``_run_code`` 内的内联代码不同点: 错误处理抽到这里集中,
+        让 :meth:`_run_code` 主路径只剩"准备 cmd + 选 blocking/streaming
+        两条路"两件事, 便于在流式 / 阻塞之间切换时不会让编译错误
+        漏到其中一条路径上。
+        """
+
+        binary_ext = '.exe' if sys.platform == 'win32' else ''
+        binary = temp_path.rsplit('.', 1)[0] + binary_ext
+        compiler = 'g++' if self._lang == 'C++' else 'gcc'
+        try:
+            compile_result = subprocess.run(
+                [compiler, temp_path, '-o', binary],
+                capture_output=True, text=True, timeout=30,
+            )
+        except FileNotFoundError:
+            self._output._text.config(state='normal')
+            self._output.clear()
+            self._append_output(
+                'Compiler not found. Please install GCC/G++ for C/C++ support.\n'
+            )
+            self._output._text.config(state='disabled')
+            self._status_label.config(text='Compiler not found')
+            return False, 'compiler not found'
+        if compile_result.returncode != 0:
+            self._output._text.config(state='normal')
+            self._output.clear()
+            self._append_output(f'Compile error:\n{compile_result.stderr}\n')
+            self._output._text.config(state='disabled')
+            self._status_label.config(text='Compile failed')
+            return False, compile_result.stderr
+        return True, binary
+
+    def _run_blocking_path(
+        self,
+        cmd: List[str],
+        temp_path: str,
+        clear_first: bool,
+        timeout_s: float,
+    ) -> None:
+        """``runner.stream_output`` 关闭时的回退路径.
+
+        行为与改造前 ``subprocess.run(...)`` 等价; 临时文件在 finally
+        中清理, 与原实现保持一致。
+        """
+
+        try:
+            result = run_blocking(cmd, timeout_s=timeout_s)
+            self._output._text.config(state='normal')
+            if clear_first:
+                self._output.clear()
             if result.stdout:
                 self._append_output(result.stdout)
             if result.stderr:
@@ -1194,17 +1569,16 @@ class CodeEditor:
             self._output._text.config(state='disabled')
             self._status_label.config(text='Run complete')
         except subprocess.TimeoutExpired:
-            self._append_output('Execution timed out.\n')
-            self._status_label.config(text='Timeout')
-        except FileNotFoundError:
             self._output._text.config(state='normal')
-            self._output.clear()
-            self._append_output('Compiler not found. Please install GCC/G++ for C/C++ support.\n')
+            if clear_first:
+                self._output.clear()
+            self._append_output('Execution timed out.\n')
             self._output._text.config(state='disabled')
-            self._status_label.config(text='Compiler not found')
+            self._status_label.config(text='Timeout')
         except Exception as e:
             self._output._text.config(state='normal')
-            self._output.clear()
+            if clear_first:
+                self._output.clear()
             self._append_output(f'Run error: {e}\n')
             self._output._text.config(state='disabled')
             self._status_label.config(text='Run failed')
@@ -1213,6 +1587,99 @@ class CodeEditor:
                 os.unlink(temp_path)
             except OSError:
                 pass
+
+    def _run_streaming_path(
+        self,
+        cmd: List[str],
+        temp_path: str,
+        clear_first: bool,
+        timeout_s: float,
+    ) -> None:
+        """流式执行: 后台线程把行塞进 ``queue.Queue``, Tk 主线程用
+        :meth:`tk.Misc.after` 周期排空.
+
+        Tk widget 只能在主线程操作 — 这是所有 GUI 框架的硬约束, 因此
+        不能在 ``line_callback`` / ``done_callback`` 里直接 ``config``
+        文本框。后台线程只负责把数据 push 到线程安全的 ``Queue``, 由
+        ``drain`` 在主线程里把行渲染到 output。这是 Tk + subprocess
+        实时输出的标准桥接模式。
+        """
+
+        # 清屏
+        self._output._text.config(state='normal')
+        if clear_first:
+            self._output.clear()
+        self._output._text.config(state='disabled')
+
+        # 取消上一次未结束的 drain, 避免旧 drain 往新 run 的 output
+        # 里灌陈旧的行 (用户连续点 Run 时常见)。
+        prev_after = getattr(self, '_stream_drain_after_id', None)
+        if prev_after is not None:
+            try:
+                self.window.after_cancel(prev_after)
+            except tk.TclError:
+                pass
+
+        line_q: queue.Queue = queue.Queue()
+        self._stream_drain_after_id: Any = None
+
+        def on_line(stream_name: str, line: str) -> None:
+            try:
+                line_q.put((stream_name, line))
+            except Exception:
+                pass
+
+        def on_done(result: RunResult) -> None:
+            try:
+                line_q.put(('__done__', result))
+            except Exception:
+                pass
+
+        def drain() -> None:
+            try:
+                while True:
+                    item = line_q.get_nowait()
+                    if item[0] == '__done__':
+                        result: RunResult = item[1]
+                        self._output._text.config(state='normal')
+                        if result.timed_out:
+                            self._append_output('\n[Execution timed out]\n')
+                        elif result.returncode != 0:
+                            self._append_output(
+                                f'\n[Exit code: {result.returncode}]\n'
+                            )
+                        self._output._text.config(state='disabled')
+                        self._status_label.config(
+                            text='Timeout' if result.timed_out else 'Run complete',
+                        )
+                        try:
+                            os.unlink(temp_path)
+                        except OSError:
+                            pass
+                        self._stream_drain_after_id = None
+                        return
+                    stream_name, line = item
+                    self._output._text.config(state='normal')
+                    self._append_output(line)
+                    self._output._text.config(state='disabled')
+            except queue.Empty:
+                pass
+            except tk.TclError:
+                # 窗口被销毁; 后续 after 也会失败, 直接退出即可
+                self._stream_drain_after_id = None
+                return
+            try:
+                self._stream_drain_after_id = self.window.after(50, drain)
+            except tk.TclError:
+                self._stream_drain_after_id = None
+
+        stream_command(
+            cmd,
+            timeout_s=timeout_s,
+            line_callback=on_line,
+            done_callback=on_done,
+        )
+        drain()
 
     def _append_output(self, text):
         self._output._text.config(state='normal')

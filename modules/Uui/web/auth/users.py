@@ -46,7 +46,7 @@ class User(Model):  # type: ignore[misc]
 
     @property
     def pk(self):  # type: ignore[override]
-        return self.id
+        return self.id  # type: ignore[attr-defined]
 
     @property
     def is_authenticated(self) -> bool:
@@ -60,16 +60,16 @@ class User(Model):  # type: ignore[misc]
         self.password_hash = _pw.make_password(raw)
 
     def check_password(self, raw: str) -> bool:
-        return _pw.check_password(raw, self.password_hash or '')
+        return _pw.check_password(raw, self.password_hash or '')  # type: ignore[arg-type]
 
     def get_username(self) -> str:
-        return self.username or ''
+        return self.username or ''  # type: ignore[return-value]
 
     def has_perm(self, perm: str) -> bool:
-        return self.is_superuser
+        return bool(self.is_superuser)  # type: ignore[return-value]
 
     def has_perms(self, perms) -> bool:
-        return self.is_superuser
+        return bool(self.is_superuser)  # type: ignore[return-value]
 
     def __repr__(self) -> str:
         return f'<User {self.username!r}>'

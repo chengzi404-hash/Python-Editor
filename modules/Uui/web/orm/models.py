@@ -68,13 +68,13 @@ class ModelMeta(type):
             attrs[fname] = fld
 
         cls = super().__new__(mcs, name, bases, attrs)
-        cls._meta = meta_dict
+        cls._meta = meta_dict  # type: ignore[attr-defined]
         from .query import QuerySet as _QS
-        cls.objects = _QS(cls)  # type: ignore
+        cls.objects = _QS(cls)  # type: ignore[arg-type,attr-defined]
 
         model_path = f'{cls.__module__}.{name}'
-        _models[model_path] = cls
-        _models[name] = cls
+        _models[model_path] = cls  # type: ignore[arg-type]
+        _models[name] = cls  # type: ignore[arg-type]
         return cls
 
 
@@ -165,6 +165,6 @@ class Model(metaclass=ModelMeta):
         for fname in self._meta['fields']:
             value = getattr(self, fname, None)
             if hasattr(value, 'isoformat'):
-                value = value.isoformat()
+                value = value.isoformat()  # type: ignore[union-attr]
             result[fname] = value
         return result

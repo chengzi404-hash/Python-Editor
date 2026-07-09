@@ -219,3 +219,78 @@ class TestGetSchema:
 
     def test_get_project_returns_project_schema(self) -> None:
         assert get_schema(SettingsScope.PROJECT) is PROJECT_SCHEMA
+
+
+class TestHighlightDelaySpec:
+    """``editor.highlight_delay_ms`` —— 高亮防抖延迟设置项。
+
+    类型、默认值、范围、scope 都必须严格符合 :mod:`main.py` 中的消费方约定:
+    0 表示"无延迟"(走 ``after(0, ...)`` 立即路径),5000 是上限。
+    """
+
+    def test_key_exists(self) -> None:
+        assert "editor.highlight_delay_ms" in GLOBAL_SCHEMA
+
+    def test_type_is_integer(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.highlight_delay_ms")
+        assert spec is not None
+        assert spec.type is SettingValueType.INTEGER
+
+    def test_default_is_300(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.highlight_delay_ms")
+        assert spec is not None
+        assert spec.default == 300
+
+    def test_default_allows_zero(self) -> None:
+        """默认值为 0 意味着可以关闭防抖(立即高亮)。"""
+        spec = GLOBAL_SCHEMA.get("editor.highlight_delay_ms")
+        assert spec is not None
+        validated = spec.validate(0)
+        assert validated == 0
+
+    def test_min_is_zero(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.highlight_delay_ms")
+        assert spec is not None
+        assert spec.min == 0
+
+    def test_max_is_5000(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.highlight_delay_ms")
+        assert spec is not None
+        assert spec.max == 5000
+
+    def test_negative_value_rejected(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.highlight_delay_ms")
+        assert spec is not None
+        with pytest.raises(ValueError):
+            spec.validate(-1)
+
+    def test_value_above_max_rejected(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.highlight_delay_ms")
+        assert spec is not None
+        with pytest.raises(ValueError):
+            spec.validate(5001)
+
+    def test_scope_is_global(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.highlight_delay_ms")
+        assert spec is not None
+        assert spec.scope is SettingsScope.GLOBAL
+
+    def test_round_trip_via_global_settings(self, tmp_path) -> None:
+        """通过 GlobalSettings 真实读写:延迟值应当能正确持久化。"""
+        from modules.settings import GlobalSettings
+
+        gs = GlobalSettings(path=str(tmp_path / "g.json"))
+        gs.set("editor.highlight_delay_ms", 150)
+        assert gs.get("editor.highlight_delay_ms") == 150
+        gs.save()
+
+        gs2 = GlobalSettings(path=str(tmp_path / "g.json"))
+        assert gs2.get("editor.highlight_delay_ms") == 150
+
+    def test_global_settings_default_when_unset(self, tmp_path) -> None:
+        """未显式 set 时,读取应得到 schema 的默认值。"""
+        from modules.settings import GlobalSettings
+
+        gs = GlobalSettings(path=str(tmp_path / "g.json"))
+        assert gs.get("editor.highlight_delay_ms") == 300
+        assert gs.has("editor.highlight_delay_ms") is False

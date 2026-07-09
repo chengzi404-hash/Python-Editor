@@ -97,7 +97,7 @@ class TestHighlighterExpert:
                 return block
 
         with pytest.raises(TypeError):
-            Partial()
+            Partial()  # type: ignore[abstract]
 
     def test_must_implement_get_languange_exts(self) -> None:
         """只实现 ``get_languange_exts`` 时,``highlight`` 仍是抽象的,无法实例化。"""
@@ -107,7 +107,7 @@ class TestHighlighterExpert:
                 return ["x"]
 
         with pytest.raises(TypeError):
-            Partial()
+            Partial()  # type: ignore[abstract]
 
     def test_concrete_subclass_can_be_instantiated(self) -> None:
         """两个抽象方法都实现后应可正常实例化。"""
