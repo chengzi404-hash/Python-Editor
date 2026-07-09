@@ -30,6 +30,8 @@ except Exception:  # pragma: no cover
 
 from .hooks import HOOK_SPECS
 
+from modules.i18n import t
+
 
 __all__ = ["UPluginManagerWindow"]
 
@@ -46,7 +48,7 @@ class UPluginManagerWindow:
         self._tk_vars: Dict[str, tk.BooleanVar] = {}
 
         self._win = tk.Toplevel(editor.window)
-        self._win.title('插件管理')
+        self._win.title(t('plugin.manager.title'))
         self._win.configure(bg=theme.BG_BASE)
         self._win.geometry('720x520+300+150')
         self._win.transient(editor.window)
@@ -62,11 +64,12 @@ class UPluginManagerWindow:
         # 顶部: 目录信息
         top = UFrame(self._win, variant='title')
         top.pack(fill=tk.X)
+        global_dir = self._manager._global_plugins_dir
         ULabel(
             top,
             text=(
-                f"  全局插件目录: {self._manager._global_plugins_dir}"
-                f"    项目插件目录: <项目根>/plugins/"
+                f"  {t('plugin.manager.from_label')} {global_dir}"
+                f"    <project>/plugins/"
             ),
             variant='secondary', bg=theme.BG_TITLE,
         ).pack(side=tk.LEFT, padx=10, pady=4)
@@ -82,7 +85,7 @@ class UPluginManagerWindow:
         # 左栏: 已加载插件
         left = UFrame(body, variant='panel')
         left.grid(row=0, column=0, sticky='nsew', padx=(4, 2), pady=4)
-        ULabel(left, text='已加载', variant='primary', bg=theme.BG_PANEL).pack(
+        ULabel(left, text=t('plugin.manager.loaded'), variant='primary', bg=theme.BG_PANEL).pack(
             anchor='w', padx=8, pady=4,
         )
         self._loaded_text = UText(left, width=40, height=18)
@@ -92,7 +95,7 @@ class UPluginManagerWindow:
         # 右栏: 发现但未启用
         right = UFrame(body, variant='panel')
         right.grid(row=0, column=1, sticky='nsew', padx=(2, 4), pady=4)
-        ULabel(right, text='发现 (未启用)', variant='primary', bg=theme.BG_PANEL).pack(
+        ULabel(right, text=t('plugin.manager.discovered'), variant='primary', bg=theme.BG_PANEL).pack(
             anchor='w', padx=8, pady=4,
         )
         self._discovered_text = UText(right, width=40, height=18)
@@ -103,23 +106,23 @@ class UPluginManagerWindow:
         bottom = UFrame(self._win, variant='title')
         bottom.pack(fill=tk.X)
         UButton(
-            bottom, text='启用', width=70, height=24,
+            bottom, text=t('plugin.manager.btn.enable'), width=70, height=24,
             command=self._on_enable,
         ).pack(side=tk.LEFT, padx=4, pady=4)
         UButton(
-            bottom, text='禁用', width=70, height=24,
+            bottom, text=t('plugin.manager.btn.disable'), width=70, height=24,
             command=self._on_disable,
         ).pack(side=tk.LEFT, padx=4, pady=4)
         UButton(
-            bottom, text='重新加载', width=80, height=24,
+            bottom, text=t('plugin.manager.btn.reload'), width=80, height=24,
             command=self._on_reload,
         ).pack(side=tk.LEFT, padx=4, pady=4)
         UButton(
-            bottom, text='查看详情', width=80, height=24,
+            bottom, text=t('plugin.manager.btn.details'), width=80, height=24,
             command=self._on_info,
         ).pack(side=tk.LEFT, padx=4, pady=4)
         UButton(
-            bottom, text='关闭', width=70, height=24, variant='default',
+            bottom, text=t('plugin.manager.btn.close'), width=70, height=24, variant='default',
             command=self._win.destroy,
         ).pack(side=tk.RIGHT, padx=4, pady=4)
 
@@ -128,7 +131,7 @@ class UPluginManagerWindow:
         hooks_frame.pack(fill=tk.X, padx=4, pady=4)
         hooks_frame.pack_propagate(False)
         ULabel(
-            hooks_frame, text='受支持的钩子事件', variant='primary',
+            hooks_frame, text=t('plugin.manager.hooks_label'), variant='primary',
             bg=theme.BG_PANEL,
         ).pack(anchor='w', padx=8, pady=2)
         hooks_text = UText(hooks_frame, height=3)
@@ -136,9 +139,11 @@ class UPluginManagerWindow:
         hooks_text._text.config(state='disabled', wrap='word')
         for spec in HOOK_SPECS:
             params = ', '.join(spec.params) if spec.params else ''
+            hook_key = f'hook.{spec.name}'
+            hook_desc = t(hook_key, default=spec.description)
             hooks_text._text.insert(
                 'end' if hooks_text._text.index('end-1c') == '1.0' else 'end',
-                f"  {spec.name}({params})  — {spec.description}\n",
+                f"  {spec.name}({params})  — {hook_desc}\n",
             )
 
         self._refresh()
@@ -156,32 +161,38 @@ class UPluginManagerWindow:
             if d.manifest.id not in {r.manifest.id for r in loaded}
         ]
 
+        on_mark = t('plugin.manager.on')
+        off_mark = t('plugin.manager.off')
+        warn = t('plugin.manager.warning')
+        from_label = t('plugin.manager.from_label')
+
         loaded_lines: List[str] = []
         self._tk_vars = {}
         for i, rec in enumerate(loaded, 1):
-            mark = '[ON] ' if rec.enabled else '[OFF]'
-            err = f"  ⚠ {rec.error}" if rec.error else ''
+            mark = on_mark if rec.enabled else off_mark
+            err = f"  {warn} {rec.error}" if rec.error else ''
             loaded_lines.append(
                 f"{i:2}. {mark} {rec.manifest.name}  ({rec.manifest.id}){err}\n"
-                f"      来自: {rec.location}\n"
+                f"      {from_label} {rec.location}\n"
             )
         if not loaded_lines:
-            loaded_lines = ['(尚未加载任何插件)\n']
+            loaded_lines = [f"{t('plugin.manager.loaded_empty')}\n"]
         self._loaded_text._text.config(state='normal')
         self._loaded_text._text.delete('1.0', 'end')
         self._loaded_text._text.insert('1.0', ''.join(loaded_lines))
         self._loaded_text._text.config(state='disabled')
 
         discovered_lines: List[str] = []
+        no_desc = t('plugin.manager.no_desc')
         for i, d in enumerate(discovered, 1):
-            desc = d.manifest.description or '(无描述)'
+            desc = d.manifest.description or no_desc
             discovered_lines.append(
                 f"{i:2}. {d.manifest.name}  ({d.manifest.id})\n"
                 f"      {desc}\n"
-                f"      来自: {d.location}\n"
+                f"      {from_label} {d.location}\n"
             )
         if not discovered_lines:
-            discovered_lines = ['(磁盘上没有更多未启用的插件)\n']
+            discovered_lines = [f"{t('plugin.manager.discovered_empty')}\n"]
         self._discovered_text._text.config(state='normal')
         self._discovered_text._text.delete('1.0', 'end')
         self._discovered_text._text.insert('1.0', ''.join(discovered_lines))
@@ -227,7 +238,11 @@ class UPluginManagerWindow:
     def _on_enable(self) -> None:
         idx = self._selected_discovered_index()
         if idx is None:
-            messagebox.showinfo('启用', '请先在右侧"发现"列表里点击一行插件', parent=self._win)
+            messagebox.showinfo(
+                t('plugin.manager.msg.enable_title'),
+                t('plugin.manager.msg.enable_select_discovered'),
+                parent=self._win,
+            )
             return
         loaded_ids = {r.manifest.id for r in self._manager.list_loaded()}
         discovered = [
@@ -238,7 +253,11 @@ class UPluginManagerWindow:
         try:
             self._manager.enable(target.manifest.id)
         except Exception as exc:
-            messagebox.showerror('启用失败', str(exc), parent=self._win)
+            messagebox.showerror(
+                t('plugin.manager.msg.enable_title'),
+                t('plugin.manager.msg.enable_failed') + f': {exc}',
+                parent=self._win,
+            )
             return
         self._editor._refresh_plugin_menu()
         self._editor._refresh_plugin_languages()
@@ -247,14 +266,22 @@ class UPluginManagerWindow:
     def _on_disable(self) -> None:
         idx = self._selected_loaded_index()
         if idx is None:
-            messagebox.showinfo('禁用', '请先在左侧"已加载"列表里点击一行插件', parent=self._win)
+            messagebox.showinfo(
+                t('plugin.manager.msg.disable_title'),
+                t('plugin.manager.msg.disable_select_loaded'),
+                parent=self._win,
+            )
             return
         loaded = self._manager.list_loaded()
         target = loaded[idx]
         try:
             self._manager.disable(target.manifest.id)
         except Exception as exc:
-            messagebox.showerror('禁用失败', str(exc), parent=self._win)
+            messagebox.showerror(
+                t('plugin.manager.msg.disable_title'),
+                t('plugin.manager.msg.disable_failed') + f': {exc}',
+                parent=self._win,
+            )
             return
         self._editor._refresh_plugin_menu()
         self._editor._refresh_plugin_languages()
@@ -263,14 +290,22 @@ class UPluginManagerWindow:
     def _on_reload(self) -> None:
         idx = self._selected_loaded_index()
         if idx is None:
-            messagebox.showinfo('重载', '请先在左侧"已加载"列表里点击一行插件', parent=self._win)
+            messagebox.showinfo(
+                t('plugin.manager.msg.reload_title'),
+                t('plugin.manager.msg.reload_select_loaded'),
+                parent=self._win,
+            )
             return
         loaded = self._manager.list_loaded()
         target = loaded[idx]
         try:
             self._manager.reload(target.manifest.id)
         except Exception as exc:
-            messagebox.showerror('重载失败', str(exc), parent=self._win)
+            messagebox.showerror(
+                t('plugin.manager.msg.reload_title'),
+                t('plugin.manager.msg.reload_failed') + f': {exc}',
+                parent=self._win,
+            )
             return
         self._editor._refresh_plugin_menu()
         self._editor._refresh_plugin_languages()
@@ -304,4 +339,8 @@ class UPluginManagerWindow:
                 text += f"\n\n{m.description}"
             messagebox.showinfo(f'插件: {m.name}', text, parent=self._win)
             return
-        messagebox.showinfo('查看详情', '请先在左侧或右侧点击一行插件', parent=self._win)
+        messagebox.showinfo(
+            t('plugin.manager.msg.details_title'),
+            t('plugin.manager.msg.details_select'),
+            parent=self._win,
+        )

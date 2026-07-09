@@ -22,6 +22,7 @@ from modules.plugins import (
     LanguageContribution,
     HookEvents,
 )
+from modules.i18n import AVAILABLE_LANGUAGES, get_translator, t
 
 
 class _Debouncer:
@@ -112,13 +113,21 @@ TAB_WIDTHS = [2, 4, 8]
 class CodeEditor:
     def __init__(self):
         custom_titlebar = '--custom-titlebar' in sys.argv
-        self.window = Window(title='Python Editor', custom_titlebar=custom_titlebar)
+        self.window = Window(title=t('window.title'), custom_titlebar=custom_titlebar)
         self.window.geometry('960x680+200+100')
         self.window.configure(bg=theme.BG_BASE)
         self.window.resizable(width=True, height=True)
 
         self._settings = SettingsManager()
         self._suppress_settings_listener = False
+
+        # 国际化: 先把 translator 切到 settings 里持久化的语言, 再开始构建 UI。
+        # 这样 _build_menubar / _build_status_bar 等内部 t() 调用就能拿到正确的文本。
+        self._translator = get_translator()
+        initial_lang = self._settings.effective('i18n.language', 'zh_CN')
+        if initial_lang in AVAILABLE_LANGUAGES:
+            self._translator.set_language(initial_lang)
+        self._translator.add_listener(self._on_language_changed)
 
         self._lang = 'Python'
         self._current_file: Optional[str] = None
@@ -266,6 +275,14 @@ class CodeEditor:
                 self._suggest_delay_ms = max(0, int(event.new))
             except (TypeError, ValueError):
                 self._suggest_delay_ms = 200
+        elif key == 'i18n.language':
+            new_lang = event.new if event.new in AVAILABLE_LANGUAGES else 'zh_CN'
+            if self._translator.current_language != new_lang:
+                self._translator.set_language(new_lang)
+                # _on_language_changed (translator listener) 会重建 UI,
+                # 这里不需要再做任何事。
+            if hasattr(self, '_lang_locale_tk_var') and self._lang_locale_tk_var is not None:
+                self._lang_locale_tk_var.set(new_lang)
 
     def _refresh_all_from_settings(self) -> None:
         """设置面板整体保存后,把全局值同步回 UI。"""
@@ -302,6 +319,87 @@ class CodeEditor:
         except Exception:
             pass
 
+    def _on_language_changed(self, lang: str) -> None:
+        """translator listener: 语言切换后重建需要本地化的 UI 部分。
+
+        重建范围:
+            * 菜单栏: _build_menubar 内部会用 t() 重新生成 label
+            * 状态栏: 状态字符串、pos 标签等需要立即刷新
+            * 关闭当前打开的 find/replace dialog 与 settings 窗口,
+              它们的 label 是构建时固化的, 不重建就会停留在旧语言。
+
+        不重建: 编辑器文本、文件树、主题颜色 — 这些与语言无关。
+        """
+
+        # 先关掉可能停留在旧语言的 dialog, 避免用户看到半中半英
+        for attr in ('_find_dialog', '_settings_window', '_plugin_manager_window'):
+            win = getattr(self, attr, None)
+            if win is not None and win.winfo_exists():
+                try:
+                    win.destroy()
+                except tk.TclError:
+                    pass
+            if attr == '_find_dialog':
+                self._find_dialog = None
+
+        # 重建菜单栏: 先清空旧按钮, 再走完整 _build_menubar。
+        self._clear_menubar()
+        self._build_menubar()
+
+        # 重建插件菜单 / 语言下拉框: 它们依赖 LANG_CONFIG, 不随 i18n 变
+        # (代码语言与界面语言是两回事), 但插件菜单的 label 是动态拼出来的,
+        # 需要刷新一下, 否则会停留在旧文案。
+        try:
+            self._refresh_plugin_menu()
+        except Exception:
+            pass
+
+        # 刷新状态栏与 pos 标签
+        try:
+            self._refresh_status_for_language()
+        except Exception:
+            pass
+
+    def _clear_menubar(self) -> None:
+        """销毁 UMenuBar 上已渲染的 cascade 按钮,准备 _build_menubar 重建。
+
+        之所以不直接 destroy UMenuBar 自身: 它已经被 pack 到窗口里,
+        销毁并重新创建会改变布局管理器的状态, 容易留下空白。
+        这里直接销毁每个 cascade 按钮 + 清空 _buttons 列表,
+        _build_menubar 调用时只是重新 pack, 行为与首次构造一致。
+        """
+
+        bar = getattr(self, '_menubar', None)
+        if bar is None:
+            return
+        try:
+            # _buttons 是 [(tk.Label, UMenu), ...], 销毁 Label 即可
+            for btn, _ in list(getattr(bar, '_buttons', [])):
+                try:
+                    btn.destroy()
+                except tk.TclError:
+                    pass
+            bar._buttons = []
+        except Exception:
+            pass
+
+    def _refresh_status_for_language(self) -> None:
+        """语言切换后,把状态栏里以 t() 渲染的 label 全部刷新。"""
+
+        if not hasattr(self, '_status_label'):
+            return
+        try:
+            self._status_label.config(text=t('status.ready'))
+        except tk.TclError:
+            pass
+        # pos 标签: 走 _update_status 重算 (里面没有硬编码文案,
+        # 但 status.pos 的 key 是新的, 这里确保 _pos_label 存在)
+        if hasattr(self, '_pos_label'):
+            try:
+                self._update_status()
+            except Exception:
+                pass
+
     def _write_setting(self, scope: SettingsScope, key: str, value) -> None:
         """写入 setting(抑制 listener,避免用户操作 UI 后回到原值的无效回弹)。"""
 
@@ -320,7 +418,10 @@ class CodeEditor:
     def _on_close_request(self) -> None:
         """窗口关闭时: 询问 + 落盘。"""
 
-        if self._dirty and not messagebox.askyesno('未保存', '有未保存的修改,确认退出?'):
+        if self._dirty and not messagebox.askyesno(
+            t('dialog.title.unsaved_exit'),
+            t('dialog.unsaved_exit.message'),
+        ):
             return
         self._cancel_pending_highlight()
         self._cancel_pending_suggestions()
@@ -335,7 +436,7 @@ class CodeEditor:
         try:
             self._settings.save_all()
         except Exception as exc:
-            messagebox.showerror('保存设置失败', str(exc))
+            messagebox.showerror(t('dialog.title.save_settings_failed'), str(exc))
         self.window.destroy()
 
     # ------------------------------------------------------------------
@@ -391,99 +492,109 @@ class CodeEditor:
         self._menubar = UMenuBar(self.window)
         self._menubar.pack(fill=tk.X, padx=0, pady=0)
 
-        file_menu = self._menubar.add_cascade('文件(F)')
-        file_menu.add_command('新建', self._new_file, 'Ctrl+N')
-        file_menu.add_command('打开...', self._open_file, 'Ctrl+O')
-        file_menu.add_command('打开项目...', self._open_project, 'Ctrl+Shift+O')
+        file_menu = self._menubar.add_cascade(t('menu.file'))
+        file_menu.add_command(t('menu.file.new'), self._new_file, 'Ctrl+N')
+        file_menu.add_command(t('menu.file.open'), self._open_file, 'Ctrl+O')
+        file_menu.add_command(t('menu.file.open_project'), self._open_project, 'Ctrl+Shift+O')
         file_menu.add_separator()
-        file_menu.add_command('保存', self._save_file, 'Ctrl+S')
-        file_menu.add_command('另存为...', self._save_file_as, 'Ctrl+Shift+S')
+        file_menu.add_command(t('menu.file.save'), self._save_file, 'Ctrl+S')
+        file_menu.add_command(t('menu.file.save_as'), self._save_file_as, 'Ctrl+Shift+S')
         file_menu.add_separator()
-        file_menu.add_command('运行', self._run_code, 'F5')
-        file_menu.add_command('检查', self._run_check, 'Ctrl+R')
-        file_menu.add_command('清除输出', self._clear_output, 'Ctrl+L')
+        file_menu.add_command(t('menu.file.run'), self._run_code, 'F5')
+        file_menu.add_command(t('menu.file.check'), self._run_check, 'Ctrl+R')
+        file_menu.add_command(t('menu.file.clear_output'), self._clear_output, 'Ctrl+L')
         file_menu.add_separator()
-        file_menu.add_command('退出', self.window.destroy, 'Alt+F4')
+        file_menu.add_command(t('menu.file.exit'), self.window.destroy, 'Alt+F4')
 
-        edit_menu = self._menubar.add_cascade('编辑(E)')
-        edit_menu.add_command('撤销', self._undo, 'Ctrl+Z')
-        edit_menu.add_command('重做', self._redo, 'Ctrl+Y')
+        edit_menu = self._menubar.add_cascade(t('menu.edit'))
+        edit_menu.add_command(t('menu.edit.undo'), self._undo, 'Ctrl+Z')
+        edit_menu.add_command(t('menu.edit.redo'), self._redo, 'Ctrl+Y')
         edit_menu.add_separator()
-        edit_menu.add_command('剪切', self._cut, 'Ctrl+X')
-        edit_menu.add_command('复制', self._copy, 'Ctrl+C')
-        edit_menu.add_command('粘贴', self._paste, 'Ctrl+V')
+        edit_menu.add_command(t('menu.edit.cut'), self._cut, 'Ctrl+X')
+        edit_menu.add_command(t('menu.edit.copy'), self._copy, 'Ctrl+C')
+        edit_menu.add_command(t('menu.edit.paste'), self._paste, 'Ctrl+V')
         edit_menu.add_separator()
-        edit_menu.add_command('全选', self._select_all, 'Ctrl+A')
+        edit_menu.add_command(t('menu.edit.select_all'), self._select_all, 'Ctrl+A')
         edit_menu.add_separator()
-        edit_menu.add_command('查找...', self._open_find, 'Ctrl+F')
-        edit_menu.add_command('替换...', self._open_replace, 'Ctrl+H')
-        edit_menu.add_command('转到行...', self._goto_line, 'Ctrl+G')
+        edit_menu.add_command(t('menu.edit.find'), self._open_find, 'Ctrl+F')
+        edit_menu.add_command(t('menu.edit.replace'), self._open_replace, 'Ctrl+H')
+        edit_menu.add_command(t('menu.edit.goto_line'), self._goto_line, 'Ctrl+G')
         edit_menu.add_separator()
-        edit_menu.add_command('缩进', self._indent, 'Tab')
-        edit_menu.add_command('取消缩进', self._outdent, 'Shift+Tab')
-        edit_menu.add_command('切换注释', self._toggle_comment, 'Ctrl+/')
-        lang_sub = edit_menu.add_cascade('切换语言')
+        edit_menu.add_command(t('menu.edit.indent'), self._indent, 'Tab')
+        edit_menu.add_command(t('menu.edit.outdent'), self._outdent, 'Shift+Tab')
+        edit_menu.add_command(t('menu.edit.toggle_comment'), self._toggle_comment, 'Ctrl+/')
+        lang_sub = edit_menu.add_cascade(t('menu.edit.switch_language'))
         for name in LANG_CONFIG:
             lang_sub.add_radiobutton(name, value=name, variable=self._lang_var(),
                                      command=lambda n=name: self._switch_language(n))
 
-        query_menu = self._menubar.add_cascade('查询(Q)')
-        query_menu.add_command('跳转到定义', self._goto_definition, 'F12')
-        query_menu.add_command('查找引用', self._find_references, 'Shift+F12')
-        query_menu.add_command('查找文档', self._find_documentation, 'Ctrl+Shift+F1')
+        query_menu = self._menubar.add_cascade(t('menu.query'))
+        query_menu.add_command(t('menu.query.goto_definition'), self._goto_definition, 'F12')
+        query_menu.add_command(t('menu.query.find_references'), self._find_references, 'Shift+F12')
+        query_menu.add_command(t('menu.query.find_documentation'), self._find_documentation, 'Ctrl+Shift+F1')
         query_menu.add_separator()
-        query_menu.add_command('重新解析代码', self._reparse, 'F6')
-        query_menu.add_command('刷新高亮', self._apply_highlight, 'F7')
+        query_menu.add_command(t('menu.query.reparse'), self._reparse, 'F6')
+        query_menu.add_command(t('menu.query.refresh_highlight'), self._apply_highlight, 'F7')
         query_menu.add_separator()
-        query_menu.add_command('触发建议', self._show_suggestions, 'Ctrl+Space')
-        query_menu.add_command('隐藏建议', self._hide_suggestions, 'Esc')
+        query_menu.add_command(t('menu.query.trigger_suggestions'), self._show_suggestions, 'Ctrl+Space')
+        query_menu.add_command(t('menu.query.hide_suggestions'), self._hide_suggestions, 'Esc')
 
-        settings_menu = self._menubar.add_cascade('设置(S)')
-        theme_sub = settings_menu.add_cascade('主题')
+        settings_menu = self._menubar.add_cascade(t('menu.settings'))
+        theme_sub = settings_menu.add_cascade(t('menu.settings.theme'))
         for name in THEME_NAMES:
             theme_sub.add_radiobutton(name, value=name,
                                        variable=self._theme_var(),
                                        command=lambda n=name: self._set_theme(n))
-        font_sub = settings_menu.add_cascade('字体')
+        font_sub = settings_menu.add_cascade(t('menu.settings.font'))
         for fnt in FONT_FAMILIES:
             font_sub.add_radiobutton(fnt, value=fnt,
                                       variable=self._font_family_var(),
                                       command=lambda f=fnt: self._set_font_family(f))
-        size_sub = settings_menu.add_cascade('字号')
+        size_sub = settings_menu.add_cascade(t('menu.settings.font_size'))
         for sz in FONT_SIZES:
             size_sub.add_radiobutton(str(sz), value=sz,
                                       variable=self._font_size_var(),
                                       command=lambda s=sz: self._set_font_size(s))
-        tab_sub = settings_menu.add_cascade('Tab 宽度')
+        tab_sub = settings_menu.add_cascade(t('menu.settings.tab_width'))
         for tw in TAB_WIDTHS:
             tab_sub.add_radiobutton(str(tw), value=tw,
                                      variable=self._tab_width_var(),
                                      command=lambda t=tw: self._set_tab_width(t))
         settings_menu.add_separator()
-        settings_menu.add_checkbutton('启用高亮', variable=self._highlight_var(),
+        settings_menu.add_checkbutton(t('menu.settings.enable_highlight'), variable=self._highlight_var(),
                                        command=self._toggle_highlighting)
-        settings_menu.add_checkbutton('启用建议', variable=self._suggestion_var(),
+        settings_menu.add_checkbutton(t('menu.settings.enable_suggestions'), variable=self._suggestion_var(),
                                        command=self._toggle_suggestions)
-        settings_menu.add_checkbutton('自动保存', variable=self._autosave_var(),
+        settings_menu.add_checkbutton(t('menu.settings.auto_save'), variable=self._autosave_var(),
                                        command=self._toggle_autosave)
         settings_menu.add_separator()
-        settings_menu.add_command('全局设置...', self._open_global_settings)
-        settings_menu.add_command('项目设置...', self._open_project_settings)
-        settings_menu.add_command('重置设置', self._reset_settings)
+        # 语言子菜单: 每种语言一个 radio, 写回 settings 触发全局 i18n 切换
+        lang_locale_sub = settings_menu.add_cascade(t('menu.settings.language'))
+        for lang in AVAILABLE_LANGUAGES:
+            lang_locale_sub.add_radiobutton(
+                t(f'menu.language.{lang}'),
+                value=lang,
+                variable=self._lang_locale_var(),
+                command=lambda l=lang: self._set_language_locale(l),
+            )
+        settings_menu.add_separator()
+        settings_menu.add_command(t('menu.settings.global_settings'), self._open_global_settings)
+        settings_menu.add_command(t('menu.settings.project_settings'), self._open_project_settings)
+        settings_menu.add_command(t('menu.settings.reset'), self._reset_settings)
 
-        help_menu = self._menubar.add_cascade('帮助(H)')
-        help_menu.add_command('文档', self._show_documentation, 'F1')
-        help_menu.add_command('快捷键', self._show_shortcuts, 'Ctrl+K')
+        help_menu = self._menubar.add_cascade(t('menu.help'))
+        help_menu.add_command(t('menu.help.docs'), self._show_documentation, 'F1')
+        help_menu.add_command(t('menu.help.shortcuts'), self._show_shortcuts, 'Ctrl+K')
         help_menu.add_separator()
-        help_menu.add_command('关于', self._show_about)
-        help_menu.add_command('检查更新...', self._check_updates)
-        help_menu.add_command('报告问题...', self._report_issue)
+        help_menu.add_command(t('menu.help.about'), self._show_about)
+        help_menu.add_command(t('menu.help.check_updates'), self._check_updates)
+        help_menu.add_command(t('menu.help.report_issue'), self._report_issue)
 
         # 插件菜单: 插件命令按 menu 分组作为子菜单挂在这里, 同时有
         # "管理插件..." 进入插件管理窗口。该菜单在 _refresh_plugin_menu 里
         # 重建, 这里只占位。
-        self._plugin_menu = self._menubar.add_cascade('插件(P)')
-        self._plugin_menu.add_command('管理插件...', self._open_plugin_manager)
+        self._plugin_menu = self._menubar.add_cascade(t('menu.plugins'))
+        self._plugin_menu.add_command(t('menu.plugins.manage'), self._open_plugin_manager)
 
     def _bind_shortcuts(self):
         self.window.bind('<Control-n>', lambda e: self._new_file())
@@ -511,6 +622,34 @@ class CodeEditor:
         if not hasattr(self, '_lang_tk_var') or self._lang_tk_var is None:
             self._lang_tk_var = tk.StringVar(value=self._lang)
         return self._lang_tk_var
+
+    def _lang_locale_var(self) -> tk.StringVar:
+        """界面语言(独立于代码语言)对应的 tk 变量。
+
+        之所以和 ``_lang_var`` 分开: 编辑器的 "切换语言" 子菜单是改
+        代码高亮/补全的 Python/C/C++, 而 settings 菜单的 "语言"
+        子菜单改的是 UI 文案 i18n.language。两者很容易混淆。
+        """
+
+        if not hasattr(self, '_lang_locale_tk_var') or self._lang_locale_tk_var is None:
+            current = self._settings.effective('i18n.language', 'zh_CN')
+            if current not in AVAILABLE_LANGUAGES:
+                current = 'zh_CN'
+            self._lang_locale_tk_var = tk.StringVar(value=current)
+        return self._lang_locale_tk_var
+
+    def _set_language_locale(self, lang: str) -> None:
+        """菜单点击 → 写 settings → settings listener 会切 translator + 重建 UI。
+
+        不在这里直接调 ``translator.set_language``: settings 是单一信息源,
+        所有路径(菜单 / 插件 / 设置面板)都通过它同步, 避免循环触发。
+        """
+
+        if lang not in AVAILABLE_LANGUAGES:
+            return
+        if hasattr(self, '_lang_locale_tk_var') and self._lang_locale_tk_var is not None:
+            self._lang_locale_tk_var.set(lang)
+        self._write_setting(SettingsScope.GLOBAL, 'i18n.language', lang)
 
     def _theme_var(self) -> tk.StringVar:
         if not hasattr(self, '_theme_tk_var') or self._theme_tk_var is None:
@@ -613,7 +752,10 @@ class CodeEditor:
         主体逻辑在 :meth:`_load_path_into_editor`,这里只做"未保存"确认,
         避免双击树时绕开"未保存提示"。
         """
-        if self._dirty and not messagebox.askyesno('未保存', '丢弃当前修改?'):
+        if self._dirty and not messagebox.askyesno(
+            t('dialog.title.unsaved_discard'),
+            t('dialog.unsaved_discard.message'),
+        ):
             return
         self._load_path_into_editor(path)
 
@@ -640,21 +782,17 @@ class CodeEditor:
         try:
             size = os.path.getsize(path)
         except OSError as e:
-            messagebox.showerror('打开失败', str(e), parent=self.window)
+            messagebox.showerror(t('dialog.title.open_failed'), str(e), parent=self.window)
             return
 
         is_large = threshold > 0 and size >= threshold
 
         if is_large:
             messagebox.showwarning(
-                '大文件',
-                (
-                    f'文件大小 {self._human_size(size)} 已超过阈值 '
-                    f'{self._human_size(threshold)}。\n\n'
-                    '• 将分块流式加载以避免界面冻结\n'
-                    '• 已临时禁用语法高亮和代码建议, 以保证响应速度\n'
-                    '• 加载完成后会自动恢复(下次打开小文件即可)'
-                ),
+                t('dialog.title.large_file'),
+                t('dialog.large_file.message',
+                  size=self._human_size(size),
+                  threshold=self._human_size(threshold)),
                 parent=self.window,
             )
 
@@ -670,7 +808,7 @@ class CodeEditor:
 
         if is_large:
             self._status_label.config(
-                text=f'Loading: {os.path.basename(path)} ({self._human_size(size)})',
+                text=t('status.loading', name=os.path.basename(path), size=self._human_size(size)),
             )
             self._stream_insert_into_editor(path, size)
         else:
@@ -681,7 +819,7 @@ class CodeEditor:
                 # 读失败时回滚上面的状态变更, 避免编辑器处于"半打开"状态。
                 self._current_file = None
                 self._editor._text.delete('1.0', tk.END)
-                messagebox.showerror('打开失败', str(e), parent=self.window)
+                messagebox.showerror(t('dialog.title.open_failed'), str(e), parent=self.window)
                 return
             except UnicodeDecodeError as e:
                 # 与原行为一致: 非 UTF-8 文件让用户直接看到编码错误,
@@ -689,10 +827,10 @@ class CodeEditor:
                 # 几十 MB 的中途崩溃基本无法恢复, 替换字符比丢掉全部更友好。
                 self._current_file = None
                 self._editor._text.delete('1.0', tk.END)
-                messagebox.showerror('打开失败', str(e), parent=self.window)
+                messagebox.showerror(t('dialog.title.open_failed'), str(e), parent=self.window)
                 return
             self._editor._text.insert('1.0', code)
-            self._status_label.config(text=f'Opened: {os.path.basename(path)}')
+            self._status_label.config(text=t('status.opened', name=os.path.basename(path)))
 
         # 关键修复: 打开文件时**只在文件不在当前项目内**时才更新项目根,
         # 避免把项目视图切碎成只剩某个子目录(原本双击 src/lib/foo.py 会
@@ -728,10 +866,10 @@ class CodeEditor:
         try:
             f = open(path, 'r', encoding='utf-8', errors='replace')
         except OSError as e:
-            messagebox.showerror('打开失败', str(e), parent=self.window)
+            messagebox.showerror(t('dialog.title.open_failed'), str(e), parent=self.window)
             self._large_file_mode = False
             self._editor._text.config(state='normal')
-            self._status_label.config(text='Open failed')
+            self._status_label.config(text=t('status.open_failed'))
             return
 
         self._stream_epoch += 1
@@ -755,8 +893,8 @@ class CodeEditor:
                     pass
                 self._editor._text.config(state='normal')
                 self._large_file_mode = False
-                messagebox.showerror('读取失败', str(e), parent=self.window)
-                self._status_label.config(text='Read failed')
+                messagebox.showerror(t('dialog.title.read_failed'), str(e), parent=self.window)
+                self._status_label.config(text=t('status.read_failed'))
                 return
 
             if not chunk:
@@ -767,7 +905,7 @@ class CodeEditor:
                 self._editor._text.config(state='normal')
                 self._large_file_mode = False
                 self._status_label.config(
-                    text=f'Opened: {os.path.basename(path)}'
+                    text=t('status.opened', name=os.path.basename(path))
                 )
                 # 大文件流式加载完成: 把内容快照刷新, 让下次按键的
                 # content_changed 钩子能正确触发。
@@ -807,7 +945,7 @@ class CodeEditor:
 
         header = UFrame(self._output_frame, variant='title')
         header.pack(fill=tk.X)
-        ULabel(header, text='  Output', variant='secondary', bg=theme.BG_TITLE).pack(side=tk.LEFT, padx=4, pady=2)
+        ULabel(header, text=t('panel.output'), variant='secondary', bg=theme.BG_TITLE).pack(side=tk.LEFT, padx=4, pady=2)
 
         self._output = UText(self._output_frame, width=80, height=5)
         self._output.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
@@ -818,7 +956,7 @@ class CodeEditor:
         status.pack(fill=tk.X, padx=0, pady=0)
         status.pack_propagate(False)
 
-        self._status_label = ULabel(status, text='Ready', variant='secondary',
+        self._status_label = ULabel(status, text=t('status.ready'), variant='secondary',
                                      bg=theme.BG_TITLE)
         self._status_label.pack(side=tk.LEFT, padx=10, pady=2)
 
@@ -855,6 +993,7 @@ class CodeEditor:
         self._editor._text.insert('1.0', config['sample'])
         self._apply_highlight()
         self._update_status()
+        self._status_label.config(text=t('status.editor_lang_changed', lang=lang))
         self._emit(HookEvents.EDITOR_LANGUAGE_CHANGED, lang)
 
     def _on_lang_changed(self, value):
@@ -1049,10 +1188,13 @@ class CodeEditor:
     def _update_status(self):
         cursor = self._editor._text.index(tk.INSERT)
         line, col = cursor.split('.')
-        self._pos_label.config(text=f'Ln {line}, Col {int(col) + 1}')
+        self._pos_label.config(text=t('status.pos', line=line, col=int(col) + 1))
 
     def _new_file(self):
-        if self._dirty and not messagebox.askyesno('未保存', '丢弃当前修改？'):
+        if self._dirty and not messagebox.askyesno(
+            t('dialog.title.unsaved_discard'),
+            t('dialog.unsaved_discard.message'),
+        ):
             return
         # 取消可能 in-flight 的大文件流式回调, 防止旧 after() 在新空编辑器里
         # 继续 insert 内容。
@@ -1063,14 +1205,18 @@ class CodeEditor:
         self._current_file = None
         self._dirty = False
         self._last_emit_code = ''
-        self._status_label.config(text='New file')
+        self._status_label.config(text=t('status.new_file'))
         self._emit(HookEvents.EDITOR_FILE_CREATED)
 
     def _open_file(self):
-        if self._dirty and not messagebox.askyesno('未保存', '丢弃当前修改？'):
+        if self._dirty and not messagebox.askyesno(
+            t('dialog.title.unsaved_discard'),
+            t('dialog.unsaved_discard.message'),
+        ):
             return
         ext = LANG_CONFIG[self._lang]['ext']
-        filetypes = [(f'{self._lang} files', f'*{ext}'), ('All files', '*.*')]
+        lang_label = t('file_dialog.lang_filter', lang=self._lang)
+        filetypes = [(lang_label, f'*{ext}'), (t('file_dialog.all_files'), '*.*')]
         path = filedialog.askopenfilename(filetypes=filetypes)
         if not path:
             return
@@ -1086,12 +1232,15 @@ class CodeEditor:
         不会被替换,适合"先选项目再写代码"或"切换到另一个项目"的场景。
         若当前有未保存修改, 仍会先弹确认以免误操作。
         """
-        if self._dirty and not messagebox.askyesno('未保存', '丢弃当前修改?'):
+        if self._dirty and not messagebox.askyesno(
+            t('dialog.title.unsaved_discard'),
+            t('dialog.unsaved_discard.message'),
+        ):
             return
         # 默认定位到当前项目根(若有), 方便连续切换。
         initial = self._current_project_root or os.getcwd()
         chosen = filedialog.askdirectory(
-            title='选择项目根目录',
+            title=t('dialog.title.choose_project'),
             initialdir=initial if os.path.isdir(initial) else None,
             parent=self.window,
         )
@@ -1100,7 +1249,7 @@ class CodeEditor:
         self._attach_project(chosen)
         if os.path.isdir(chosen):
             self._status_label.config(
-                text=f'Project: {os.path.basename(chosen) or chosen}',
+                text=t('status.project', name=os.path.basename(chosen) or chosen),
             )
 
     def _save_file(self):
@@ -1111,7 +1260,8 @@ class CodeEditor:
 
     def _save_file_as(self):
         ext = LANG_CONFIG[self._lang]['ext']
-        filetypes = [(f'{self._lang} files', f'*{ext}'), ('All files', '*.*')]
+        lang_label = t('file_dialog.lang_filter', lang=self._lang)
+        filetypes = [(lang_label, f'*{ext}'), (t('file_dialog.all_files'), '*.*')]
         path = filedialog.asksaveasfilename(defaultextension=ext, filetypes=filetypes)
         if path:
             self._save_to_path(path)
@@ -1128,10 +1278,10 @@ class CodeEditor:
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(code)
         except OSError as e:
-            messagebox.showerror('保存失败', str(e))
+            messagebox.showerror(t('dialog.title.save_failed'), str(e))
             return
         self._dirty = False
-        self._status_label.config(text=f'Saved: {os.path.basename(path)}')
+        self._status_label.config(text=t('status.saved', name=os.path.basename(path)))
         self._emit(HookEvents.EDITOR_FILE_SAVED, path)
 
     def _undo(self):
@@ -1180,12 +1330,12 @@ class CodeEditor:
         if self._find_dialog and self._find_dialog.winfo_exists():
             self._find_dialog.destroy()
         dlg = tk.Toplevel(self.window)
-        dlg.title('替换' if replace else '查找')
+        dlg.title(t('dialog.title.replace') if replace else t('dialog.title.find'))
         dlg.configure(bg=theme.BG_PANEL)
         dlg.transient(self.window)
         dlg.resizable(False, False)
 
-        ULabel(dlg, text='查找内容:', bg=theme.BG_PANEL).grid(row=0, column=0, sticky='e', padx=6, pady=6)
+        ULabel(dlg, text=t('find.find_label'), bg=theme.BG_PANEL).grid(row=0, column=0, sticky='e', padx=6, pady=6)
         find_var = tk.StringVar(value=self._find_query)
         find_entry = tk.Entry(dlg, textvariable=find_var, width=30,
                               bg=theme.BG_INPUT, fg=theme.FG_PRIMARY,
@@ -1195,7 +1345,7 @@ class CodeEditor:
         replace_var = None
         replace_entry = None
         if replace:
-            ULabel(dlg, text='替换为:', bg=theme.BG_PANEL).grid(row=1, column=0, sticky='e', padx=6, pady=6)
+            ULabel(dlg, text=t('find.replace_label'), bg=theme.BG_PANEL).grid(row=1, column=0, sticky='e', padx=6, pady=6)
             replace_var = tk.StringVar()
             replace_entry = tk.Entry(dlg, textvariable=replace_var, width=30,
                                       bg=theme.BG_INPUT, fg=theme.FG_PRIMARY,
@@ -1203,7 +1353,7 @@ class CodeEditor:
             replace_entry.grid(row=1, column=1, columnspan=2, sticky='ew', padx=6, pady=6)
 
         case_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(dlg, text='区分大小写', variable=case_var,
+        tk.Checkbutton(dlg, text=t('find.case_sensitive'), variable=case_var,
                        bg=theme.BG_PANEL, fg=theme.FG_PRIMARY,
                        selectcolor=theme.BG_RAISED,
                        activebackground=theme.BG_PANEL).grid(row=2, column=0, columnspan=3, sticky='w', padx=6)
@@ -1222,7 +1372,7 @@ class CodeEditor:
             if not pos:
                 pos = text.search(query, '1.0', stopindex=start, nocase=nocase)
                 if not pos:
-                    messagebox.showinfo('查找', '未找到', parent=dlg)
+                    messagebox.showinfo(t('dialog.title.find_not_found'), t('dialog.find.not_found'), parent=dlg)
                     return
             end = f'{pos}+{len(query)}c'
             text.tag_remove('sel', '1.0', 'end')
@@ -1259,22 +1409,22 @@ class CodeEditor:
                 pos = text.search(query, f'{pos}+{len(replace_text)}c',
                                    stopindex='end', nocase=nocase)
             self._apply_highlight()
-            messagebox.showinfo('替换', f'已替换 {count} 处', parent=dlg)
+            messagebox.showinfo(t('dialog.title.replace_done'), t('dialog.replace.done', count=count), parent=dlg)
 
         def close():
             self._find_dialog = None
             dlg.destroy()
 
         btn_row = 3 if replace else 2
-        UButton(dlg, text='查找下一个', command=do_find, variant='primary', width=80, height=24
+        UButton(dlg, text=t('find.find_next'), command=do_find, variant='primary', width=80, height=24
                  ).grid(row=btn_row, column=0, padx=4, pady=6)
         if replace:
-            UButton(dlg, text='替换', command=do_replace, variant='default', width=60, height=24
+            UButton(dlg, text=t('find.replace'), command=do_replace, variant='default', width=60, height=24
                      ).grid(row=btn_row, column=1, padx=4, pady=6)
-            UButton(dlg, text='全部替换', command=do_replace_all, variant='warning', width=80, height=24
+            UButton(dlg, text=t('find.replace_all'), command=do_replace_all, variant='warning', width=80, height=24
                      ).grid(row=btn_row, column=2, padx=4, pady=6)
         else:
-            UButton(dlg, text='关闭', command=close, variant='default', width=60, height=24
+            UButton(dlg, text=t('find.close'), command=close, variant='default', width=60, height=24
                      ).grid(row=btn_row, column=1, columnspan=2, padx=4, pady=6, sticky='ew')
 
         dlg.protocol('WM_DELETE_WINDOW', close)
@@ -1282,9 +1432,12 @@ class CodeEditor:
         self._find_dialog = dlg
 
     def _goto_line(self):
-        line_no = simpledialog.askinteger('转到行', '行号:',
-                                           parent=self.window, minvalue=1,
-                                           maxvalue=self._line_count())
+        line_no = simpledialog.askinteger(
+            t('dialog.title.goto_line'),
+            t('dialog.goto_line.prompt'),
+            parent=self.window, minvalue=1,
+            maxvalue=self._line_count(),
+        )
         if not line_no:
             return
         self._editor._text.mark_set(tk.INSERT, f'{line_no}.0')
@@ -1342,7 +1495,11 @@ class CodeEditor:
 
     def _toggle_comment(self):
         if self._lang != 'Python':
-            messagebox.showinfo('切换注释', f'当前语言 {self._lang} 的注释切换未实现', parent=self.window)
+            messagebox.showinfo(
+                t('dialog.title.toggle_comment'),
+                t('dialog.toggle_comment.unsupported', lang=self._lang),
+                parent=self.window,
+            )
             return
         text = self._editor._text
         sel = text.tag_ranges('sel')
@@ -1367,17 +1524,20 @@ class CodeEditor:
                 text.insert(line_start, '# ')
 
     def _goto_definition(self):
-        messagebox.showinfo('跳转定义', '跳转到定义功能尚未实现', parent=self.window)
+        messagebox.showinfo(t('dialog.title.goto_definition'),
+                           t('dialog.goto_definition.not_implemented'), parent=self.window)
 
     def _find_references(self):
-        messagebox.showinfo('查找引用', '查找引用功能尚未实现', parent=self.window)
+        messagebox.showinfo(t('dialog.title.find_references'),
+                           t('dialog.find_references.not_implemented'), parent=self.window)
 
     def _find_documentation(self):
-        messagebox.showinfo('查找文档', '查找文档功能尚未实现', parent=self.window)
+        messagebox.showinfo(t('dialog.title.find_documentation'),
+                           t('dialog.find_documentation.not_implemented'), parent=self.window)
 
     def _reparse(self):
         self._apply_highlight()
-        self._status_label.config(text='Re-parsed')
+        self._status_label.config(text=t('status.reparsed'))
 
     def _set_theme(self, name: str, *, persist: bool = True):
         try:
@@ -1387,10 +1547,10 @@ class CodeEditor:
             theme.set_theme(target, refresh_root=self.window)
             if hasattr(self, '_theme_tk_var') and self._theme_tk_var is not None:
                 self._theme_tk_var.set(name)
-            self._status_label.config(text=f'Theme: {name}')
+            self._status_label.config(text=t('status.theme', name=name))
             self._force_redraw()
         except Exception as e:
-            self._status_label.config(text=f'Theme error: {e}')
+            self._status_label.config(text=t('status.theme_error', err=str(e)))
             return
         if persist:
             self._write_setting(SettingsScope.GLOBAL, 'ui.theme', name)
@@ -1419,7 +1579,7 @@ class CodeEditor:
         if hasattr(self, '_font_family_tk_var') and self._font_family_tk_var is not None:
             self._font_family_tk_var.set(family)
         self._apply_editor_font()
-        self._status_label.config(text=f'Font: {family}')
+        self._status_label.config(text=t('status.font', name=family))
         self._write_setting(SettingsScope.GLOBAL, 'ui.font_family', family)
 
     def _set_font_size(self, size: int):
@@ -1427,7 +1587,7 @@ class CodeEditor:
         if hasattr(self, '_font_size_tk_var') and self._font_size_tk_var is not None:
             self._font_size_tk_var.set(size)
         self._apply_editor_font()
-        self._status_label.config(text=f'Font size: {size}')
+        self._status_label.config(text=t('status.font_size', n=size))
         self._write_setting(SettingsScope.GLOBAL, 'ui.font_size', int(size))
 
     def _apply_editor_font(self):
@@ -1475,30 +1635,34 @@ class CodeEditor:
         from modules.settings.widgets import UProjectSettingsWindow
         try:
             win = UProjectSettingsWindow(
-                self._settings, parent=self.window, title='设置',
+                self._settings, parent=self.window, title=t('dialog.title.settings'),
             )
             self._settings_window = win
             win._switch(SettingsScope.GLOBAL)  # noqa: SLF001 - 单文件集成
         except Exception as exc:
-            messagebox.showerror('设置', f'设置面板加载失败:{exc}', parent=self.window)
+            messagebox.showerror(t('dialog.title.settings_load_failed'),
+                               t('dialog.settings.load_failed', err=exc), parent=self.window)
 
     def _open_project_settings(self):
         """打开设置窗口并跳到"项目"Tab;无项目时自动提示。"""
         if self._settings.project_settings is None:
             if not messagebox.askyesno(
-                '项目设置',
-                '当前没有附加项目。是否选择一个项目目录?',
+                t('dialog.title.project_load_failed'),
+                t('dialog.project_settings.no_project'),
                 parent=self.window,
             ):
                 return
-            chosen = filedialog.askdirectory(title='选择项目根目录', parent=self.window)
+            chosen = filedialog.askdirectory(
+                title=t('dialog.title.choose_project'),
+                parent=self.window,
+            )
             if not chosen:
                 return
             self._attach_project(chosen)
         from modules.settings.widgets import UProjectSettingsWindow
         try:
             win = UProjectSettingsWindow(
-                self._settings, parent=self.window, title='项目设置',
+                self._settings, parent=self.window, title=t('dialog.title.project_settings'),
             )
             # 切到项目 Tab
             try:
@@ -1507,7 +1671,8 @@ class CodeEditor:
                 pass
             self._settings_window = win
         except Exception as exc:
-            messagebox.showerror('项目设置', f'设置面板加载失败:{exc}', parent=self.window)
+            messagebox.showerror(t('dialog.title.project_load_failed'),
+                               t('dialog.project_settings.load_failed', err=exc), parent=self.window)
 
     def _attach_project(self, root: str) -> None:
         """附加项目目录到 SettingsManager,记录当前根,并刷新文件树。"""
@@ -1526,7 +1691,11 @@ class CodeEditor:
             self._settings.attach_project(root)
             self._current_project_root = root
         except Exception as exc:
-            messagebox.showerror('项目设置', f'无法挂载项目 {root}:{exc}', parent=self.window)
+            messagebox.showerror(
+                t('dialog.title.project_attach_failed'),
+                t('dialog.project_settings.attach_failed', root=root, err=exc),
+                parent=self.window,
+            )
             return
         # 同步刷新右侧文件树。
         tree = getattr(self, '_file_tree', None)
@@ -1541,7 +1710,11 @@ class CodeEditor:
         self._refresh_plugin_languages()
 
     def _reset_settings(self):
-        if not messagebox.askyesno('重置设置', '确认将全局设置恢复为默认值?', parent=self.window):
+        if not messagebox.askyesno(
+            t('dialog.title.reset_settings'),
+            t('dialog.reset_settings.confirm'),
+            parent=self.window,
+        ):
             return
         try:
             self._settings.reset(SettingsScope.GLOBAL)
@@ -1551,9 +1724,9 @@ class CodeEditor:
         try:
             self._settings.save_all()
         except Exception as exc:
-            messagebox.showerror('重置失败', str(exc), parent=self.window)
+            messagebox.showerror(t('dialog.title.reset_failed'), str(exc), parent=self.window)
             return
-        self._status_label.config(text='Settings reset')
+        self._status_label.config(text=t('status.settings_reset'))
 
     # ------------------------------------------------------------------
     # 插件系统集成
@@ -1648,13 +1821,13 @@ class CodeEditor:
         menu._items.clear()
         loaded = self._plugin_manager.list_loaded()
         if not loaded:
-            menu.add_command('(尚未加载任何插件)', lambda: None)
+            menu.add_command(t('menu.plugins.none'), lambda: None)
         else:
             for rec in loaded:
-                status = '启用' if rec.enabled else '禁用'
-                err = f'  [错误: {rec.error}]' if rec.error else ''
+                status = t('plugin.info.status.enabled') if rec.enabled else t('plugin.info.status.disabled')
+                err = t('plugin.menu.errors_prefix', err=rec.error) if rec.error else ''
                 menu.add_command(
-                    f'● {rec.manifest.name}  ({status}){err}',
+                    t('plugin.menu.item', name=rec.manifest.name, status=status, error=err),
                     lambda r=rec: self._show_plugin_info(r),
                 )
         menu.add_separator()
@@ -1663,7 +1836,7 @@ class CodeEditor:
             sub = menu.add_cascade(group_name)
             sub._items.clear()
             if not items:
-                sub.add_command('(空)', lambda: None)
+                sub.add_command(t('menu.plugins.empty'), lambda: None)
                 continue
             for item in items:
                 label = item['label']
@@ -1674,8 +1847,8 @@ class CodeEditor:
                     lambda cb=item['callback']: self._safe_run_plugin_command(cb),
                 )
         menu.add_separator()
-        menu.add_command('管理插件...', self._open_plugin_manager)
-        menu.add_command('重新扫描插件目录', self._reload_all_plugins)
+        menu.add_command(t('menu.plugins.manage'), self._open_plugin_manager)
+        menu.add_command(t('menu.plugins.rescan'), self._reload_all_plugins)
 
     def _refresh_plugin_languages(self) -> None:
         """同步下拉框: 把插件新增的语言值塞进去。"""
@@ -1690,9 +1863,9 @@ class CodeEditor:
         try:
             callback()
         except Exception as exc:
-            self._append_output(f'[ERROR] 插件命令执行失败: {exc}\n')
+            self._append_output(f'[ERROR] {t("dialog.plugin.error", err=exc)}\n')
             try:
-                messagebox.showerror('插件错误', str(exc), parent=self.window)
+                messagebox.showerror(t('dialog.title.plugin_error'), str(exc), parent=self.window)
             except Exception:
                 pass
 
@@ -1700,20 +1873,23 @@ class CodeEditor:
         """弹窗显示单个插件的元信息 + 来源路径 + 错误。"""
 
         m = record.manifest
-        text = (
-            f"名称: {m.name}\n"
-            f"ID: {m.id}\n"
-            f"版本: {m.version}\n"
-            f"作者: {m.author or '(未提供)'}\n"
-            f"作用域: {m.scope}\n"
-            f"来源: {record.location}\n"
-            f"状态: {'启用' if record.enabled else '禁用'}"
+        author = m.author if m.author else t('plugin.info.author_unknown')
+        status = t('plugin.info.status.enabled') if record.enabled else t('plugin.info.status.disabled')
+        text = t(
+            'plugin.info.template',
+            name=m.name,
+            id=m.id,
+            version=m.version,
+            author=author,
+            scope=m.scope,
+            location=record.location,
+            status=status,
         )
         if record.error:
-            text += f"\n错误:\n{record.error}"
+            text += f"\n{t('plugin.info.errors_header')}\n{record.error}"
         if m.description:
             text += f"\n\n{m.description}"
-        messagebox.showinfo(f'插件: {m.name}', text, parent=self.window)
+        messagebox.showinfo(t('dialog.title.plugin', name=m.name), text, parent=self.window)
 
     def _open_plugin_manager(self) -> None:
         """打开插件管理窗口。"""
@@ -1722,7 +1898,9 @@ class CodeEditor:
             from modules.plugins.widgets import UPluginManagerWindow
         except Exception as exc:
             messagebox.showerror(
-                '插件管理', f'加载插件管理窗口失败: {exc}', parent=self.window,
+                t('dialog.title.plugin_manager'),
+                t('dialog.plugin_manager.load_failed', err=exc),
+                parent=self.window,
             )
             return
         try:
@@ -1730,7 +1908,9 @@ class CodeEditor:
             self._plugin_manager_window = win
         except Exception as exc:
             messagebox.showerror(
-                '插件管理', f'打开插件管理失败: {exc}', parent=self.window,
+                t('dialog.title.plugin_manager'),
+                t('dialog.plugin_manager.open_failed', err=exc),
+                parent=self.window,
             )
 
     def _reload_all_plugins(self) -> None:
@@ -1757,73 +1937,28 @@ class CodeEditor:
                 pass
         self._refresh_plugin_menu()
         self._refresh_plugin_languages()
-        self._status_label.config(text='Plugins reloaded')
+        self._status_label.config(text=t('status.plugins_reloaded'))
 
     # ------------------------------------------------------------------
     # 钩子触发点 (各业务方法内部调用 self._emit)
     # ------------------------------------------------------------------
 
     def _show_documentation(self):
-        messagebox.showinfo('文档',
-                            'Python Editor\n\n'
-                            '一个轻量级多语言代码编辑器。\n\n'
-                            '功能：\n'
-                            '• 语法高亮 (Python / C / C++)\n'
-                            '• 智能补全\n'
-                            '• 静态检查 (Flake8 / Pyright / CPython)\n'
-                            '• 代码运行 (Python / GCC / G++)\n'
-                            '• 多主题切换\n\n'
-                            '快捷键详见 帮助 → 快捷键',
-                            parent=self.window)
+        messagebox.showinfo(t('dialog.title.docs'),
+                          t('dialog.docs.message'),
+                          parent=self.window)
 
     def _show_shortcuts(self):
-        text = (
-            "文件:\n"
-            "  新建         Ctrl+N\n"
-            "  打开         Ctrl+O\n"
-            "  打开项目     Ctrl+Shift+O\n"
-            "  保存         Ctrl+S\n"
-            "  另存为       Ctrl+Shift+S\n"
-            "  运行         F5\n"
-            "  检查         Ctrl+R\n"
-            "  清除输出     Ctrl+L\n\n"
-            "编辑:\n"
-            "  撤销         Ctrl+Z\n"
-            "  重做         Ctrl+Y\n"
-            "  剪切         Ctrl+X\n"
-            "  复制         Ctrl+C\n"
-            "  粘贴         Ctrl+V\n"
-            "  全选         Ctrl+A\n"
-            "  查找         Ctrl+F\n"
-            "  替换         Ctrl+H\n"
-            "  转到行       Ctrl+G\n"
-            "  切换注释     Ctrl+/\n\n"
-            "查询:\n"
-            "  跳转到定义   F12\n"
-            "  查找引用     Shift+F12\n"
-            "  重新解析     F6\n"
-            "  刷新高亮     F7\n"
-            "  触发建议     Ctrl+Space\n"
-            "  隐藏建议     Esc\n\n"
-            "帮助:\n"
-            "  文档         F1\n"
-            "  快捷键       Ctrl+K"
-        )
-        messagebox.showinfo('快捷键', text, parent=self.window)
+        messagebox.showinfo(t('dialog.title.shortcuts'), t('shortcuts.text'), parent=self.window)
 
     def _show_about(self):
-        messagebox.showinfo('关于',
-                            'Python Editor\n'
-                            '版本 0.1.0\n\n'
-                            '基于 Tkinter + 自研 Uui 组件库\n'
-                            '语法高亮 / 智能补全 / 静态检查 / 代码运行',
-                            parent=self.window)
+        messagebox.showinfo(t('dialog.title.about'), t('dialog.about.message'), parent=self.window)
 
     def _check_updates(self):
-        messagebox.showinfo('检查更新', '已是最新版本 (0.1.0)', parent=self.window)
+        messagebox.showinfo(t('dialog.title.check_updates'), t('dialog.updates.message'), parent=self.window)
 
     def _report_issue(self):
-        messagebox.showinfo('报告问题', '请前往 GitHub 仓库提交 Issue。', parent=self.window)
+        messagebox.showinfo(t('dialog.title.report_issue'), t('dialog.report_issue.message'), parent=self.window)
 
     def _run_check(self):
         code = self._editor.get('1.0', 'end-1c')
@@ -1831,7 +1966,7 @@ class CodeEditor:
             self._append_output('No code to check.\n')
             return
 
-        self._status_label.config(text='Checking...')
+        self._status_label.config(text=t('status.checking'))
         self.window.update_idletasks()
 
         with tempfile.NamedTemporaryFile(mode='w', suffix=LANG_CONFIG[self._lang]['ext'],
@@ -1866,13 +2001,13 @@ class CodeEditor:
             else:
                 self._append_output('No issues found.\n')
             self._output._text.config(state='disabled')
-            self._status_label.config(text='Check complete')
+            self._status_label.config(text=t('status.check_complete'))
             self._emit(HookEvents.EDITOR_CHECK_FINISHED, self._lang, results)
         except Exception as e:
             self._output._text.config(state='normal')
             self._append_output(f'Check error: {e}\n')
             self._output._text.config(state='disabled')
-            self._status_label.config(text='Check failed')
+            self._status_label.config(text=t('status.check_failed'))
             self._emit(HookEvents.EDITOR_CHECK_FINISHED, self._lang, [])
         finally:
             try:
@@ -1885,7 +2020,7 @@ class CodeEditor:
         if not code.strip():
             return
 
-        self._status_label.config(text='Running...')
+        self._status_label.config(text=t('status.running'))
         self.window.update_idletasks()
 
         ext = LANG_CONFIG[self._lang]['ext']
@@ -1955,7 +2090,7 @@ class CodeEditor:
                 'Compiler not found. Please install GCC/G++ for C/C++ support.\n'
             )
             self._output._text.config(state='disabled')
-            self._status_label.config(text='Compiler not found')
+            self._status_label.config(text=t('status.compiler_not_found'))
         except Exception as e:
             try:
                 os.unlink(temp_path)
@@ -1965,7 +2100,7 @@ class CodeEditor:
             self._output.clear()
             self._append_output(f'Run error: {e}\n')
             self._output._text.config(state='disabled')
-            self._status_label.config(text='Run failed')
+            self._status_label.config(text=t('status.run_failed'))
 
     def _compile_c_cpp(self, temp_path: str) -> tuple:
         """编译 C / C++ 源文件; 返回 ``(ok, binary_path_or_stderr)``.
@@ -1994,14 +2129,14 @@ class CodeEditor:
                 'Compiler not found. Please install GCC/G++ for C/C++ support.\n'
             )
             self._output._text.config(state='disabled')
-            self._status_label.config(text='Compiler not found')
+            self._status_label.config(text=t('status.compiler_not_found'))
             return False, 'compiler not found'
         if compile_result.returncode != 0:
             self._output._text.config(state='normal')
             self._output.clear()
             self._append_output(f'Compile error:\n{compile_result.stderr}\n')
             self._output._text.config(state='disabled')
-            self._status_label.config(text='Compile failed')
+            self._status_label.config(text=t('status.compile_failed'))
             return False, compile_result.stderr
         return True, binary
 
@@ -2030,7 +2165,7 @@ class CodeEditor:
             if result.returncode != 0:
                 self._append_output(f'\n[Exit code: {result.returncode}]\n')
             self._output._text.config(state='disabled')
-            self._status_label.config(text='Run complete')
+            self._status_label.config(text=t('status.run_complete'))
             self._emit(
                 HookEvents.EDITOR_RUN_FINISHED,
                 self._lang,
@@ -2044,7 +2179,7 @@ class CodeEditor:
                 self._output.clear()
             self._append_output('Execution timed out.\n')
             self._output._text.config(state='disabled')
-            self._status_label.config(text='Timeout')
+            self._status_label.config(text=t('status.timeout'))
             self._emit(
                 HookEvents.EDITOR_RUN_FINISHED,
                 self._lang, -1, '', 'Execution timed out',
@@ -2055,7 +2190,7 @@ class CodeEditor:
                 self._output.clear()
             self._append_output(f'Run error: {e}\n')
             self._output._text.config(state='disabled')
-            self._status_label.config(text='Run failed')
+            self._status_label.config(text=t('status.run_failed'))
             self._emit(
                 HookEvents.EDITOR_RUN_FINISHED,
                 self._lang, -1, '', str(e),
@@ -2132,7 +2267,7 @@ class CodeEditor:
                             )
                         self._output._text.config(state='disabled')
                         self._status_label.config(
-                            text='Timeout' if result.timed_out else 'Run complete',
+                            text=t('status.timeout') if result.timed_out else t('status.run_complete'),
                         )
                         try:
                             os.unlink(temp_path)
@@ -2185,7 +2320,7 @@ class CodeEditor:
         self._output._text.config(state='normal')
         self._output.clear()
         self._output._text.config(state='disabled')
-        self._status_label.config(text='Ready')
+        self._status_label.config(text=t('status.ready'))
 
     def run(self):
         self.window.mainloop()

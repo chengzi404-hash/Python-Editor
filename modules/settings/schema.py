@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+from modules.i18n import AVAILABLE_LANGUAGES
+
 from .base import (
     SettingsSchema,
     SettingsScope,
@@ -232,6 +234,16 @@ GLOBAL_SPECS: tuple = (
         default=True,
         label="恢复上次打开的文件",
         description="恢复上次打开的文件。",
+        scope=SettingsScope.GLOBAL,
+    ),
+
+    SettingSpec(
+        key="i18n.language",
+        type=SettingValueType.CHOICE,
+        default="zh_CN",
+        label="界面语言",
+        description="界面语言切换。修改后菜单/状态栏/对话框文案会立即重渲。",
+        choices=tuple(AVAILABLE_LANGUAGES),
         scope=SettingsScope.GLOBAL,
     ),
 )

@@ -25,6 +25,7 @@ from .base import (
     SettingValueType,
 )
 from .manager import SettingsManager
+from modules.i18n import t
 
 if TYPE_CHECKING:
     # 类型检查器看到的类型 - 用于静态分析
@@ -378,7 +379,7 @@ class UProjectSettingsWindow:
 
         self._nav: Any = USettingsNavBar(
             self._paned,
-            title='设置',
+            title=t('settings.navbar.title'),
             on_select=self._on_nav_select,
         )
         self._paned.add(self._nav, minsize=160, stretch='never')
@@ -389,19 +390,19 @@ class UProjectSettingsWindow:
         footer = UFrame(self._root, variant='title')
         footer.pack(fill=tk.X)
         UButton(
-            footer, text='恢复默认', variant='warning',
+            footer, text=t('settings.btn.reset'), variant='warning',
             command=self._on_reset_defaults, width=96, height=28,
         ).pack(side=tk.RIGHT, padx=4, pady=6)
         UButton(
-            footer, text='关闭', variant='default',
+            footer, text=t('settings.btn.close'), variant='default',
             command=self._on_close, width=80, height=28,
         ).pack(side=tk.RIGHT, padx=4, pady=6)
         UButton(
-            footer, text='保存', variant='success',
+            footer, text=t('settings.btn.save'), variant='success',
             command=self._on_save, width=80, height=28,
         ).pack(side=tk.RIGHT, padx=4, pady=6)
         UButton(
-            footer, text='应用', variant='primary',
+            footer, text=t('settings.btn.apply'), variant='primary',
             command=self._on_apply, width=80, height=28,
         ).pack(side=tk.RIGHT, padx=4, pady=6)
 
@@ -453,13 +454,13 @@ class UProjectSettingsWindow:
 
         if scope is SettingsScope.PROJECT and self._manager.project_settings is None:
             if not messagebox.askyesno(
-                "项目设置",
-                "当前没有附加项目。是否选择一个项目目录?",
+                t('settings.msg.project.no_attach.title'),
+                t('settings.msg.project.no_attach.body'),
                 parent=self._root,
             ):
                 return
             chosen = filedialog.askdirectory(
-                title="选择项目根目录", parent=self._root,
+                title=t('settings.msg.project.pick_dir.title'), parent=self._root,
             )
             if not chosen:
                 return
@@ -467,7 +468,9 @@ class UProjectSettingsWindow:
                 self._manager.attach_project(chosen)
             except Exception as exc:
                 messagebox.showerror(
-                    "项目设置", f"无法挂载项目:{exc}", parent=self._root,
+                    t('settings.msg.project.no_attach.title'),
+                    t('settings.msg.project.mount_failed', exc=exc),
+                    parent=self._root,
                 )
                 return
             # 挂载成功后重新构建树 (让"项目"分支出现)。
@@ -538,23 +541,23 @@ class UProjectSettingsWindow:
         try:
             count = self._panel.apply()
         except Exception as exc:
-            messagebox.showerror("应用失败", str(exc), parent=self._root)
+            messagebox.showerror(t('settings.msg.apply.failed'), str(exc), parent=self._root)
             return
-        messagebox.showinfo("已应用", f"已写入 {count} 项设置", parent=self._root)
+        messagebox.showinfo(t('settings.msg.apply.success.title'), t('settings.msg.apply.success.body', count=count), parent=self._root)
 
     def _on_save(self) -> None:
         if self._panel is not None:
             try:
                 self._panel.apply()
             except Exception as exc:
-                messagebox.showerror("保存失败", str(exc), parent=self._root)
+                messagebox.showerror(t('settings.msg.save.failed'), str(exc), parent=self._root)
                 return
         try:
             self._manager.save_all()
         except Exception as exc:
-            messagebox.showerror("保存失败", str(exc), parent=self._root)
+            messagebox.showerror(t('settings.msg.save.failed'), str(exc), parent=self._root)
             return
-        messagebox.showinfo("已保存", "设置已落盘", parent=self._root)
+        messagebox.showinfo(t('settings.msg.save.success.title'), t('settings.msg.save.success.body'), parent=self._root)
 
     def _on_close(self) -> None:
         try:
@@ -566,8 +569,8 @@ class UProjectSettingsWindow:
         if self._panel is None:
             return
         if not messagebox.askyesno(
-            "恢复默认",
-            "确认将当前作用域的全部自定义值清除?",
+            t('settings.msg.reset.confirm.title'),
+            t('settings.msg.reset.confirm.body'),
             parent=self._root,
         ):
             return

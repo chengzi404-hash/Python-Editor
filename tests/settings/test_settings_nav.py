@@ -120,7 +120,7 @@ class TestGroupKeysForSchema:
         # 可以避免无声地破坏"ui 改名为 view"这类重构。
         result = group_keys_for_schema(GLOBAL_SCHEMA)
         assert set(result.keys()) == {
-            "ui", "editor", "completion", "checker", "runner", "startup",
+            "ui", "editor", "completion", "checker", "runner", "startup", "i18n",
         }
 
     def test_project_schema_groups(self):
