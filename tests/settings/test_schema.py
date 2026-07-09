@@ -294,3 +294,80 @@ class TestHighlightDelaySpec:
         gs = GlobalSettings(path=str(tmp_path / "g.json"))
         assert gs.get("editor.highlight_delay_ms") == 300
         assert gs.has("editor.highlight_delay_ms") is False
+
+
+class TestLargeFileThresholdSpec:
+    """``editor.large_file_threshold_bytes`` — 大文件判定阈值。
+
+    整数(字节),默认 5 MiB;0 表示关闭大文件特性;
+    上限 1 GiB。修改后 :class:`GlobalSettings` 必须能正常持久化。
+    """
+
+    _FIVE_MIB = 5 * 1024 * 1024
+    _ONE_GIB = 1024 * 1024 * 1024
+
+    def test_key_exists(self) -> None:
+        assert "editor.large_file_threshold_bytes" in GLOBAL_SCHEMA
+
+    def test_type_is_integer(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.large_file_threshold_bytes")
+        assert spec is not None
+        assert spec.type is SettingValueType.INTEGER
+
+    def test_default_is_5_mib(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.large_file_threshold_bytes")
+        assert spec is not None
+        assert spec.default == self._FIVE_MIB
+
+    def test_default_allows_zero(self) -> None:
+        """默认路径可被显式置 0 来关闭大文件特性。"""
+        spec = GLOBAL_SCHEMA.get("editor.large_file_threshold_bytes")
+        assert spec is not None
+        assert spec.validate(0) == 0
+
+    def test_min_is_zero(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.large_file_threshold_bytes")
+        assert spec is not None
+        assert spec.min == 0
+
+    def test_max_is_1_gib(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.large_file_threshold_bytes")
+        assert spec is not None
+        assert spec.max == self._ONE_GIB
+
+    def test_negative_value_rejected(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.large_file_threshold_bytes")
+        assert spec is not None
+        with pytest.raises(ValueError):
+            spec.validate(-1)
+
+    def test_value_above_max_rejected(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.large_file_threshold_bytes")
+        assert spec is not None
+        with pytest.raises(ValueError):
+            spec.validate(self._ONE_GIB + 1)
+
+    def test_scope_is_global(self) -> None:
+        spec = GLOBAL_SCHEMA.get("editor.large_file_threshold_bytes")
+        assert spec is not None
+        assert spec.scope is SettingsScope.GLOBAL
+
+    def test_round_trip_via_global_settings(self, tmp_path) -> None:
+        """通过 GlobalSettings 真实读写:阈值应当能正确持久化。"""
+        from modules.settings import GlobalSettings
+
+        gs = GlobalSettings(path=str(tmp_path / "g.json"))
+        gs.set("editor.large_file_threshold_bytes", 1024)
+        assert gs.get("editor.large_file_threshold_bytes") == 1024
+        gs.save()
+
+        gs2 = GlobalSettings(path=str(tmp_path / "g.json"))
+        assert gs2.get("editor.large_file_threshold_bytes") == 1024
+
+    def test_global_settings_default_when_unset(self, tmp_path) -> None:
+        """未显式 set 时,读取应得到 5 MiB 默认值。"""
+        from modules.settings import GlobalSettings
+
+        gs = GlobalSettings(path=str(tmp_path / "g.json"))
+        assert gs.get("editor.large_file_threshold_bytes") == self._FIVE_MIB
+        assert gs.has("editor.large_file_threshold_bytes") is False

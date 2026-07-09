@@ -156,6 +156,7 @@ class TestGroupKeysForSchema:
             "editor.word_wrap",
             "editor.highlight_delay_ms",
             "editor.suggestion_delay_ms",
+            "editor.large_file_threshold_bytes",
         ]
 
 

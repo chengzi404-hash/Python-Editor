@@ -147,6 +147,15 @@ class CodeEditor:
         self._find_query = ''
         self._find_last_index: Optional[str] = None
 
+        # 大文件模式: 打开超过 ``editor.large_file_threshold_bytes`` 的文件时
+        # 置 True, _apply_highlight / _show_suggestions 会提前返回。
+        # 用户切到小文件/新建文件/切语言时会被重置回 False。
+        self._large_file_mode: bool = False
+        # 流式加载 epoch 计数器: 每次新加载(打开/新建/切语言)都 +1,
+        # 让 in-flight 的 after() 回调可以判断自己是否已过期,
+        # 避免"切换文件时被旧回调把内容覆盖回去"。
+        self._stream_epoch: int = 0
+
         self._build_menubar()
         self._build_toolbar()
         self._build_editor()
@@ -567,30 +576,183 @@ class CodeEditor:
         self._load_file_into_editor(path)
 
     def _load_file_into_editor(self, path: str) -> None:
-        """把 ``path`` 读进编辑器,按现有 dirty / language 流程走.
+        """文件树双击回调: 先确认脏状态, 再走统一加载路径.
 
-        与 :meth:`_open_file` 共享主体逻辑,避免双击树时绕开"未保存提示"。
+        主体逻辑在 :meth:`_load_path_into_editor`,这里只做"未保存"确认,
+        避免双击树时绕开"未保存提示"。
         """
         if self._dirty and not messagebox.askyesno('未保存', '丢弃当前修改?'):
             return
+        self._load_path_into_editor(path)
+
+    def _load_path_into_editor(self, path: str) -> None:
+        """把 ``path`` 读进编辑器,统一处理"小文件快路径 / 大文件流式路径".
+
+        流程:
+            1. 读 ``editor.large_file_threshold_bytes`` 拿到阈值(0 = 关闭特性)。
+            2. 用 :func:`os.path.getsize` 取文件大小; 拿不到就报错并返回。
+            3. ``size >= threshold`` 视为大文件, 弹警告后走
+               :meth:`_stream_insert_into_editor` 分块流式插入;
+               否则一次性读进内存再 ``text.insert``。
+            4. 大文件模式下, :attr:`_large_file_mode` 会被设为 True,
+               ``_apply_highlight`` / ``_show_suggestions`` 因此提前返回。
+        """
+        threshold_raw = self._settings.global_settings.get(
+            'editor.large_file_threshold_bytes', 5 * 1024 * 1024,
+        )
         try:
-            with open(path, 'r', encoding='utf-8') as f:
-                code = f.read()
+            threshold = max(0, int(threshold_raw))
+        except (TypeError, ValueError):
+            threshold = 5 * 1024 * 1024
+
+        try:
+            size = os.path.getsize(path)
         except OSError as e:
-            messagebox.showerror('打开失败', str(e))
+            messagebox.showerror('打开失败', str(e), parent=self.window)
             return
+
+        is_large = threshold > 0 and size >= threshold
+
+        if is_large:
+            messagebox.showwarning(
+                '大文件',
+                (
+                    f'文件大小 {self._human_size(size)} 已超过阈值 '
+                    f'{self._human_size(threshold)}。\n\n'
+                    '• 将分块流式加载以避免界面冻结\n'
+                    '• 已临时禁用语法高亮和代码建议, 以保证响应速度\n'
+                    '• 加载完成后会自动恢复(下次打开小文件即可)'
+                ),
+                parent=self.window,
+            )
+
+        # 在做任何破坏性操作前, 先让可能 in-flight 的旧 after() 回调失效,
+        # 防止"切换文件时旧 callback 把旧内容覆盖到新清空的编辑器"。
+        self._stream_epoch += 1
+        self._editor._text.config(state='normal')
+        self._large_file_mode = False
+
         self._editor._text.delete('1.0', tk.END)
-        self._editor._text.insert('1.0', code)
         self._current_file = path
         self._dirty = False
-        self._status_label.config(text=f'Opened: {os.path.basename(path)}')
+
+        if is_large:
+            self._status_label.config(
+                text=f'Loading: {os.path.basename(path)} ({self._human_size(size)})',
+            )
+            self._stream_insert_into_editor(path, size)
+        else:
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    code = f.read()
+            except OSError as e:
+                # 读失败时回滚上面的状态变更, 避免编辑器处于"半打开"状态。
+                self._current_file = None
+                self._editor._text.delete('1.0', tk.END)
+                messagebox.showerror('打开失败', str(e), parent=self.window)
+                return
+            except UnicodeDecodeError as e:
+                # 与原行为一致: 非 UTF-8 文件让用户直接看到编码错误,
+                # 而不是默默替换。流式路径下用 errors='replace' 处理是因为
+                # 几十 MB 的中途崩溃基本无法恢复, 替换字符比丢掉全部更友好。
+                self._current_file = None
+                self._editor._text.delete('1.0', tk.END)
+                messagebox.showerror('打开失败', str(e), parent=self.window)
+                return
+            self._editor._text.insert('1.0', code)
+            self._status_label.config(text=f'Opened: {os.path.basename(path)}')
+
         # 关键修复: 打开文件时**只在文件不在当前项目内**时才更新项目根,
         # 避免把项目视图切碎成只剩某个子目录(原本双击 src/lib/foo.py 会
         # 让整个 src/lib/ 之外的兄弟目录从文件树里消失)。
         new_root = self._should_reattach_for_path(path)
         if new_root:
             self._attach_project(new_root)
-        self._apply_highlight()
+
+        # 大文件不触发高亮(stream 路径结束后由调用方决定是否再触发一次,
+        # 此处刻意不触发, 避免对几十 MB 文本跑高亮)。
+        if not is_large:
+            self._apply_highlight()
+
+    def _stream_insert_into_editor(self, path: str, total_size: int) -> None:
+        """分块读取 ``path`` 并插入编辑器; 通过 ``after(1)`` 让 Tk 事件循环
+        有空隙处理其他事件(窗口移动、滚动、重绘)。
+
+        关键不变量:
+            * 加载期间文本框 ``state='disabled'``, 防止用户键入被覆盖。
+            * :attr:`_large_file_mode=True` 期间 ``_apply_highlight`` /
+              ``_show_suggestions`` 提前返回。
+            * epoch 计数器 :attr:`_stream_epoch` 让被新加载操作取代的旧
+              callback 静默退出, 不会把旧文件内容覆盖到新打开的编辑器。
+        """
+        chunk_size = 64 * 1024  # 64 KiB
+        try:
+            f = open(path, 'r', encoding='utf-8', errors='replace')
+        except OSError as e:
+            messagebox.showerror('打开失败', str(e), parent=self.window)
+            self._large_file_mode = False
+            self._editor._text.config(state='normal')
+            self._status_label.config(text='Open failed')
+            return
+
+        self._stream_epoch += 1
+        my_epoch = self._stream_epoch
+        self._large_file_mode = True
+        self._editor._text.config(state='disabled')
+
+        def insert_chunk() -> None:
+            if my_epoch != self._stream_epoch:
+                try:
+                    f.close()
+                except Exception:
+                    pass
+                return
+            try:
+                chunk = f.read(chunk_size)
+            except OSError as e:
+                try:
+                    f.close()
+                except Exception:
+                    pass
+                self._editor._text.config(state='normal')
+                self._large_file_mode = False
+                messagebox.showerror('读取失败', str(e), parent=self.window)
+                self._status_label.config(text='Read failed')
+                return
+
+            if not chunk:
+                try:
+                    f.close()
+                except Exception:
+                    pass
+                self._editor._text.config(state='normal')
+                self._large_file_mode = False
+                self._status_label.config(
+                    text=f'Opened: {os.path.basename(path)}'
+                )
+                return
+
+            # 'end-1c' 是隐式换行前的最后一个真实字符位置, chunk 插在它之前,
+            # 这样多次插入之间不会出现多余的空行/错位。
+            self._editor._text.insert(self._editor._text.index('end-1c'), chunk)
+            self.window.after(1, insert_chunk)
+
+        self.window.after(1, insert_chunk)
+
+    @staticmethod
+    def _human_size(nbytes: int) -> str:
+        """把字节数格式化成易读字符串(用于警告 / 状态栏)。"""
+        try:
+            n = float(max(0, int(nbytes)))
+        except (TypeError, ValueError):
+            return f'{nbytes} B'
+        for unit in ('B', 'KB', 'MB', 'GB'):
+            if n < 1024.0 or unit == 'GB':
+                if unit == 'B':
+                    return f'{int(n)} {unit}'
+                return f'{n:.1f} {unit}'
+            n /= 1024.0
+        return f'{nbytes} B'
 
     def _build_output_panel(self):
         self._output_frame = UFrame(self.window, variant='panel', height=120)
@@ -632,6 +794,11 @@ class CodeEditor:
         self._highlighter = config['highlighter']()
         self._suggestion_expert = config['suggestion']()
         self._lang_label.config(text=lang)
+        # 切语言相当于"打开新的示例文本", 同样需要取消可能的 in-flight 大文件流
+        # 并退出大文件模式(示例文本永远是小文件)。
+        self._stream_epoch += 1
+        self._editor._text.config(state='normal')
+        self._large_file_mode = False
         self._editor._text.delete('1.0', tk.END)
         self._editor._text.insert('1.0', config['sample'])
         self._apply_highlight()
@@ -709,6 +876,9 @@ class CodeEditor:
         self._update_status()
 
     def _apply_highlight(self):
+        if self._large_file_mode:
+            # 大文件模式: 跳过整套高亮(对几十 MB 文本跑正则/tokenize 会卡死)。
+            return
         if not self._highlighting_enabled:
             return
         code = self._editor.get('1.0', 'end-1c')
@@ -733,6 +903,10 @@ class CodeEditor:
             text.tag_add(tag, start, end)
 
     def _show_suggestions(self):
+        if self._large_file_mode:
+            # 大文件模式: 把全文本喂给 highlighter/suggester 会非常慢且
+            # 没必要(用户也看不到结果), 直接跳过。
+            return
         if not self._suggestions_enabled:
             return
         code = self._editor.get('1.0', 'end-1c')
@@ -809,6 +983,11 @@ class CodeEditor:
     def _new_file(self):
         if self._dirty and not messagebox.askyesno('未保存', '丢弃当前修改？'):
             return
+        # 取消可能 in-flight 的大文件流式回调, 防止旧 after() 在新空编辑器里
+        # 继续 insert 内容。
+        self._stream_epoch += 1
+        self._editor._text.config(state='normal')
+        self._large_file_mode = False
         self._editor._text.delete('1.0', tk.END)
         self._current_file = None
         self._dirty = False
@@ -822,24 +1001,9 @@ class CodeEditor:
         path = filedialog.askopenfilename(filetypes=filetypes)
         if not path:
             return
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                code = f.read()
-        except OSError as e:
-            messagebox.showerror('打开失败', str(e))
-            return
-        self._editor._text.delete('1.0', tk.END)
-        self._editor._text.insert('1.0', code)
-        self._current_file = path
-        self._dirty = False
-        self._status_label.config(text=f'Opened: {os.path.basename(path)}')
-        # 关键修复: 打开文件时**只在文件不在当前项目内**时才更新项目根,
-        # 避免把项目视图切碎成只剩某个子目录(原本双击 src/lib/foo.py 会
-        # 让整个 src/lib/ 之外的兄弟目录从文件树里消失)。
-        new_root = self._should_reattach_for_path(path)
-        if new_root:
-            self._attach_project(new_root)
-        self._apply_highlight()
+        # 大小判断/分块流式/禁用高亮建议等都在 :meth:`_load_path_into_editor` 里,
+        # 这里不再重复 open() + insert() 的逻辑。
+        self._load_path_into_editor(path)
 
     def _open_project(self):
         """仅打开/切换项目目录, 不动编辑器内容.

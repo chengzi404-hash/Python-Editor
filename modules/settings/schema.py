@@ -126,6 +126,21 @@ GLOBAL_SPECS: tuple = (
         max=5000,
         scope=SettingsScope.GLOBAL,
     ),
+    SettingSpec(
+        key="editor.large_file_threshold_bytes",
+        type=SettingValueType.INTEGER,
+        default=5 * 1024 * 1024,
+        label="大文件阈值(字节)",
+        description=(
+            "超过该字节数的文件会被视为大文件:"
+            "采用分块流式加载避免 UI 冻结,"
+            "并自动关闭高亮与建议以保证响应速度。"
+            "设为 0 关闭此特性(所有文件走原始路径)。"
+        ),
+        min=0,
+        max=1024 * 1024 * 1024,
+        scope=SettingsScope.GLOBAL,
+    ),
 
     SettingSpec(
         key="completion.enabled",
