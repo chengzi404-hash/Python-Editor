@@ -1,4 +1,5 @@
 from .base import HighlighterExpert, HighlightBlock, HighlightToken
+from .dom_cache import get_or_load_lib_dom, LibraryDOM, cache_exists
 
 import json
 import os
@@ -49,6 +50,10 @@ _TOKEN_RE = re.compile(
     r'\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[jJ]?l?|'
     r'\d+[jJ]'
     r')'
+    r'|(?P<module_attr>'
+    r'(?P<module_name>[A-Za-z_][A-Za-z0-9_]*)'
+    r'\.(?P<attr_name>[A-Za-z_][A-Za-z0-9_]*)'
+    r')'
     r'|(?P<identifier>[A-Za-z_][A-Za-z0-9_]*)'
     r'|(?P<operator>'
     r'->|\*\*=|//=|<<=|>>=|\*\*|//|<<|>>|<=|>=|==|!=|'
@@ -56,6 +61,85 @@ _TOKEN_RE = re.compile(
     r')'
     r'|(?P<punctuation>[()\[\]{}:;,.\-])'
 )
+
+# Pattern to match "from X import" — capture module X
+_FROM_IMPORT_RE = re.compile(r'\bfrom\s+([A-Za-z_][A-Za-z0-9_]*)\s+import\b')
+
+# Pattern to match "import X" — capture module X
+_IMPORT_RE = re.compile(r'\bimport\s+([A-Za-z_][A-Za-z0-9_]*)')
+
+
+def _resolve_module_attr(module_name: str, attr_name: str,
+                          cached_libs: dict[str, LibraryDOM]) -> str | None:
+    """Resolve ``module_name.attr_name`` using the DOM cache.
+
+    Returns:
+        'class'  — attr is a class in the cached DOM
+        'function' — attr is a function in the cached DOM
+        'module'  — attr is a submodule in the cached DOM
+        None      — cannot resolve or not in cache
+    """
+    # Try cached DOM from this session
+    dom = cached_libs.get(module_name)
+    if dom is None:
+        if not cache_exists(module_name):
+            return None
+        dom = get_or_load_lib_dom(module_name)
+        if dom is None:
+            return None
+        cached_libs[module_name] = dom
+
+    # Direct class / function in the top-level module
+    if attr_name in dom.classes:
+        return 'class'
+    if attr_name in dom.functions:
+        return 'function'
+    if attr_name in dom.submodules:
+        return 'module'
+
+    # Check submodule contents: dom.submodule_contents[sub_name] -> {classes, functions}
+    sub_contents = dom.submodule_contents
+    if attr_name in sub_contents:
+        return 'module'
+
+    for sub_name, sub_info in sub_contents.items():
+        classes = sub_info.get("classes", [])
+        functions = sub_info.get("functions", [])
+        if attr_name in classes:
+            return 'class'
+        if attr_name in functions:
+            return 'function'
+
+    return None
+
+
+def _collect_imports(code: str) -> dict[str, LibraryDOM]:
+    """Scan ``code`` for ``import X`` / ``from X import`` and pre-load DOM cache.
+
+    Returns a dict mapping module name -> LibraryDOM for resolved modules.
+    """
+    cached: dict[str, LibraryDOM] = {}
+
+    # Find all imported module names (top-level, not dotted)
+    for m in _IMPORT_RE.finditer(code):
+        lib_name = m.group(1).split('.')[0]
+        if lib_name in cached or lib_name in _BUILTINS or lib_name in _KEYWORDS:
+            continue
+        if cache_exists(lib_name):
+            dom = get_or_load_lib_dom(lib_name)
+            if dom is not None:
+                cached[lib_name] = dom
+
+    for m in _FROM_IMPORT_RE.finditer(code):
+        lib_name = m.group(1).split('.')[0]
+        if lib_name in cached or lib_name in _BUILTINS or lib_name in _KEYWORDS:
+            continue
+        if cache_exists(lib_name):
+            dom = get_or_load_lib_dom(lib_name)
+            if dom is not None:
+                cached[lib_name] = dom
+
+    return cached
 
 
 class PythonHighlighterExpert(HighlighterExpert):
@@ -71,6 +155,10 @@ class PythonHighlighterExpert(HighlighterExpert):
 
     def _tokenize(self, code: str) -> list[HighlightToken]:
         tokens: list[HighlightToken] = []
+
+        # Pre-load DOM for all imports in this block
+        cached_libs = _collect_imports(code)
+
         # Track names defined in this block for later highlighting
         defined_functions: set[str] = set()
         defined_classes: set[str] = set()
@@ -94,24 +182,47 @@ class PythonHighlighterExpert(HighlighterExpert):
             elif kind == 'number':
                 tokens.append(HighlightToken(start, end, 'number'))
 
+            elif kind == 'module_attr':
+                module_name = m.group('module_name')
+                attr_name = m.group('attr_name')
+                resolved = _resolve_module_attr(module_name, attr_name, cached_libs)
+                if resolved is not None:
+                    tokens.append(HighlightToken(start, end, resolved))
+                else:
+                    tokens.append(HighlightToken(start, end, 'identifier'))
+
             elif kind == 'identifier':
                 word = m.group()
                 if word in _KEYWORDS:
                     tokens.append(HighlightToken(start, end, 'keyword'))
                     if word in ('def', 'class'):
                         pending_name = ('function' if word == 'def' else 'class', word, end)
+                    elif word == 'from':
+                        pending_name = ('module', word, end)
+                    elif word == 'import':
+                        # After 'import', the next name is typically a module.
+                        # We can't distinguish `import os` from `import deque` (a class
+                        # imported from collections) without static analysis, so we
+                        # highlight it as 'module' — the most common case.
+                        pending_name = ('module', word, end)
                 elif word in _BUILTINS:
                     tokens.append(HighlightToken(start, end, 'builtin'))
                 else:
-                    # Check pending name first (name right after def/class)
+                    # Check pending name first (name right after def/class/from/import)
                     if pending_name is not None:
                         type_, kw_word, kw_end = pending_name
                         between = code[kw_end:start]
                         if between.strip() == '':
                             if type_ == 'function':
                                 defined_functions.add(word)
-                            else:
+                            elif type_ == 'class':
                                 defined_classes.add(word)
+                            elif type_ == 'module':
+                                # Module name after 'from' or 'import': highlight as module
+                                defined_functions.add(word)
+                                tokens.append(HighlightToken(start, end, 'module'))
+                                pending_name = None
+                                continue
                             tokens.append(HighlightToken(start, end, type_))
                             pending_name = None
                             continue

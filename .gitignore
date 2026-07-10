@@ -11,3 +11,6 @@ dist/
 
 # Logs
 logs/
+
+# Cache (runtime data like library DOM)
+cache/

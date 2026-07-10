@@ -1,6 +1,7 @@
 from .base import SuggestionExpert, SuggestionBlock, DOMScope, SuggestionItem
 from modules.data import suggestions_path
 from modules.i18n import get_translator
+from modules.highlighter.dom_cache import get_or_load_lib_dom, cache_exists
 import json
 import os
 import re

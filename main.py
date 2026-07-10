@@ -94,6 +94,7 @@ HIGHLIGHT_TOKENS = {
     'decorator': {'foreground': '#dcdcaa'},
     'self': {'foreground': '#569cd6'},
     'type': {'foreground': '#4ec9b0'},
+    'module': {'foreground': '#4fc1ff'},
 }
 
 LANG_CONFIG = {
@@ -149,8 +150,6 @@ class CodeEditor:
         self._settings = SettingsManager()
         self._suppress_settings_listener = False
 
-        # 国际化: 先把 translator 切到 settings 里持久化的语言, 再开始构建 UI。
-        # 这样 _build_menubar / _build_status_bar 等内部 t() 调用就能拿到正确的文本。
         self._translator = get_translator()
         initial_lang = self._settings.effective('i18n.language', 'zh_CN')
         if initial_lang in AVAILABLE_LANGUAGES:
