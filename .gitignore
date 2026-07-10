@@ -4,3 +4,10 @@ __pycache__/*
 .pytest_cache/
 max
 _dbg2.txt
+
+# Build
+build/
+dist/
+
+# Logs
+logs/
