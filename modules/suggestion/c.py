@@ -6,12 +6,13 @@ import os
 import re
 
 # Priority constants (lower = higher priority)
-_PRIORITY_KEYWORD = 10
-_PRIORITY_BUILTIN = 20
-_PRIORITY_HEADER = 25
-_PRIORITY_CLASS = 30
-_PRIORITY_FUNCTION = 40
-_PRIORITY_VARIABLE = 50
+# User-defined items take highest priority
+_PRIORITY_USER_FUNCTION = 5
+_PRIORITY_USER_VARIABLE = 10
+_PRIORITY_KEYWORD = 15
+_PRIORITY_USER_CLASS = 20
+_PRIORITY_BUILTIN = 30
+_PRIORITY_HEADER = 35
 
 # Cache for loaded suggestion lists
 _CACHED_LISTS: dict = {}
@@ -43,9 +44,14 @@ def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
                     result = []
                     for item in items_data:
                         if isinstance(item, dict):
-                            result.append((item['label'], item.get('priority', _PRIORITY_KEYWORD)))
+                            label = item['label']
+                            priority = item.get('priority', _PRIORITY_KEYWORD)
                         else:
-                            result.append((item, _PRIORITY_KEYWORD))
+                            label = item
+                            priority = _PRIORITY_KEYWORD
+                        # Auto-adjust priority based on underscore prefix
+                        priority = _adjust_underscore_priority(label, priority)
+                        result.append((label, priority))
                     _CACHED_LISTS[cache_key] = result
                     return result
             except (json.JSONDecodeError, OSError):
@@ -56,41 +62,54 @@ def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
     return _CACHED_LISTS[cache_key]
 
 
+def _adjust_underscore_priority(label: str, priority: int) -> int:
+    """Adjust priority based on underscore prefix.
+
+    - '__' prefix: priority +20 (appears after single '_' prefixed items)
+    - '_' prefix (not '__'): priority +10 (appears after normal items)
+    """
+    if label.startswith('__'):
+        return priority + 20
+    elif label.startswith('_'):
+        return priority + 10
+    return priority
+
+
 # Fallback hardcoded suggestion lists with per-item priorities
 _FALLBACK_KEYWORDS = [
-    ('auto', 10), ('break', 10), ('case', 10), ('char', 10), ('const', 10),
-    ('continue', 10), ('default', 10), ('do', 10), ('double', 10), ('else', 10),
-    ('enum', 30), ('extern', 10), ('float', 10), ('for', 10), ('goto', 10),
-    ('if', 10), ('inline', 10), ('int', 10), ('long', 10), ('register', 10),
-    ('restrict', 10), ('return', 10), ('short', 10), ('signed', 10), ('sizeof', 20),
-    ('static', 10), ('struct', 30), ('switch', 10), ('typedef', 30), ('union', 30),
-    ('unsigned', 10), ('void', 10), ('volatile', 10), ('while', 10),
+    ('auto', 15), ('break', 15), ('case', 15), ('char', 15), ('const', 15),
+    ('continue', 15), ('default', 15), ('do', 15), ('double', 15), ('else', 15),
+    ('enum', 20), ('extern', 15), ('float', 15), ('for', 15), ('goto', 15),
+    ('if', 15), ('inline', 15), ('int', 15), ('long', 15), ('register', 15),
+    ('restrict', 15), ('return', 15), ('short', 15), ('signed', 15), ('sizeof', 30),
+    ('static', 15), ('struct', 20), ('switch', 15), ('typedef', 20), ('union', 20),
+    ('unsigned', 15), ('void', 15), ('volatile', 15), ('while', 15),
 ]
 
 _FALLBACK_BUILTINS = [
-    ('offsetof', 20), ('NULL', 20), ('printf', 20), ('scanf', 20), ('malloc', 20),
-    ('calloc', 20), ('free', 20), ('realloc', 20), ('memcpy', 20), ('memmove', 20),
-    ('memset', 20), ('memcmp', 20), ('strcpy', 20), ('strncpy', 20), ('strcat', 20),
-    ('strncat', 20), ('strcmp', 20), ('strncmp', 20), ('strlen', 20), ('sprintf', 20),
-    ('sscanf', 20), ('fopen', 20), ('fclose', 20), ('fread', 20), ('fwrite', 20),
-    ('fprintf', 20), ('fscanf', 20), ('getchar', 20), ('putchar', 20), ('gets', 20),
-    ('puts', 20), ('fgets', 20), ('fputs', 20), ('getc', 20), ('putc', 20),
-    ('ungetc', 20), ('feof', 20), ('ferror', 20), ('atoi', 20), ('atof', 20),
-    ('atol', 20), ('strtol', 20), ('strtod', 20), ('abs', 20), ('labs', 20),
-    ('div', 20), ('exit', 20),
+    ('offsetof', 30), ('NULL', 30), ('printf', 30), ('scanf', 30), ('malloc', 30),
+    ('calloc', 30), ('free', 30), ('realloc', 30), ('memcpy', 30), ('memmove', 30),
+    ('memset', 30), ('memcmp', 30), ('strcpy', 30), ('strncpy', 30), ('strcat', 30),
+    ('strncat', 30), ('strcmp', 30), ('strncmp', 30), ('strlen', 30), ('sprintf', 30),
+    ('sscanf', 30), ('fopen', 30), ('fclose', 30), ('fread', 30), ('fwrite', 30),
+    ('fprintf', 30), ('fscanf', 30), ('getchar', 30), ('putchar', 30), ('gets', 30),
+    ('puts', 30), ('fgets', 30), ('fputs', 30), ('getc', 30), ('putc', 30),
+    ('ungetc', 30), ('feof', 30), ('ferror', 30), ('atoi', 30), ('atof', 30),
+    ('atol', 30), ('strtol', 30), ('strtod', 30), ('abs', 30), ('labs', 30),
+    ('div', 30), ('exit', 30),
 ]
 
 _FALLBACK_HEADERS = [
-    ('assert.h', 25), ('ctype.h', 25), ('errno.h', 25), ('float.h', 25),
-    ('limits.h', 25), ('math.h', 25), ('signal.h', 25), ('stdarg.h', 25),
-    ('stddef.h', 25), ('stdint.h', 25), ('stdio.h', 25), ('stdlib.h', 25),
-    ('string.h', 25), ('time.h', 25),
+    ('assert.h', 35), ('ctype.h', 35), ('errno.h', 35), ('float.h', 35),
+    ('limits.h', 35), ('math.h', 35), ('signal.h', 35), ('stdarg.h', 35),
+    ('stddef.h', 35), ('stdint.h', 35), ('stdio.h', 35), ('stdlib.h', 35),
+    ('string.h', 35), ('time.h', 35),
 ]
 
 _FALLBACK_PREPROCESSOR = [
-    ('#define', 10), ('#elif', 10), ('#else', 10), ('#endif', 10), ('#error', 10),
-    ('#if', 10), ('#ifdef', 10), ('#ifndef', 10), ('#include', 10), ('#line', 10),
-    ('#pragma', 10), ('#undef', 10), ('#warning', 10),
+    ('#define', 15), ('#elif', 15), ('#else', 15), ('#endif', 15), ('#error', 15),
+    ('#if', 15), ('#ifdef', 15), ('#ifndef', 15), ('#include', 15), ('#line', 15),
+    ('#pragma', 15), ('#undef', 15), ('#warning', 15),
 ]
 
 _FALLBACKS = {
@@ -204,11 +223,11 @@ class CSuggestionExpert(SuggestionExpert):
 
         def _walk(scope: DOMScope) -> None:
             for fn in scope.functions:
-                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_FUNCTION, kind='function'))
+                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_USER_FUNCTION, kind='function'))
             for cls in scope.classes:
-                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_CLASS, kind='class'))
+                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_USER_CLASS, kind='class'))
             for var in scope.varibles:
-                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_VARIABLE, kind='variable'))
+                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_USER_VARIABLE, kind='variable'))
 
             for sub in scope.subDOM:
                 _walk(sub)

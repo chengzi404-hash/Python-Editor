@@ -1,17 +1,17 @@
 {
   "items": [
-    {"label": "#define", "priority": 10},
-    {"label": "#elif", "priority": 10},
-    {"label": "#else", "priority": 10},
-    {"label": "#endif", "priority": 10},
-    {"label": "#error", "priority": 10},
-    {"label": "#if", "priority": 10},
-    {"label": "#ifdef", "priority": 10},
-    {"label": "#ifndef", "priority": 10},
-    {"label": "#include", "priority": 10},
-    {"label": "#line", "priority": 10},
-    {"label": "#pragma", "priority": 10},
-    {"label": "#undef", "priority": 10},
-    {"label": "#warning", "priority": 10}
+    {"label": "#define", "priority": 15},
+    {"label": "#elif", "priority": 15},
+    {"label": "#else", "priority": 15},
+    {"label": "#endif", "priority": 15},
+    {"label": "#error", "priority": 15},
+    {"label": "#if", "priority": 15},
+    {"label": "#ifdef", "priority": 15},
+    {"label": "#ifndef", "priority": 15},
+    {"label": "#include", "priority": 15},
+    {"label": "#line", "priority": 15},
+    {"label": "#pragma", "priority": 15},
+    {"label": "#undef", "priority": 15},
+    {"label": "#warning", "priority": 15}
   ]
 }

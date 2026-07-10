@@ -6,11 +6,12 @@ import os
 import re
 
 # Priority constants (lower = higher priority)
-_PRIORITY_KEYWORD = 10
-_PRIORITY_BUILTIN = 20
-_PRIORITY_CLASS = 30
-_PRIORITY_FUNCTION = 40
-_PRIORITY_VARIABLE = 50
+# User-defined items take highest priority
+_PRIORITY_USER_FUNCTION = 5
+_PRIORITY_USER_VARIABLE = 10
+_PRIORITY_KEYWORD = 15
+_PRIORITY_USER_CLASS = 20
+_PRIORITY_BUILTIN = 30
 
 # Cache for loaded suggestion lists
 _CACHED_LISTS: dict = {}
@@ -42,9 +43,14 @@ def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
                     result = []
                     for item in items_data:
                         if isinstance(item, dict):
-                            result.append((item['label'], item.get('priority', _PRIORITY_BUILTIN)))
+                            label = item['label']
+                            priority = item.get('priority', _PRIORITY_BUILTIN)
                         else:
-                            result.append((item, _PRIORITY_BUILTIN))
+                            label = item
+                            priority = _PRIORITY_BUILTIN
+                        # Auto-adjust priority based on underscore prefix
+                        priority = _adjust_underscore_priority(label, priority)
+                        result.append((label, priority))
                     _CACHED_LISTS[cache_key] = result
                     return result
             except (json.JSONDecodeError, OSError):
@@ -55,40 +61,53 @@ def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
     return _CACHED_LISTS[cache_key]
 
 
+def _adjust_underscore_priority(label: str, priority: int) -> int:
+    """Adjust priority based on underscore prefix.
+
+    - '__' prefix: priority +20 (appears after single '_' prefixed items)
+    - '_' prefix (not '__'): priority +10 (appears after normal items)
+    """
+    if label.startswith('__'):
+        return priority + 20
+    elif label.startswith('_'):
+        return priority + 10
+    return priority
+
+
 # Fallback hardcoded suggestion lists with per-item priorities
 # Format: (label, priority)
 _FALLBACK_KEYWORDS = [
-    ('False', 10), ('None', 10), ('True', 10), ('and', 10), ('as', 10),
-    ('assert', 10), ('async', 10), ('await', 10), ('break', 10), ('class', 30),
-    ('continue', 10), ('def', 30), ('del', 10), ('elif', 10), ('else', 10),
-    ('except', 10), ('finally', 10), ('for', 10), ('from', 10), ('global', 10),
-    ('if', 10), ('import', 10), ('in', 10), ('is', 10), ('lambda', 15),
-    ('nonlocal', 10), ('not', 10), ('or', 10), ('pass', 10), ('raise', 10),
-    ('return', 10), ('try', 10), ('while', 10), ('with', 10), ('yield', 10),
+    ('False', 15), ('None', 15), ('True', 15), ('and', 15), ('as', 15),
+    ('assert', 15), ('async', 15), ('await', 15), ('break', 15), ('class', 20),
+    ('continue', 15), ('def', 20), ('del', 15), ('elif', 15), ('else', 15),
+    ('except', 15), ('finally', 15), ('for', 15), ('from', 15), ('global', 15),
+    ('if', 15), ('import', 15), ('in', 15), ('is', 15), ('lambda', 16),
+    ('nonlocal', 15), ('not', 15), ('or', 15), ('pass', 15), ('raise', 15),
+    ('return', 15), ('try', 15), ('while', 15), ('with', 15), ('yield', 15),
 ]
 
 _FALLBACK_BUILTINS = [
     # Builtin functions
-    ('abs', 20), ('all', 20), ('any', 20), ('ascii', 20), ('bin', 20),
-    ('breakpoint', 20), ('callable', 20), ('chr', 20), ('compile', 20),
-    ('delattr', 20), ('dir', 20), ('divmod', 20), ('eval', 20), ('exec', 20),
-    ('format', 20), ('getattr', 20), ('globals', 20), ('hasattr', 20),
-    ('hash', 20), ('help', 20), ('hex', 20), ('id', 20), ('input', 20),
-    ('isinstance', 20), ('issubclass', 20), ('len', 20), ('locals', 20),
-    ('max', 20), ('min', 20), ('next', 20), ('oct', 20), ('open', 20),
-    ('ord', 20), ('pow', 20), ('print', 20), ('repr', 20), ('round', 20),
-    ('setattr', 20), ('sorted', 20), ('sum', 20), ('vars', 20), ('__import__', 20),
+    ('abs', 30), ('all', 30), ('any', 30), ('ascii', 30), ('bin', 30),
+    ('breakpoint', 30), ('callable', 30), ('chr', 30), ('compile', 30),
+    ('delattr', 30), ('dir', 30), ('divmod', 30), ('eval', 30), ('exec', 30),
+    ('format', 30), ('getattr', 30), ('globals', 30), ('hasattr', 30),
+    ('hash', 30), ('help', 30), ('hex', 30), ('id', 30), ('input', 30),
+    ('isinstance', 30), ('issubclass', 30), ('len', 30), ('locals', 30),
+    ('max', 30), ('min', 30), ('next', 30), ('oct', 30), ('open', 30),
+    ('ord', 30), ('pow', 30), ('print', 30), ('repr', 30), ('round', 30),
+    ('setattr', 30), ('sorted', 30), ('sum', 30), ('vars', 30), ('__import__', 30),
     # Builtin classes
-    ('bool', 20), ('bytearray', 20), ('bytes', 20), ('classmethod', 20),
-    ('complex', 20), ('dict', 20), ('enumerate', 20), ('filter', 20),
-    ('float', 20), ('frozenset', 20), ('int', 20), ('list', 20), ('map', 20),
-    ('memoryview', 20), ('object', 20), ('property', 20), ('range', 20),
-    ('reversed', 20), ('set', 20), ('slice', 20), ('staticmethod', 20),
-    ('str', 20), ('super', 20), ('tuple', 20), ('zip', 20),
+    ('bool', 30), ('bytearray', 30), ('bytes', 30), ('classmethod', 30),
+    ('complex', 30), ('dict', 30), ('enumerate', 30), ('filter', 30),
+    ('float', 30), ('frozenset', 30), ('int', 30), ('list', 30), ('map', 30),
+    ('memoryview', 30), ('object', 30), ('property', 30), ('range', 30),
+    ('reversed', 30), ('set', 30), ('slice', 30), ('staticmethod', 30),
+    ('str', 30), ('super', 30), ('tuple', 30), ('zip', 30),
     # Builtin constants
-    ('Ellipsis', 20), ('NotImplemented', 20), ('__name__', 20), ('__file__', 20),
-    ('__doc__', 20), ('__package__', 20), ('__loader__', 20), ('__spec__', 20),
-    ('__path__', 20), ('__all__', 20),
+    ('Ellipsis', 30), ('NotImplemented', 30), ('__name__', 30), ('__file__', 30),
+    ('__doc__', 30), ('__package__', 30), ('__loader__', 30), ('__spec__', 30),
+    ('__path__', 30), ('__all__', 30),
 ]
 
 _FALLBACKS = {
@@ -311,15 +330,15 @@ class PythonSuggestionExpert(SuggestionExpert):
 
         def _walk(scope: DOMScope, pos: int) -> None:
             for fn in scope.functions:
-                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_FUNCTION, kind='function'))
+                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_USER_FUNCTION, kind='function'))
             for cls in scope.classes:
-                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_CLASS, kind='class'))
+                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_USER_CLASS, kind='class'))
             for var in scope.varibles:
-                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_VARIABLE, kind='variable'))
+                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_USER_VARIABLE, kind='variable'))
 
             vars_in_scope = self._extract_variables(block.code, scope.begin, scope.end)
             for var in vars_in_scope:
-                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_VARIABLE, kind='variable'))
+                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_USER_VARIABLE, kind='variable'))
 
             for sub in scope.subDOM:
                 if sub.begin <= pos < sub.end:
@@ -333,7 +352,7 @@ class PythonSuggestionExpert(SuggestionExpert):
         if obj_name == 'self':
             cls_methods = self._enclosing_class_methods(block, line_no)
             if cls_methods:
-                return [SuggestionItem(label=m, priority=_PRIORITY_FUNCTION, kind='method') for m in cls_methods]
+                return [SuggestionItem(label=m, priority=_PRIORITY_USER_FUNCTION, kind='method') for m in cls_methods]
 
         if obj_name in BUILTIN_ATTRS:
             return [SuggestionItem(label=a, priority=_PRIORITY_BUILTIN, kind='attribute')

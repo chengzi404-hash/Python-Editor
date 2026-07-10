@@ -6,12 +6,13 @@ import os
 import re
 
 # Priority constants (lower = higher priority)
-_PRIORITY_KEYWORD = 10
-_PRIORITY_BUILTIN = 20
-_PRIORITY_HEADER = 25
-_PRIORITY_CLASS = 30
-_PRIORITY_FUNCTION = 40
-_PRIORITY_VARIABLE = 50
+# User-defined items take highest priority
+_PRIORITY_USER_FUNCTION = 5
+_PRIORITY_USER_VARIABLE = 10
+_PRIORITY_KEYWORD = 15
+_PRIORITY_USER_CLASS = 20
+_PRIORITY_BUILTIN = 30
+_PRIORITY_HEADER = 35
 
 # Cache for loaded suggestion lists
 _CACHED_LISTS: dict = {}
@@ -43,9 +44,14 @@ def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
                     result = []
                     for item in items_data:
                         if isinstance(item, dict):
-                            result.append((item['label'], item.get('priority', _PRIORITY_KEYWORD)))
+                            label = item['label']
+                            priority = item.get('priority', _PRIORITY_KEYWORD)
                         else:
-                            result.append((item, _PRIORITY_KEYWORD))
+                            label = item
+                            priority = _PRIORITY_KEYWORD
+                        # Auto-adjust priority based on underscore prefix
+                        priority = _adjust_underscore_priority(label, priority)
+                        result.append((label, priority))
                     _CACHED_LISTS[cache_key] = result
                     return result
             except (json.JSONDecodeError, OSError):
@@ -56,45 +62,58 @@ def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
     return _CACHED_LISTS[cache_key]
 
 
+def _adjust_underscore_priority(label: str, priority: int) -> int:
+    """Adjust priority based on underscore prefix.
+
+    - '__' prefix: priority +20 (appears after single '_' prefixed items)
+    - '_' prefix (not '__'): priority +10 (appears after normal items)
+    """
+    if label.startswith('__'):
+        return priority + 20
+    elif label.startswith('_'):
+        return priority + 10
+    return priority
+
+
 # Fallback hardcoded suggestion lists with per-item priorities
 _FALLBACK_KEYWORDS = [
-    ('alignas', 10), ('alignof', 10), ('and', 10), ('and_eq', 10), ('auto', 10),
-    ('bitand', 10), ('bitor', 10), ('bool', 10), ('break', 10), ('case', 10),
-    ('catch', 10), ('char', 10), ('char8_t', 10), ('char16_t', 10), ('char32_t', 10),
-    ('class', 30), ('compl', 10), ('concept', 10), ('const', 10), ('consteval', 10),
-    ('constexpr', 10), ('constinit', 10), ('const_cast', 10), ('continue', 10),
-    ('co_await', 10), ('co_return', 10), ('co_yield', 10), ('decltype', 10),
-    ('default', 10), ('delete', 10), ('do', 10), ('double', 10), ('dynamic_cast', 10),
-    ('else', 10), ('enum', 30), ('explicit', 10), ('export', 10), ('extern', 10),
-    ('false', 10), ('float', 10), ('for', 10), ('friend', 10), ('goto', 10),
-    ('if', 10), ('inline', 10), ('int', 10), ('long', 10), ('mutable', 10),
-    ('namespace', 30), ('new', 10), ('noexcept', 10), ('not', 10), ('not_eq', 10),
-    ('nullptr', 10), ('operator', 30), ('or', 10), ('or_eq', 10), ('private', 10),
-    ('protected', 10), ('public', 10), ('register', 10), ('reinterpret_cast', 10),
-    ('requires', 10), ('return', 10), ('short', 10), ('signed', 10), ('sizeof', 20),
-    ('static', 10), ('static_assert', 10), ('static_cast', 10), ('struct', 30),
-    ('switch', 10), ('template', 30), ('this', 10), ('thread_local', 10), ('throw', 10),
-    ('true', 10), ('try', 10), ('typedef', 30), ('typeid', 10), ('typename', 10),
-    ('union', 30), ('unsigned', 10), ('using', 10), ('virtual', 10), ('void', 10),
-    ('volatile', 10), ('wchar_t', 10), ('while', 10), ('xor', 10), ('xor_eq', 10),
+    ('alignas', 15), ('alignof', 15), ('and', 15), ('and_eq', 15), ('auto', 15),
+    ('bitand', 15), ('bitor', 15), ('bool', 15), ('break', 15), ('case', 15),
+    ('catch', 15), ('char', 15), ('char8_t', 15), ('char16_t', 15), ('char32_t', 15),
+    ('class', 20), ('compl', 15), ('concept', 15), ('const', 15), ('consteval', 15),
+    ('constexpr', 15), ('constinit', 15), ('const_cast', 15), ('continue', 15),
+    ('co_await', 15), ('co_return', 15), ('co_yield', 15), ('decltype', 15),
+    ('default', 15), ('delete', 15), ('do', 15), ('double', 15), ('dynamic_cast', 15),
+    ('else', 15), ('enum', 20), ('explicit', 15), ('export', 15), ('extern', 15),
+    ('false', 15), ('float', 15), ('for', 15), ('friend', 15), ('goto', 15),
+    ('if', 15), ('inline', 15), ('int', 15), ('long', 15), ('mutable', 15),
+    ('namespace', 20), ('new', 15), ('noexcept', 15), ('not', 15), ('not_eq', 15),
+    ('nullptr', 15), ('operator', 20), ('or', 15), ('or_eq', 15), ('private', 15),
+    ('protected', 15), ('public', 15), ('register', 15), ('reinterpret_cast', 15),
+    ('requires', 15), ('return', 15), ('short', 15), ('signed', 15), ('sizeof', 30),
+    ('static', 15), ('static_assert', 15), ('static_cast', 15), ('struct', 20),
+    ('switch', 15), ('template', 20), ('this', 15), ('thread_local', 15), ('throw', 15),
+    ('true', 15), ('try', 15), ('typedef', 20), ('typeid', 15), ('typename', 15),
+    ('union', 20), ('unsigned', 15), ('using', 15), ('virtual', 15), ('void', 15),
+    ('volatile', 15), ('wchar_t', 15), ('while', 15), ('xor', 15), ('xor_eq', 15),
 ]
 
 _FALLBACK_HEADERS = [
-    ('algorithm', 25), ('array', 25), ('atomic', 25), ('bitset', 25), ('chrono', 25),
-    ('deque', 25), ('exception', 25), ('fstream', 25), ('functional', 25),
-    ('future', 25), ('iostream', 25), ('map', 25), ('memory', 25), ('mutex', 25),
-    ('optional', 25), ('queue', 25), ('random', 25), ('regex', 25), ('set', 25),
-    ('shared_mutex', 25), ('stack', 25), ('string', 25), ('thread', 25), ('tuple', 25),
-    ('unordered_map', 25), ('unordered_set', 25), ('variant', 25), ('vector', 25),
+    ('algorithm', 35), ('array', 35), ('atomic', 35), ('bitset', 35), ('chrono', 35),
+    ('deque', 35), ('exception', 35), ('fstream', 35), ('functional', 35),
+    ('future', 35), ('iostream', 35), ('map', 35), ('memory', 35), ('mutex', 35),
+    ('optional', 35), ('queue', 35), ('random', 35), ('regex', 35), ('set', 35),
+    ('shared_mutex', 35), ('stack', 35), ('string', 35), ('thread', 35), ('tuple', 35),
+    ('unordered_map', 35), ('unordered_set', 35), ('variant', 35), ('vector', 35),
 ]
 
 _FALLBACK_BUILTINS = [
-    ('NULL', 20), ('nullptr', 20), ('printf', 20), ('scanf', 20), ('malloc', 20),
-    ('calloc', 20), ('free', 20), ('realloc', 20), ('memcpy', 20), ('memset', 20),
-    ('string', 20), ('vector', 20), ('map', 20), ('set', 20), ('pair', 20),
-    ('make_pair', 20), ('make_shared', 20), ('make_unique', 20), ('move', 20),
-    ('forward', 20), ('swap', 20), ('begin', 20), ('end', 20), ('size', 20),
-    ('empty', 20), ('push_back', 20), ('pop_back', 20), ('insert', 20), ('erase', 20),
+    ('NULL', 30), ('nullptr', 30), ('printf', 30), ('scanf', 30), ('malloc', 30),
+    ('calloc', 30), ('free', 30), ('realloc', 30), ('memcpy', 30), ('memset', 30),
+    ('string', 30), ('vector', 30), ('map', 30), ('set', 30), ('pair', 30),
+    ('make_pair', 30), ('make_shared', 30), ('make_unique', 30), ('move', 30),
+    ('forward', 30), ('swap', 30), ('begin', 30), ('end', 30), ('size', 30),
+    ('empty', 30), ('push_back', 30), ('pop_back', 30), ('insert', 30), ('erase', 30),
 ]
 
 _FALLBACKS = {
@@ -224,11 +243,11 @@ class CppSuggestionExpert(SuggestionExpert):
 
         def _walk(scope: DOMScope) -> None:
             for fn in scope.functions:
-                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_FUNCTION, kind='function'))
+                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_USER_FUNCTION, kind='function'))
             for cls in scope.classes:
-                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_CLASS, kind='class'))
+                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_USER_CLASS, kind='class'))
             for var in scope.varibles:
-                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_VARIABLE, kind='variable'))
+                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_USER_VARIABLE, kind='variable'))
 
             for sub in scope.subDOM:
                 _walk(sub)
@@ -252,9 +271,9 @@ class CppSuggestionExpert(SuggestionExpert):
 
         def _walk(scope: DOMScope) -> None:
             for cls in scope.classes:
-                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_CLASS, kind='class'))
+                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_USER_CLASS, kind='class'))
             for fn in scope.functions:
-                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_FUNCTION, kind='function'))
+                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_USER_FUNCTION, kind='function'))
             for sub in scope.subDOM:
                 _walk(sub)
 
