@@ -5,6 +5,7 @@
   "menu.file.open_project": "打开项目...",
   "menu.file.save": "保存",
   "menu.file.save_as": "另存为...",
+  "menu.file.close_tab": "关闭标签",
   "menu.file.run": "运行",
   "menu.file.check": "检查",
   "menu.file.clear_output": "清除输出",

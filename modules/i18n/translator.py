@@ -17,7 +17,9 @@ import os
 import threading
 from typing import Any, Callable, Dict, List, Optional
 
-_LOCALE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "locales")
+from modules.data import i18n_path
+
+_LOCALE_DIR = i18n_path("locales")
 
 AVAILABLE_LANGUAGES: tuple = ("zh_CN", "en_US")
 
@@ -58,7 +60,7 @@ class Translator:
         self._current: str = self._FALLBACK_LANG
         self._tables: Dict[str, Dict[str, str]] = {}
         self._listeners: List[I18nListener] = []
-        # 预加载内置语言, 首次 t() 调用零延迟
+        self._changing: bool = False
         for lang in AVAILABLE_LANGUAGES:
             self._tables[lang] = _load_locale(lang)
 
@@ -77,16 +79,23 @@ class Translator:
         if lang not in AVAILABLE_LANGUAGES:
             return False
         with self._lock:
+            if self._changing:
+                return False
             if lang == self._current:
                 return False
+            self._changing = True
             self._current = lang
             listeners = list(self._listeners)
-        for cb in listeners:
-            try:
-                cb(lang)
-            except Exception:
-                pass
-        return True
+        try:
+            for cb in listeners:
+                try:
+                    cb(lang)
+                except Exception:
+                    pass
+            return True
+        finally:
+            with self._lock:
+                self._changing = False
 
     def add_listener(self, callback: I18nListener) -> None:
         with self._lock:

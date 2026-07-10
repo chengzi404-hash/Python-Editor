@@ -16,6 +16,7 @@ from .file_tree import UFileTree
 from .settings_nav import USettingsNavBar, NavSelection
 from .tree_canvas import TreeCanvas
 from .line_number import LineNumberCanvas
+from .tab_bar import TabBar, Tab
 
 
 __all__ = [
@@ -29,4 +30,5 @@ __all__ = [
     'USettingsNavBar', 'NavSelection',
     'TreeCanvas',
     'LineNumberCanvas',
+    'TabBar', 'Tab',
 ]

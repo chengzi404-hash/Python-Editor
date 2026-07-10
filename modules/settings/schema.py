@@ -246,6 +246,61 @@ GLOBAL_SPECS: tuple = (
         choices=tuple(AVAILABLE_LANGUAGES),
         scope=SettingsScope.GLOBAL,
     ),
+
+    # ── 日志 ────────────────────────────────────────────────────────────
+    SettingSpec(
+        key="logging.enabled",
+        type=SettingValueType.BOOLEAN,
+        default=True,
+        label="启用日志",
+        description="开启后记录运行日志到 logs/ 目录。",
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="logging.level",
+        type=SettingValueType.CHOICE,
+        default="INFO",
+        label="日志级别",
+        description="记录该级别及以上的日志。",
+        choices=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="logging.file_enabled",
+        type=SettingValueType.BOOLEAN,
+        default=True,
+        label="写文件日志",
+        description="将日志写入 logs/<name>.log 文件。",
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="logging.console_enabled",
+        type=SettingValueType.BOOLEAN,
+        default=True,
+        label="输出到控制台",
+        description="同时将日志打印到 stdout。",
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="logging.max_bytes",
+        type=SettingValueType.INTEGER,
+        default=5 * 1024 * 1024,
+        label="日志文件大小上限",
+        description="单个日志文件最大字节数，超出后自动轮转。",
+        min=1024,
+        max=100 * 1024 * 1024,
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="logging.backup_count",
+        type=SettingValueType.INTEGER,
+        default=5,
+        label="日志备份数量",
+        description="轮转时保留的旧日志文件数量。",
+        min=1,
+        max=100,
+        scope=SettingsScope.GLOBAL,
+    ),
 )
 
 

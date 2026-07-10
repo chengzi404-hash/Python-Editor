@@ -5,12 +5,13 @@ import subprocess
 import tempfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from modules.logging import configure_logging, get_logger
-from modules.Uui.widgets import UFrame, ULabel, UButton, UText, UComboBox, UMenuBar, UMenu, theme, UFileTree
+from modules.Uui.widgets import UFrame, ULabel, UButton, UText, UComboBox, UMenuBar, UMenu, theme, UFileTree, TabBar, Tab
 from modules.Uui.widgets.window import Window
 from modules.Uui.widgets.editor_suggestion import UEditorSuggestion, CompletionItem
 from modules.highlighter import PythonHighlighterExpert, CcppHighlighterExpert, HighlightBlock
@@ -24,6 +25,16 @@ from modules.plugins import (
     HookEvents,
 )
 from modules.i18n import AVAILABLE_LANGUAGES, get_translator, t
+
+
+@dataclass
+class Document:
+    """单个文档的数据模型，对应一个打开的文件（或 Untitled）。"""
+    path: Optional[str]          # None 表示未保存的 Untitled 文档
+    content: str = ''
+    dirty: bool = False
+    lang: str = 'Python'          # 代码语言
+    seq: int = 0                 # Untitled 序号（0 表示非 untitled）
 
 
 class _Debouncer:
@@ -65,6 +76,7 @@ class _Debouncer:
     @property
     def pending_id(self):
         return self._after_id
+
 
 HIGHLIGHT_TOKENS = {
     'keyword': {'foreground': '#569cd6'},
@@ -110,7 +122,6 @@ FONT_FAMILIES = ['Consolas', 'Courier New', 'Menlo', 'Monaco']
 FONT_SIZES = [9, 10, 11, 12, 14, 16]
 TAB_WIDTHS = [2, 4, 8]
 
-# 日志初始化（最早就位，确保所有后续模块都能拿到已配置的 logger）
 _log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 configure_logging(
     level="INFO",
@@ -148,6 +159,12 @@ class CodeEditor:
         self._current_project_root: Optional[str] = None
         self._suggestion_popup: Optional[UEditorSuggestion] = None
         self._dirty = False
+
+        # ── 多文档状态 ──────────────────────────────────────────────────
+        self._documents: Dict[str, Document] = {}
+        self._active_id: Optional[str] = None
+        self._next_untitled_seq: int = 1
+        self._tab_bar: Optional[TabBar] = None
 
         gs = self._settings.global_settings
         self._highlighting_enabled = gs.get('completion.enabled', True)
@@ -187,6 +204,8 @@ class CodeEditor:
         self._build_menubar()
         self._build_toolbar()
         self._build_editor()
+        # 多文档状态依赖 _tab_bar，所以要在 _build_editor 之后
+        self._init_first_document()
         self._build_output_panel()
         self._build_status_bar()
 
@@ -219,6 +238,159 @@ class CodeEditor:
             f"font={self._font_family} {self._font_size}pt, "
             f"tab_width={self._tab_width}"
         )
+
+    # ------------------------------------------------------------------
+    # 多文档管理
+    # ------------------------------------------------------------------
+
+    def _init_first_document(self) -> None:
+        """初始化第一个 Untitled 文档。"""
+        doc_id = self._new_doc_id()
+        self._documents[doc_id] = Document(
+            path=None, content='', dirty=False, lang=self._lang, seq=1,
+        )
+        self._active_id = doc_id
+        self._next_untitled_seq = 2
+        self._update_tab_bar()
+
+    def _new_doc_id(self) -> str:
+        """生成新的未命名文档 ID。"""
+        return f'__untitled_{self._next_untitled_seq}__'
+
+    def _tab_title(self, doc: Document) -> str:
+        """返回文档的显示标题。"""
+        if doc.path:
+            return os.path.basename(doc.path)
+        return f'Untitled-{doc.seq}'
+
+    def _update_tab_bar(self) -> None:
+        """刷新标签栏以反映当前文档状态。"""
+        if self._tab_bar is None:
+            return
+        tabs = []
+        for doc_id, doc in self._documents.items():
+            title = self._tab_title(doc)
+            closeable = len(self._documents) > 1
+            tabs.append(Tab(id=doc_id, title=title, dirty=doc.dirty, closeable=closeable))
+        self._tab_bar.set_tabs(tabs, self._active_id)
+
+    def _switch_document(self, doc_id: str) -> None:
+        """切换到指定文档（保存当前文档状态，加载目标文档到编辑器）。"""
+        if doc_id not in self._documents:
+            return
+        if self._active_id and self._active_id in self._documents:
+            curr = self._documents[self._active_id]
+            try:
+                curr.content = self._editor.get('1.0', 'end-1c')
+            except tk.TclError:
+                curr.content = ''
+            curr.lang = self._lang
+
+        self._active_id = doc_id
+        doc = self._documents[doc_id]
+        self._editor._text.config(state='normal')
+        self._editor._text.delete('1.0', tk.END)
+        if doc.content:
+            self._editor._text.insert('1.0', doc.content)
+        self._dirty = doc.dirty
+        self._lang = doc.lang
+        self._switch_language(doc.lang, from_doc_switch=True)
+        self._tab_bar.set_active(doc_id)
+        self._apply_highlight()
+        self._update_status()
+
+    def _tab_select(self, doc_id: str) -> None:
+        """标签点击回调。"""
+        if doc_id == self._active_id:
+            return
+        self._switch_document(doc_id)
+
+    def _tab_close(self, doc_id: str) -> None:
+        """关闭标签。"""
+        if doc_id not in self._documents:
+            return
+        doc = self._documents[doc_id]
+        if doc.dirty:
+            result = messagebox.askyesno(
+                t('dialog.title.unsaved_discard'),
+                t('dialog.unsaved_discard.message'),
+            )
+            if not result:
+                return
+
+        del self._documents[doc_id]
+        self._tab_bar.remove_tab(doc_id)
+
+        if not self._documents:
+            self._init_first_document()
+        elif self._active_id == doc_id:
+            other_id = next(iter(self._documents.keys()))
+            self._active_id = other_id
+            doc = self._documents[other_id]
+            self._editor._text.config(state='normal')
+            self._editor._text.delete('1.0', tk.END)
+            if doc.content:
+                self._editor._text.insert('1.0', doc.content)
+            self._dirty = doc.dirty
+            self._lang = doc.lang
+            self._switch_language(doc.lang, from_doc_switch=True)
+            self._apply_highlight()
+            self._update_status()
+        self._update_tab_bar()
+
+    def _tab_context_menu(self, doc_id: str, x_root: int, y_root: int) -> None:
+        """标签右键菜单。"""
+        menu = tk.Menu(self.window, tearoff=0)
+        menu.add_command(label='Close', command=lambda: self._tab_close(doc_id))
+        menu.add_command(label='Close Others', command=lambda: self._close_other_tabs(doc_id))
+        menu.add_command(label='Close All', command=self._close_all_tabs)
+        try:
+            menu.tk_popup(x_root, y_root)
+        finally:
+            menu.grab_release()
+
+    def _close_other_tabs(self, keep_id: str) -> None:
+        """关闭除指定标签外的所有标签。"""
+        for did in [d for d in self._documents if d != keep_id]:
+            self._tab_close(did)
+
+    def _close_all_tabs(self) -> None:
+        """关闭所有标签（只剩一个时退化为普通新建）。"""
+        if len(self._documents) <= 1:
+            self._new_file()
+            return
+        for did in list(self._documents.keys()):
+            self._tab_close(did)
+
+    def _mark_dirty(self) -> None:
+        """标记当前文档为脏（已修改）。"""
+        if self._active_id and self._active_id in self._documents:
+            self._documents[self._active_id].dirty = True
+            self._dirty = True
+            self._update_tab_bar()
+
+    def _next_tab(self) -> None:
+        """切换到下一个标签。"""
+        if not self._documents:
+            return
+        ids = list(self._documents.keys())
+        if self._active_id in ids:
+            idx = ids.index(self._active_id)
+            self._switch_document(ids[(idx + 1) % len(ids)])
+
+    def _prev_tab(self) -> None:
+        """切换到上一个标签。"""
+        if not self._documents:
+            return
+        ids = list(self._documents.keys())
+        if self._active_id in ids:
+            idx = ids.index(self._active_id)
+            self._switch_document(ids[(idx - 1) % len(ids)])
+
+    def _close_active_tab(self) -> None:
+        """关闭当前标签。"""
+        if self._active_id:
+            self._tab_close(self._active_id)
 
     # ------------------------------------------------------------------
     # SettingsManager 桥接层
@@ -441,13 +613,17 @@ class CodeEditor:
     # ------------------------------------------------------------------
 
     def _on_close_request(self) -> None:
-        """窗口关闭时: 询问 + 落盘。"""
+        """窗口关闭时: 检查所有文档脏状态 + 落盘。"""
 
-        if self._dirty and not messagebox.askyesno(
-            t('dialog.title.unsaved_exit'),
-            t('dialog.unsaved_exit.message'),
-        ):
-            return
+        # 检查所有文档是否有未保存更改
+        dirty_docs = [doc for doc in self._documents.values() if doc.dirty]
+        if dirty_docs:
+            if not messagebox.askyesno(
+                t('dialog.title.unsaved_exit'),
+                t('dialog.unsaved_exit.message'),
+            ):
+                return
+
         self._cancel_pending_highlight()
         self._cancel_pending_suggestions()
         app_logger.info("Editor closing...")
@@ -525,6 +701,8 @@ class CodeEditor:
         file_menu.add_separator()
         file_menu.add_command(t('menu.file.save'), self._save_file, 'Ctrl+S')
         file_menu.add_command(t('menu.file.save_as'), self._save_file_as, 'Ctrl+Shift+S')
+        file_menu.add_separator()
+        file_menu.add_command(t('menu.file.close_tab'), self._close_active_tab, 'Ctrl+W')
         file_menu.add_separator()
         file_menu.add_command(t('menu.file.run'), self._run_code, 'F5')
         file_menu.add_command(t('menu.file.check'), self._run_check, 'Ctrl+R')
@@ -643,6 +821,10 @@ class CodeEditor:
         self.window.bind('<Control-space>', lambda e: self._show_suggestions())
         self.window.bind('<F1>', lambda e: self._show_documentation())
         self.window.bind('<Control-slash>', lambda e: self._toggle_comment())
+        # 多文档标签快捷键
+        self.window.bind('<Control-w>', lambda e: self._close_active_tab())
+        self.window.bind('<Control-Tab>', lambda e: self._next_tab())
+        self.window.bind('<Control-Shift-Tab>', lambda e: self._prev_tab())
 
     def _lang_var(self) -> tk.StringVar:
         if not hasattr(self, '_lang_tk_var') or self._lang_tk_var is None:
@@ -726,6 +908,15 @@ class CodeEditor:
         body = UFrame(self.window, variant='base')
         body.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
 
+        # 标签栏（多文档）
+        self._tab_bar = TabBar(
+            body,
+            on_select=self._tab_select,
+            on_close=self._tab_close,
+            on_context_menu=self._tab_context_menu,
+        )
+        self._tab_bar.pack(fill=tk.X, padx=0, pady=0)
+
         # 水平 PanedWindow: 左 = 编辑器, 右 = Solution Explorer 风格的文件树。
         # sashrelief / sashwidth 让分隔条可见可拖动。
         self._paned = tk.PanedWindow(
@@ -788,14 +979,7 @@ class CodeEditor:
     def _load_path_into_editor(self, path: str) -> None:
         """把 ``path`` 读进编辑器,统一处理"小文件快路径 / 大文件流式路径".
 
-        流程:
-            1. 读 ``editor.large_file_threshold_bytes`` 拿到阈值(0 = 关闭特性)。
-            2. 用 :func:`os.path.getsize` 取文件大小; 拿不到就报错并返回。
-            3. ``size >= threshold`` 视为大文件, 弹警告后走
-               :meth:`_stream_insert_into_editor` 分块流式插入;
-               否则一次性读进内存再 ``text.insert``。
-            4. 大文件模式下, :attr:`_large_file_mode` 会被设为 True,
-               ``_apply_highlight`` / ``_show_suggestions`` 因此提前返回。
+        多文档模式下为打开的文件创建一个新 Document 并切换到该文档。
         """
         threshold_raw = self._settings.global_settings.get(
             'editor.large_file_threshold_bytes', 5 * 1024 * 1024,
@@ -828,6 +1012,12 @@ class CodeEditor:
         self._editor._text.config(state='normal')
         self._large_file_mode = False
 
+        # 创建新文档（用路径作为 doc_id，便于重新打开同一文件时复用）
+        doc_id = path
+        doc = Document(path=path, content='', dirty=False, lang=self._lang, seq=0)
+        self._documents[doc_id] = doc
+        self._active_id = doc_id
+
         self._editor._text.delete('1.0', tk.END)
         self._current_file = path
         self._dirty = False
@@ -836,57 +1026,49 @@ class CodeEditor:
             self._status_label.config(
                 text=t('status.loading', name=os.path.basename(path), size=self._human_size(size)),
             )
-            self._stream_insert_into_editor(path, size)
+            self._stream_insert_into_editor(path, size, doc_id)
         else:
             try:
                 with open(path, 'r', encoding='utf-8') as f:
                     code = f.read()
             except OSError as e:
-                # 读失败时回滚上面的状态变更, 避免编辑器处于"半打开"状态。
+                # 读失败时回滚状态
+                self._active_id = None
+                self._documents.pop(doc_id, None)
                 self._current_file = None
                 self._editor._text.delete('1.0', tk.END)
                 messagebox.showerror(t('dialog.title.open_failed'), str(e), parent=self.window)
                 return
             except UnicodeDecodeError as e:
-                # 与原行为一致: 非 UTF-8 文件让用户直接看到编码错误,
-                # 而不是默默替换。流式路径下用 errors='replace' 处理是因为
-                # 几十 MB 的中途崩溃基本无法恢复, 替换字符比丢掉全部更友好。
+                self._active_id = None
+                self._documents.pop(doc_id, None)
                 self._current_file = None
                 self._editor._text.delete('1.0', tk.END)
                 messagebox.showerror(t('dialog.title.open_failed'), str(e), parent=self.window)
                 return
+            doc.content = code
             self._editor._text.insert('1.0', code)
             self._status_label.config(text=t('status.opened', name=os.path.basename(path)))
 
-        # 关键修复: 打开文件时**只在文件不在当前项目内**时才更新项目根,
-        # 避免把项目视图切碎成只剩某个子目录(原本双击 src/lib/foo.py 会
-        # 让整个 src/lib/ 之外的兄弟目录从文件树里消失)。
+        self._update_tab_bar()
+
+        # 关键修复: 打开文件时**只在文件不在当前项目内**时才更新项目根
         new_root = self._should_reattach_for_path(path)
         if new_root:
             self._attach_project(new_root)
 
-        # 大文件不触发高亮(stream 路径结束后由调用方决定是否再触发一次,
-        # 此处刻意不触发, 避免对几十 MB 文本跑高亮)。
+        # 大文件不触发高亮
         if not is_large:
             self._apply_highlight()
-        # 通知插件文件已加载; 大文件在流式加载期间 _last_emit_code 还没刷新,
-        # 流式 path 自己负责在结束时强制发一次。
         if is_large:
             self._last_emit_code = None
         else:
             self._last_emit_code = self._editor.get('1.0', 'end-1c')
         self._emit(HookEvents.EDITOR_FILE_OPENED, path)
 
-    def _stream_insert_into_editor(self, path: str, total_size: int) -> None:
+    def _stream_insert_into_editor(self, path: str, total_size: int, doc_id: str) -> None:
         """分块读取 ``path`` 并插入编辑器; 通过 ``after(1)`` 让 Tk 事件循环
         有空隙处理其他事件(窗口移动、滚动、重绘)。
-
-        关键不变量:
-            * 加载期间文本框 ``state='disabled'``, 防止用户键入被覆盖。
-            * :attr:`_large_file_mode=True` 期间 ``_apply_highlight`` /
-              ``_show_suggestions`` 提前返回。
-            * epoch 计数器 :attr:`_stream_epoch` 让被新加载操作取代的旧
-              callback 静默退出, 不会把旧文件内容覆盖到新打开的编辑器。
         """
         chunk_size = 64 * 1024  # 64 KiB
         try:
@@ -902,6 +1084,7 @@ class CodeEditor:
         my_epoch = self._stream_epoch
         self._large_file_mode = True
         self._editor._text.config(state='disabled')
+        accumulated: List[str] = []
 
         def insert_chunk() -> None:
             if my_epoch != self._stream_epoch:
@@ -933,8 +1116,9 @@ class CodeEditor:
                 self._status_label.config(
                     text=t('status.opened', name=os.path.basename(path))
                 )
-                # 大文件流式加载完成: 把内容快照刷新, 让下次按键的
-                # content_changed 钩子能正确触发。
+                # 更新文档内容
+                if doc_id in self._documents:
+                    self._documents[doc_id].content = ''.join(accumulated)
                 try:
                     self._last_emit_code = self._editor.get('1.0', 'end-1c')
                 except tk.TclError:
@@ -942,8 +1126,7 @@ class CodeEditor:
                 self._emit(HookEvents.EDITOR_FILE_OPENED, path)
                 return
 
-            # 'end-1c' 是隐式换行前的最后一个真实字符位置, chunk 插在它之前,
-            # 这样多次插入之间不会出现多余的空行/错位。
+            accumulated.append(chunk)
             self._editor._text.insert(self._editor._text.index('end-1c'), chunk)
             self.window.after(1, insert_chunk)
 
@@ -994,7 +1177,7 @@ class CodeEditor:
                                   bg=theme.BG_TITLE)
         self._pos_label.pack(side=tk.RIGHT, padx=10, pady=2)
 
-    def _switch_language(self, lang):
+    def _switch_language(self, lang, *, from_doc_switch: bool = False):
         if lang not in LANG_CONFIG:
             return
         self._lang = lang
@@ -1015,9 +1198,14 @@ class CodeEditor:
         self._stream_epoch += 1
         self._editor._text.config(state='normal')
         self._large_file_mode = False
-        self._editor._text.delete('1.0', tk.END)
-        self._editor._text.insert('1.0', config['sample'])
-        self._apply_highlight()
+        # 从文档切换来时不清空编辑器（内容已由 _switch_document 加载）
+        if not from_doc_switch:
+            self._editor._text.delete('1.0', tk.END)
+            self._editor._text.insert('1.0', config['sample'])
+            # 更新当前文档的语言
+            if self._active_id and self._active_id in self._documents:
+                self._documents[self._active_id].lang = lang
+            self._apply_highlight()
         self._update_status()
         self._status_label.config(text=t('status.editor_lang_changed', lang=lang))
         app_logger.info(f"Language switched to: {lang}")
@@ -1031,6 +1219,7 @@ class CodeEditor:
         self._schedule_highlight()
         if self._suggestions_enabled:
             self._schedule_suggestions()
+        self._mark_dirty()
         self._emit_content_changed()
 
     def _schedule_highlight(self) -> None:
@@ -1218,11 +1407,31 @@ class CodeEditor:
         self._pos_label.config(text=t('status.pos', line=line, col=int(col) + 1))
 
     def _new_file(self):
-        if self._dirty and not messagebox.askyesno(
-            t('dialog.title.unsaved_discard'),
-            t('dialog.unsaved_discard.message'),
-        ):
-            return
+        # 检查当前文档是否有未保存更改
+        if self._active_id and self._documents.get(self._active_id):
+            curr = self._documents[self._active_id]
+            if curr.dirty:
+                result = messagebox.askyesno(
+                    t('dialog.title.unsaved_discard'),
+                    t('dialog.unsaved_discard.message'),
+                )
+                if not result:
+                    return
+
+        # 创建新文档
+        seq = self._next_untitled_seq
+        doc_id = self._new_doc_id()
+        self._documents[doc_id] = Document(
+            path=None,
+            content='',
+            dirty=False,
+            lang=self._lang,
+            seq=seq,
+        )
+        self._next_untitled_seq += 1
+        self._active_id = doc_id
+
+        # 切换到新文档
         self._stream_epoch += 1
         self._editor._text.config(state='normal')
         self._large_file_mode = False
@@ -1231,21 +1440,36 @@ class CodeEditor:
         self._dirty = False
         self._last_emit_code = ''
         self._status_label.config(text=t('status.new_file'))
+        self._update_tab_bar()
         self._emit(HookEvents.EDITOR_FILE_CREATED)
-        app_logger.info("New file created")
+        app_logger.info(f"New file created: {doc_id}")
 
     def _open_file(self):
-        if self._dirty and not messagebox.askyesno(
-            t('dialog.title.unsaved_discard'),
-            t('dialog.unsaved_discard.message'),
-        ):
-            return
+        # 检查当前文档是否有未保存更改
+        if self._active_id and self._documents.get(self._active_id):
+            curr = self._documents[self._active_id]
+            if curr.dirty:
+                result = messagebox.askyesno(
+                    t('dialog.title.unsaved_discard'),
+                    t('dialog.unsaved_discard.message'),
+                )
+                if not result:
+                    return
+
         ext = LANG_CONFIG[self._lang]['ext']
         lang_label = t('file_dialog.lang_filter', lang=self._lang)
         filetypes = [(lang_label, f'*{ext}'), (t('file_dialog.all_files'), '*.*')]
         path = filedialog.askopenfilename(filetypes=filetypes)
         if not path:
             return
+
+        # 检查是否已在打开的文档中
+        for doc_id, doc in self._documents.items():
+            if doc.path == path:
+                # 已打开，切换到该文档
+                self._switch_document(doc_id)
+                return
+
         # 大小判断/分块流式/禁用高亮建议等都在 :meth:`_load_path_into_editor` 里,
         # 这里不再重复 open() + insert() 的逻辑。
         self._load_path_into_editor(path)
@@ -1280,8 +1504,12 @@ class CodeEditor:
             )
 
     def _save_file(self):
-        if self._current_file:
-            self._save_to_path(self._current_file)
+        if self._active_id and self._documents.get(self._active_id):
+            doc = self._documents[self._active_id]
+            if doc.path:
+                self._save_to_path(doc.path)
+            else:
+                self._save_file_as()
         else:
             self._save_file_as()
 
@@ -1292,9 +1520,10 @@ class CodeEditor:
         path = filedialog.asksaveasfilename(defaultextension=ext, filetypes=filetypes)
         if path:
             self._save_to_path(path)
+            # 同时更新文档的 path
+            if self._active_id and self._active_id in self._documents:
+                self._documents[self._active_id].path = path
             self._current_file = path
-            # 同样: 仅当文件位置在当前项目之外时才更新项目根,
-            # 否则保留当前项目视图不变(避免另存为到子目录后,外层目录消失)。
             new_root = self._should_reattach_for_path(path)
             if new_root:
                 self._attach_project(new_root)
@@ -1309,6 +1538,10 @@ class CodeEditor:
             messagebox.showerror(t('dialog.title.save_failed'), str(e))
             return
         self._dirty = False
+        if self._active_id and self._active_id in self._documents:
+            self._documents[self._active_id].dirty = False
+            self._documents[self._active_id].content = code
+        self._update_tab_bar()
         app_logger.info(f"File saved: {path}")
         self._status_label.config(text=t('status.saved', name=os.path.basename(path)))
         self._emit(HookEvents.EDITOR_FILE_SAVED, path)

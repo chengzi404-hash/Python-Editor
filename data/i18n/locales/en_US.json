@@ -5,6 +5,7 @@
   "menu.file.open_project": "Open Project...",
   "menu.file.save": "Save",
   "menu.file.save_as": "Save As...",
+  "menu.file.close_tab": "Close Tab",
   "menu.file.run": "Run",
   "menu.file.check": "Check",
   "menu.file.clear_output": "Clear Output",
