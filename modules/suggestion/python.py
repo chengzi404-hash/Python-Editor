@@ -1,7 +1,7 @@
 from .base import SuggestionExpert, SuggestionBlock, DOMScope, SuggestionItem
 from modules.data import suggestions_path
 from modules.i18n import get_translator
-from modules.highlighter.dom_cache import get_or_load_lib_dom, cache_exists
+from modules.highlighter.dom_cache import get_lib_dom, get_or_load_lib_dom, cache_exists
 import json
 import os
 import re
@@ -10,6 +10,7 @@ import re
 # User-defined items take highest priority
 _PRIORITY_USER_FUNCTION = 5
 _PRIORITY_USER_VARIABLE = 10
+_PRIORITY_IMPORT_FROM = 12   # items from imported module (before keywords)
 _PRIORITY_KEYWORD = 15
 _PRIORITY_USER_CLASS = 20
 _PRIORITY_BUILTIN = 30
@@ -114,6 +115,31 @@ _FALLBACK_BUILTINS = [
 _FALLBACKS = {
     'keywords': _FALLBACK_KEYWORDS,
     'builtins': _FALLBACK_BUILTINS,
+}
+
+# Exported builtin sets for public API (used by tests and external consumers)
+KEYWORDS: set[str] = {k for k, _ in _FALLBACK_KEYWORDS}
+
+BUILTIN_FUNCTIONS: set[str] = {
+    'abs', 'all', 'any', 'ascii', 'bin', 'breakpoint', 'callable', 'chr',
+    'compile', 'delattr', 'dir', 'divmod', 'eval', 'exec', 'format',
+    'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id', 'input',
+    'isinstance', 'issubclass', 'len', 'locals', 'max', 'min', 'next',
+    'oct', 'open', 'ord', 'pow', 'print', 'repr', 'round', 'setattr',
+    'sorted', 'sum', 'vars', '__import__',
+}
+
+BUILTIN_CLASSES: set[str] = {
+    'bool', 'bytearray', 'bytes', 'classmethod', 'complex', 'dict',
+    'enumerate', 'filter', 'float', 'frozenset', 'int', 'list', 'map',
+    'memoryview', 'object', 'property', 'range', 'reversed', 'set',
+    'slice', 'staticmethod', 'str', 'super', 'tuple', 'zip',
+}
+
+BUILTIN_PROPERTIES: set[str] = {
+    'True', 'False', 'None', 'Ellipsis', 'NotImplemented',
+    '__name__', '__file__', '__doc__', '__package__', '__loader__',
+    '__spec__', '__path__', '__all__',
 }
 
 
@@ -300,12 +326,31 @@ class PythonSuggestionExpert(SuggestionExpert):
             while obj_start >= 0 and (current_line[obj_start].isalnum() or current_line[obj_start] == '_'):
                 obj_start -= 1
             obj_name = current_line[obj_start + 1:obj_end]
-            suggestions = self._suggest_attributes(block, line_no, obj_name)
+            # For dotted paths like os.path, obj_name is just 'path' — reconstruct full path
+            # by walking back through all dotted segments before it
+            full_obj_name = obj_name
+            if obj_start > 0 and current_line[obj_start] == '.':
+                # obj_start is index of first char after the dot before obj_name
+                # Walk back through identifier/dot sequences
+                p = obj_start - 1
+                while p >= 0 and (current_line[p].isalnum() or current_line[p] == '_' or current_line[p] == '.'):
+                    p -= 1
+                p += 1
+                full_path = current_line[p:obj_end].lstrip()
+                if '.' in full_path and any(c.isalnum() for c in full_path):
+                    full_obj_name = full_path
+            # Only proceed with attribute suggestions if we got a valid identifier name
+            if full_obj_name and any(c.isalnum() for c in full_obj_name):
+                suggestions = self._suggest_attributes(block, line_no, full_obj_name, before_cursor)
+            else:
+                suggestions = self._suggest_names(block, line_no)
         else:
             suggestions = self._suggest_names(block, line_no)
 
-        # Filter by prefix
-        if prefix:
+        # Filter by prefix — only when prefix looks like an identifier being typed
+        # Skip filtering when prefix is a Python keyword (e.g., after 'from os import'
+        # the prefix 'import' would filter out everything meaningful)
+        if prefix and prefix.lower() not in KEYWORDS:
             suggestions = [s for s in suggestions if s.label.lower().startswith(prefix.lower())]
 
         # Sort by priority then alphabetically (case-insensitive)
@@ -325,6 +370,9 @@ class PythonSuggestionExpert(SuggestionExpert):
             suggestions.append(SuggestionItem(label=label, priority=priority, kind='keyword'))
         for label, priority in builtins:
             suggestions.append(SuggestionItem(label=label, priority=priority, kind='builtin'))
+
+        # Handle "from X import" — suggest names from the imported module
+        self._add_import_from_suggestions(block, line_no, suggestions)
 
         # Extract user-defined items from scope
         root = self._build_scope_tree(block.code)
@@ -349,7 +397,44 @@ class PythonSuggestionExpert(SuggestionExpert):
         _walk(root, line_no)
         return suggestions
 
-    def _suggest_attributes(self, block: SuggestionBlock, line_no: int, obj_name: str) -> list[SuggestionItem]:
+    def _add_import_from_suggestions(self, block: SuggestionBlock, line_no: int,
+                                      suggestions: list[SuggestionItem]) -> None:
+        """Detect 'from X import' lines across the whole file and add suggestions from module X's DOM.
+
+        Only uses cached DOM entries (never scans at suggestion time) to keep suggestions snappy.
+        Run ``build_full_cache()`` ahead of time to populate the cache for all installed packages.
+        """
+        lines = block.code.split('\n')
+        # Scan all lines for import statements, not just the current line
+        seen_modules: set[str] = set()
+        for line in lines:
+            stripped = line.strip()
+            # Match "from <module> import" — module may be dotted like os.path
+            # Also match "from <module> import *" (wildcard import)
+            m = re.match(r'^from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import\b', stripped)
+            if not m:
+                continue
+            module_name = m.group(1)
+            if module_name in seen_modules:
+                continue
+            seen_modules.add(module_name)
+            # Only use cached DOM — no scanning at suggestion time (could hang on heavy modules like tkinter)
+            dom = get_lib_dom(module_name)
+            if dom is None:
+                continue
+            # Add submodule names (some are real pkgutil-discovered, others are assignments like os.path)
+            for sub in dom.submodules:
+                suggestions.append(SuggestionItem(label=sub, priority=_PRIORITY_IMPORT_FROM, kind='module'))
+            # Special case: os.path is a well-known module assignment not discoverable by pkgutil
+            if module_name == 'os' and 'path' not in dom.submodules:
+                suggestions.append(SuggestionItem(label='path', priority=_PRIORITY_IMPORT_FROM, kind='module'))
+            for fn in dom.functions:
+                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_IMPORT_FROM, kind='function'))
+            for cls in dom.classes:
+                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_IMPORT_FROM, kind='class'))
+
+    def _suggest_attributes(self, block: SuggestionBlock, line_no: int,
+                             obj_name: str, before_cursor: str = '') -> list[SuggestionItem]:
         if obj_name == 'self':
             cls_methods = self._enclosing_class_methods(block, line_no)
             if cls_methods:
@@ -362,6 +447,66 @@ class PythonSuggestionExpert(SuggestionExpert):
         if obj_name in ['str', 'list', 'dict', 'int', 'float', 'set', 'tuple', 'bytes', 'bool']:
             return [SuggestionItem(label=a, priority=_PRIORITY_BUILTIN, kind='attribute')
                     for a in BUILTIN_ATTRS.get(obj_name, [])]
+
+        # Try to resolve via DOM cache for imported external modules
+        # Check for dotted paths like os.path → resolve inner module via cache
+        dom: "LibraryDOM | None" = None
+        parts = obj_name.rsplit('.', 1)
+
+        # Special case: os.path is a real module (ntpath/posixpath) not discoverable by pkgutil
+        if obj_name == 'os.path':
+            try:
+                import os.path as opath
+                public = getattr(opath, '__all__', [n for n in dir(opath) if not n.startswith('_')])
+                suggestions = []
+                for name in public:
+                    try:
+                        attr = getattr(opath, name)
+                    except Exception:
+                        continue
+                    if isinstance(attr, type):
+                        suggestions.append(SuggestionItem(label=name, priority=_PRIORITY_BUILTIN, kind='class'))
+                    elif callable(attr):
+                        suggestions.append(SuggestionItem(label=name, priority=_PRIORITY_BUILTIN, kind='function'))
+                if suggestions:
+                    return suggestions
+            except Exception:
+                pass
+
+        if len(parts) == 2 and cache_exists(parts[0]):
+            # obj_name is like "os.path" — first load parent module, then look up submodule
+            parent_dom = get_lib_dom(parts[0])
+            if parent_dom is not None and parts[1] in parent_dom.submodule_contents:
+                sub_info = parent_dom.submodule_contents[parts[1]]
+                suggestions: list[SuggestionItem] = []
+                for fn in sub_info.get('functions', []):
+                    suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_BUILTIN, kind='function'))
+                for cls in sub_info.get('classes', []):
+                    suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_BUILTIN, kind='class'))
+                if suggestions:
+                    return suggestions
+            # Fall through: try direct lookup as single-level module name
+            obj_name = parts[0]
+
+        # Try to load from cache only — no scanning at suggestion time (avoids hangs on heavy modules)
+        dom = get_lib_dom(obj_name)
+        if dom is None and len(parts) == 2:
+            # Couldn't find parent, try the full dotted name (e.g., package.submodule)
+            dom = get_lib_dom(obj_name)
+
+        if dom is not None:
+            suggestions = []
+            for fn in dom.functions:
+                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_BUILTIN, kind='function'))
+            for cls in dom.classes:
+                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_BUILTIN, kind='class'))
+            for sub in dom.submodules:
+                suggestions.append(SuggestionItem(label=sub, priority=_PRIORITY_BUILTIN, kind='module'))
+            # Special case: os.path is a well-known module assignment not discoverable by pkgutil
+            if obj_name == 'os' and 'path' not in dom.submodules:
+                suggestions.append(SuggestionItem(label='path', priority=_PRIORITY_BUILTIN, kind='module'))
+            if suggestions:
+                return suggestions
 
         # Default object attributes
         default_attrs = [
