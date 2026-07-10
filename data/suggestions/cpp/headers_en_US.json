@@ -1,0 +1,10 @@
+{
+  "priority": 25,
+  "items": [
+    "algorithm", "array", "atomic", "bitset", "chrono", "deque", "exception",
+    "fstream", "functional", "future", "iostream", "map", "memory",
+    "mutex", "optional", "queue", "random", "regex", "set", "shared_mutex",
+    "stack", "string", "thread", "tuple", "unordered_map", "unordered_set",
+    "variant", "vector"
+  ]
+}

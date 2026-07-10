@@ -1,0 +1,18 @@
+{
+  "priority": 20,
+  "items": [
+    "abs", "all", "any", "ascii", "bin", "breakpoint", "callable",
+    "chr", "compile", "delattr", "dir", "divmod", "eval", "exec",
+    "format", "getattr", "globals", "hasattr", "hash", "help", "hex",
+    "id", "input", "isinstance", "issubclass", "len", "locals",
+    "max", "min", "next", "oct", "open", "ord", "pow", "print",
+    "repr", "round", "setattr", "sorted", "sum", "vars", "__import__",
+    "bool", "bytearray", "bytes", "classmethod", "complex", "dict",
+    "enumerate", "filter", "float", "frozenset", "int", "list",
+    "map", "memoryview", "object", "property", "range", "reversed",
+    "set", "slice", "staticmethod", "str", "super", "tuple", "zip",
+    "True", "False", "None", "Ellipsis", "NotImplemented",
+    "__name__", "__file__", "__doc__", "__package__", "__loader__",
+    "__spec__", "__path__", "__all__"
+  ]
+}

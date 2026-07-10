@@ -101,18 +101,21 @@ LANG_CONFIG = {
         'ext': '.py',
         'highlighter': PythonHighlighterExpert,
         'suggestion': PythonSuggestionExpert,
+        'suggestion_factory': lambda: PythonSuggestionExpert(),
         'sample': 'def hello():\n    print("Hello, world!")\n\nhello()\n',
     },
     'C': {
         'ext': '.c',
         'highlighter': CcppHighlighterExpert,
         'suggestion': CSuggestionExpert,
+        'suggestion_factory': lambda: CSuggestionExpert(),
         'sample': '#include <stdio.h>\n\nint main() {\n    printf("Hello, world!\\n");\n    return 0;\n}\n',
     },
     'C++': {
         'ext': '.cpp',
         'highlighter': CcppHighlighterExpert,
         'suggestion': CppSuggestionExpert,
+        'suggestion_factory': lambda: CppSuggestionExpert(),
         'sample': '#include <iostream>\n\nint main() {\n    std::cout << "Hello, world!" << std::endl;\n    return 0;\n}\n',
     },
 }
@@ -1347,7 +1350,7 @@ class CodeEditor:
                 self._suggestion_popup.hide()
             return
 
-        items = [CompletionItem(label=s) for s in suggestions[:20]]
+        items = [CompletionItem(label=s.label, priority=s.priority, kind=s.kind) for s in suggestions[:20]]
         if self._suggestion_popup and self._suggestion_popup.winfo_exists():
             self._suggestion_popup.set_items(items)
             self._suggestion_popup.show(

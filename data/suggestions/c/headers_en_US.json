@@ -1,0 +1,8 @@
+{
+  "priority": 25,
+  "items": [
+    "assert.h", "ctype.h", "errno.h", "float.h", "limits.h", "math.h",
+    "signal.h", "stdarg.h", "stddef.h", "stdint.h", "stdio.h", "stdlib.h",
+    "string.h", "time.h"
+  ]
+}

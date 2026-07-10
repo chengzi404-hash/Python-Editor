@@ -1,0 +1,9 @@
+{
+  "priority": 20,
+  "items": [
+    "sizeof", "NULL", "nullptr", "printf", "scanf", "malloc", "calloc", "free",
+    "realloc", "memcpy", "memset", "string", "vector", "map", "set", "pair",
+    "make_pair", "make_shared", "make_unique", "move", "forward", "swap",
+    "begin", "end", "size", "empty", "push_back", "pop_back", "insert", "erase"
+  ]
+}

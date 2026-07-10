@@ -1,0 +1,11 @@
+{
+  "priority": 20,
+  "items": [
+    "sizeof", "offsetof", "NULL", "printf", "scanf", "malloc", "calloc", "free",
+    "realloc", "memcpy", "memmove", "memset", "memcmp", "strcpy", "strncpy",
+    "strcat", "strncat", "strcmp", "strncmp", "strlen", "sprintf", "sscanf",
+    "fopen", "fclose", "fread", "fwrite", "fprintf", "fscanf", "getchar", "putchar",
+    "gets", "puts", "fgets", "fputs", "getc", "putc", "ungetc", "feof", "ferror",
+    "atoi", "atof", "atol", "strtol", "strtod", "abs", "labs", "div", "exit"
+  ]
+}

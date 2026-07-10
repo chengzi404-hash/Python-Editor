@@ -1,41 +1,65 @@
-from .base import SuggestionExpert, SuggestionBlock, DOMScope
-
-import re
-import os
+from .base import SuggestionExpert, SuggestionBlock, DOMScope, SuggestionItem
+from modules.data import suggestions_path
+from modules.i18n import get_translator
 import json
+import os
+import re
+
+# Priority constants (lower = higher priority)
+_PRIORITY_KEYWORD = 10
+_PRIORITY_BUILTIN = 20
+_PRIORITY_HEADER = 25
+_PRIORITY_CLASS = 30
+_PRIORITY_FUNCTION = 40
+_PRIORITY_VARIABLE = 50
+
+# Cache for loaded suggestion lists
+_CACHED_LISTS: dict = {}
 
 
-_C_KEYWORDS: list[str] = []
-_C_KEYWORDS_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'keywords', 'c&cpp', 'c.json')
-try:
-    with open(_C_KEYWORDS_PATH, encoding='utf-8') as _f:
-        _C_KEYWORDS = json.load(_f)
-except (FileNotFoundError, json.JSONDecodeError):
-    _C_KEYWORDS = [
-        'auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
-        'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if',
-        'inline', 'int', 'long', 'register', 'restrict', 'return', 'short',
-        'signed', 'sizeof', 'static', 'struct', 'switch', 'typedef', 'union',
-        'unsigned', 'void', 'volatile', 'while',
-    ]
+def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
+    """Load suggestion list from data file.
 
-_PP_KEYWORDS: list[str] = []
-_PP_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'keywords', 'c&cpp', 'preprocessor.json')
-try:
-    with open(_PP_PATH, encoding='utf-8') as _f:
-        _PP_KEYWORDS = json.load(_f)
-except (FileNotFoundError, json.JSONDecodeError):
-    _PP_KEYWORDS = ['#define', '#elif', '#else', '#endif', '#error', '#if', '#ifdef', '#ifndef', '#include', '#line', '#pragma', '#undef', '#warning']
+    Args:
+        lang: Language code (e.g., 'en_US', 'zh_CN')
+        category: Category name (e.g., 'keywords', 'builtins')
 
-_C_HEADERS: list[str] = []
-_CH_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'keywords', 'c&cpp', 'cheaders.json')
-try:
-    with open(_CH_PATH, encoding='utf-8') as _f:
-        _C_HEADERS = json.load(_f)
-except (FileNotFoundError, json.JSONDecodeError):
-    _C_HEADERS = ['assert.h', 'ctype.h', 'errno.h', 'float.h', 'limits.h', 'math.h', 'signal.h', 'stdarg.h', 'stddef.h', 'stdint.h', 'stdio.h', 'stdlib.h', 'string.h', 'time.h']
+    Returns:
+        Tuple of (items list, priority)
+    """
+    cache_key = f"{lang}:{category}"
+    if cache_key in _CACHED_LISTS:
+        return _CACHED_LISTS[cache_key]
 
-_BUILTINS: list[str] = [
+    # Try language-specific file first, then fallback to en_US
+    for lang_code in (lang, 'en_US'):
+        filepath = suggestions_path('c', f'{category}_{lang_code}.json')
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, encoding='utf-8') as f:
+                    data = json.load(f)
+                    items = data.get('items', [])
+                    priority = data.get('priority', _PRIORITY_KEYWORD)
+                    _CACHED_LISTS[cache_key] = (items, priority)
+                    return (items, priority)
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    # Fallback hardcoded values
+    _CACHED_LISTS[cache_key] = _FALLBACKS.get(category, ([], _PRIORITY_KEYWORD))
+    return _CACHED_LISTS[cache_key]
+
+
+# Fallback hardcoded suggestion lists
+_FALLBACK_KEYWORDS = [
+    'auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
+    'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if',
+    'inline', 'int', 'long', 'register', 'restrict', 'return', 'short',
+    'signed', 'sizeof', 'static', 'struct', 'switch', 'typedef', 'union',
+    'unsigned', 'void', 'volatile', 'while',
+]
+
+_FALLBACK_BUILTINS = [
     'sizeof', 'offsetof', 'NULL', 'printf', 'scanf', 'malloc', 'calloc', 'free',
     'realloc', 'memcpy', 'memmove', 'memset', 'memcmp', 'strcpy', 'strncpy',
     'strcat', 'strncat', 'strcmp', 'strncmp', 'strlen', 'sprintf', 'sscanf',
@@ -44,6 +68,26 @@ _BUILTINS: list[str] = [
     'atoi', 'atof', 'atol', 'strtol', 'strtod', 'abs', 'labs', 'div', 'exit',
 ]
 
+_FALLBACK_HEADERS = [
+    'assert.h', 'ctype.h', 'errno.h', 'float.h', 'limits.h', 'math.h',
+    'signal.h', 'stdarg.h', 'stddef.h', 'stdint.h', 'stdio.h', 'stdlib.h',
+    'string.h', 'time.h',
+]
+
+_FALLBACK_PREPROCESSOR = [
+    '#define', '#elif', '#else', '#endif', '#error', '#if', '#ifdef',
+    '#ifndef', '#include', '#line', '#pragma', '#undef', '#warning',
+]
+
+_FALLBACKS = {
+    'keywords': (_FALLBACK_KEYWORDS, _PRIORITY_KEYWORD),
+    'builtins': (_FALLBACK_BUILTINS, _PRIORITY_BUILTIN),
+    'headers': (_FALLBACK_HEADERS, _PRIORITY_HEADER),
+    'preprocessor': (_FALLBACK_PREPROCESSOR, _PRIORITY_KEYWORD),
+}
+
+
+# Regex patterns
 _STRUCT_CLASS_PATTERN = re.compile(
     r'^[ \t]*'
     r'(?:typedef\s+)?'
@@ -74,13 +118,14 @@ _TYPEDEF_PATTERN = re.compile(
 
 
 class CSuggestionExpert(SuggestionExpert):
-    def __init__(self) -> None:
+    def __init__(self, lang: str = 'en_US') -> None:
         super().__init__()
+        self._lang = lang
 
     def get_languange_exts(self) -> list:
         return ['c', 'h']
 
-    def suggest(self, block: SuggestionBlock) -> list:
+    def suggest(self, block: SuggestionBlock) -> list[SuggestionItem]:
         code = block.code
         pos = block.position
 
@@ -116,23 +161,40 @@ class CSuggestionExpert(SuggestionExpert):
             suggestions = self._suggest_names(block, line_no)
 
         if prefix:
-            suggestions = [s for s in suggestions if s.startswith(prefix)]
+            suggestions = [s for s in suggestions if s.label.lower().startswith(prefix.lower())]
 
-        return sorted(set(suggestions))
+        suggestions.sort(key=lambda x: (x.priority, x.label.lower()))
+        return suggestions
 
-    def _suggest_names(self, block: SuggestionBlock, line_no: int) -> list[str]:
-        suggestions: set[str] = set()
+    def _suggest_names(self, block: SuggestionBlock, line_no: int) -> list[SuggestionItem]:
+        suggestions: list[SuggestionItem] = []
 
-        suggestions.update(_C_KEYWORDS)
-        suggestions.update(_BUILTINS)
-        suggestions.update(_PP_KEYWORDS)
+        # Load from data files (use current language)
+        lang = get_translator().current_language
+        keywords, kw_priority = _load_suggestion_list(lang, 'keywords')
+        builtins, builtin_priority = _load_suggestion_list(lang, 'builtins')
+        headers, header_priority = _load_suggestion_list(lang, 'headers')
+        preprocessor, pp_priority = _load_suggestion_list(lang, 'preprocessor')
 
+        for kw in keywords:
+            suggestions.append(SuggestionItem(label=kw, priority=kw_priority, kind='keyword'))
+        for b in builtins:
+            suggestions.append(SuggestionItem(label=b, priority=builtin_priority, kind='builtin'))
+        for h in headers:
+            suggestions.append(SuggestionItem(label=h, priority=header_priority, kind='header'))
+        for pp in preprocessor:
+            suggestions.append(SuggestionItem(label=pp, priority=pp_priority, kind='preprocessor'))
+
+        # Extract user-defined items
         root = self._build_scope_tree(block.code)
 
         def _walk(scope: DOMScope, pos: int) -> None:
-            suggestions.update(scope.functions)
-            suggestions.update(scope.classes)
-            suggestions.update(scope.varibles)
+            for fn in scope.functions:
+                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_FUNCTION, kind='function'))
+            for cls in scope.classes:
+                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_CLASS, kind='class'))
+            for var in scope.varibles:
+                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_VARIABLE, kind='variable'))
 
             for sub in scope.subDOM:
                 if sub.begin <= pos < sub.end:
@@ -140,13 +202,12 @@ class CSuggestionExpert(SuggestionExpert):
                     break
 
         _walk(root, line_no)
-        return list(suggestions)
+        return suggestions
 
-    def _suggest_attributes(self, block: SuggestionBlock, line_no: int, obj_name: str) -> list[str]:
-        return [
-            'x', 'y', 'z', 'width', 'height', 'left', 'right', 'top', 'bottom',
-            'data', 'next', 'prev', 'count', 'size', 'ptr', 'buf', 'len',
-        ]
+    def _suggest_attributes(self, block: SuggestionBlock, line_no: int, obj_name: str) -> list[SuggestionItem]:
+        attrs = ['x', 'y', 'z', 'width', 'height', 'left', 'right', 'top', 'bottom',
+                 'data', 'next', 'prev', 'count', 'size', 'ptr', 'buf', 'len']
+        return [SuggestionItem(label=a, priority=_PRIORITY_BUILTIN, kind='attribute') for a in attrs]
 
     @staticmethod
     def _collect_entries(code: str) -> list[tuple[int, int, str, str, int]]:

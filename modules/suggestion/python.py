@@ -1,32 +1,64 @@
-from .base import SuggestionExpert, SuggestionBlock, DOMScope
-
+from .base import SuggestionExpert, SuggestionBlock, DOMScope, SuggestionItem
+from modules.data import suggestions_path
+from modules.i18n import get_translator
+import json
+import os
 import re
 
-CLASS_PATTERN = re.compile(
-    r'^[ \t]*'
-    r'class\s+'
-    r'(?P<name>[A-Za-z_][A-Za-z0-9_]*)'
-    r'\s*'
-    r'(?:\([^()]*\))?'
-    r'\s*'
-    r':',
-    re.MULTILINE
-)
+# Priority constants (lower = higher priority)
+_PRIORITY_KEYWORD = 10
+_PRIORITY_BUILTIN = 20
+_PRIORITY_CLASS = 30
+_PRIORITY_FUNCTION = 40
+_PRIORITY_VARIABLE = 50
 
-FUNC_PATTERN = re.compile(
-    r'^[ \t]*'
-    r'(?:async\s+)?'
-    r'def\s+'
-    r'(?P<name>[A-Za-z_][A-Za-z0-9_]*)'
-    r'\s*'
-    r'\([^()]*\)'
-    r'\s*'
-    r'(?:->\s*[^:]*)?'
-    r':',
-    re.MULTILINE
-)
+# Cache for loaded suggestion lists
+_CACHED_LISTS: dict = {}
 
-BUILTIN_FUNCTIONS = [
+
+def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
+    """Load suggestion list from data file.
+
+    Args:
+        lang: Language code (e.g., 'en_US', 'zh_CN')
+        category: Category name (e.g., 'keywords', 'builtins')
+
+    Returns:
+        Tuple of (items list, priority)
+    """
+    cache_key = f"{lang}:{category}"
+    if cache_key in _CACHED_LISTS:
+        return _CACHED_LISTS[cache_key]
+
+    # Try language-specific file first, then fallback to en_US
+    for lang_code in (lang, 'en_US'):
+        filepath = suggestions_path('python', f'{category}_{lang_code}.json')
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, encoding='utf-8') as f:
+                    data = json.load(f)
+                    items = data.get('items', [])
+                    priority = data.get('priority', _PRIORITY_BUILTIN)
+                    _CACHED_LISTS[cache_key] = (items, priority)
+                    return (items, priority)
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    # Fallback hardcoded values
+    _CACHED_LISTS[cache_key] = _FALLBACKS.get(category, ([], _PRIORITY_BUILTIN))
+    return _CACHED_LISTS[cache_key]
+
+
+# Fallback hardcoded suggestion lists (used when data files are missing)
+_FALLBACK_KEYWORDS = [
+    'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
+    'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
+    'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
+    'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try',
+    'while', 'with', 'yield',
+]
+
+_FALLBACK_BUILTIN_FUNCTIONS = [
     'abs', 'all', 'any', 'ascii', 'bin', 'breakpoint', 'callable',
     'chr', 'compile', 'delattr', 'dir', 'divmod', 'eval', 'exec',
     'format', 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex',
@@ -35,28 +67,26 @@ BUILTIN_FUNCTIONS = [
     'repr', 'round', 'setattr', 'sorted', 'sum', 'vars', '__import__',
 ]
 
-BUILTIN_CLASSES = [
+_FALLBACK_BUILTIN_CLASSES = [
     'bool', 'bytearray', 'bytes', 'classmethod', 'complex', 'dict',
     'enumerate', 'filter', 'float', 'frozenset', 'int', 'list',
     'map', 'memoryview', 'object', 'property', 'range', 'reversed',
-    'set', 'slice', 'staticmethod', 'str', 'super', 'tuple', 'type',
-    'zip',
+    'set', 'slice', 'staticmethod', 'str', 'super', 'tuple', 'zip',
 ]
 
-BUILTIN_PROPERTIES = [
+_FALLBACK_BUILTIN_PROPERTIES = [
     'True', 'False', 'None', 'Ellipsis', 'NotImplemented',
     '__name__', '__file__', '__doc__', '__package__', '__loader__',
     '__spec__', '__path__', '__all__',
 ]
 
-KEYWORDS = [
-    'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
-    'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
-    'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
-    'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try',
-    'while', 'with', 'yield',
-]
+_FALLBACKS = {
+    'keywords': (_FALLBACK_KEYWORDS, _PRIORITY_KEYWORD),
+    'builtins': (_FALLBACK_BUILTIN_FUNCTIONS + _FALLBACK_BUILTIN_CLASSES + _FALLBACK_BUILTIN_PROPERTIES, _PRIORITY_BUILTIN),
+}
 
+
+# Builtin attributes per type
 BUILTIN_ATTRS: dict[str, list[str]] = {
     'str': [
         '__add__', '__class__', '__contains__', '__delattr__', '__dir__',
@@ -181,14 +211,41 @@ BUILTIN_ATTRS: dict[str, list[str]] = {
     ],
 }
 
+# Regex patterns
+CLASS_PATTERN = re.compile(
+    r'^[ \t]*'
+    r'class\s+'
+    r'(?P<name>[A-Za-z_][A-Za-z0-9_]*)'
+    r'\s*'
+    r'(?:\([^()]*\))?'
+    r'\s*'
+    r':',
+    re.MULTILINE
+)
+
+FUNC_PATTERN = re.compile(
+    r'^[ \t]*'
+    r'(?:async\s+)?'
+    r'def\s+'
+    r'(?P<name>[A-Za-z_][A-Za-z0-9_]*)'
+    r'\s*'
+    r'\([^()]*\)'
+    r'\s*'
+    r'(?:->\s*[^:]*)?'
+    r':',
+    re.MULTILINE
+)
+
+
 class PythonSuggestionExpert(SuggestionExpert):
-    def __init__(self) -> None:
+    def __init__(self, lang: str = 'en_US') -> None:
         super().__init__()
+        self._lang = lang
 
     def get_languange_exts(self) -> list:
         return ['py']
 
-    def suggest(self, block: SuggestionBlock) -> list:
+    def suggest(self, block: SuggestionBlock) -> list[SuggestionItem]:
         code = block.code
         pos = block.position
 
@@ -216,28 +273,42 @@ class PythonSuggestionExpert(SuggestionExpert):
         else:
             suggestions = self._suggest_names(block, line_no)
 
+        # Filter by prefix
         if prefix:
-            suggestions = [s for s in suggestions if s.startswith(prefix)]
+            suggestions = [s for s in suggestions if s.label.lower().startswith(prefix.lower())]
 
-        return sorted(set(suggestions))
-    
-    def _suggest_names(self, block: SuggestionBlock, line_no: int) -> list[str]:
-        suggestions = set()
+        # Sort by priority then alphabetically (case-insensitive)
+        suggestions.sort(key=lambda x: (x.priority, x.label.lower()))
 
-        suggestions.update(BUILTIN_FUNCTIONS)
-        suggestions.update(BUILTIN_CLASSES)
-        suggestions.update(BUILTIN_PROPERTIES)
-        suggestions.update(KEYWORDS)
+        return suggestions
 
+    def _suggest_names(self, block: SuggestionBlock, line_no: int) -> list[SuggestionItem]:
+        suggestions: list[SuggestionItem] = []
+
+        # Load from data files with priorities (use current language)
+        lang = get_translator().current_language
+        keywords, kw_priority = _load_suggestion_list(lang, 'keywords')
+        builtins, builtin_priority = _load_suggestion_list(lang, 'builtins')
+
+        for kw in keywords:
+            suggestions.append(SuggestionItem(label=kw, priority=kw_priority, kind='keyword'))
+        for b in builtins:
+            suggestions.append(SuggestionItem(label=b, priority=builtin_priority, kind='builtin'))
+
+        # Extract user-defined items from scope
         root = self._build_scope_tree(block.code)
 
         def _walk(scope: DOMScope, pos: int) -> None:
-            suggestions.update(scope.functions)
-            suggestions.update(scope.classes)
-            suggestions.update(scope.varibles)
+            for fn in scope.functions:
+                suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_FUNCTION, kind='function'))
+            for cls in scope.classes:
+                suggestions.append(SuggestionItem(label=cls, priority=_PRIORITY_CLASS, kind='class'))
+            for var in scope.varibles:
+                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_VARIABLE, kind='variable'))
 
             vars_in_scope = self._extract_variables(block.code, scope.begin, scope.end)
-            suggestions.update(vars_in_scope)
+            for var in vars_in_scope:
+                suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_VARIABLE, kind='variable'))
 
             for sub in scope.subDOM:
                 if sub.begin <= pos < sub.end:
@@ -245,27 +316,32 @@ class PythonSuggestionExpert(SuggestionExpert):
                     break
 
         _walk(root, line_no)
-        return list(suggestions)
+        return suggestions
 
-    def _suggest_attributes(self, block: SuggestionBlock, line_no: int, obj_name: str) -> list[str]:
+    def _suggest_attributes(self, block: SuggestionBlock, line_no: int, obj_name: str) -> list[SuggestionItem]:
         if obj_name == 'self':
             cls_methods = self._enclosing_class_methods(block, line_no)
             if cls_methods:
-                return cls_methods
+                return [SuggestionItem(label=m, priority=_PRIORITY_FUNCTION, kind='method') for m in cls_methods]
 
         if obj_name in BUILTIN_ATTRS:
-            return BUILTIN_ATTRS[obj_name]
+            return [SuggestionItem(label=a, priority=_PRIORITY_BUILTIN, kind='attribute')
+                    for a in BUILTIN_ATTRS[obj_name]]
 
-        if obj_name in BUILTIN_CLASSES:
-            return BUILTIN_ATTRS.get(obj_name, list(BUILTIN_ATTRS.get('object', [])))
+        if obj_name in ['str', 'list', 'dict', 'int', 'float', 'set', 'tuple', 'bytes', 'bool']:
+            return [SuggestionItem(label=a, priority=_PRIORITY_BUILTIN, kind='attribute')
+                    for a in BUILTIN_ATTRS.get(obj_name, [])]
 
-        return [
+        # Default object attributes
+        default_attrs = [
             '__class__', '__delattr__', '__dir__', '__doc__', '__eq__',
             '__format__', '__ge__', '__getattribute__', '__gt__',
             '__hash__', '__init__', '__le__', '__lt__', '__ne__',
             '__new__', '__reduce__', '__reduce_ex__', '__repr__',
             '__setattr__', '__sizeof__', '__str__', '__subclasshook__',
         ]
+        return [SuggestionItem(label=a, priority=_PRIORITY_BUILTIN, kind='attribute')
+                for a in default_attrs]
 
     def _enclosing_class_methods(self, block: SuggestionBlock, line_no: int) -> list[str]:
         lines = block.code.split('\n')

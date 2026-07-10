@@ -30,4 +30,9 @@ def data_dir() -> str:
     return _ROOT
 
 
-__all__ = ["i18n_path", "data_path", "data_dir"]
+def suggestions_path(*parts: str) -> str:
+    """返回 ``data/suggestions/<parts>`` 的绝对路径。"""
+    return os.path.join(_ROOT, "suggestions", *parts)
+
+
+__all__ = ["i18n_path", "data_path", "data_dir", "suggestions_path"]

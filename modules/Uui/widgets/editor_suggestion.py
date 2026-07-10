@@ -12,6 +12,7 @@ class CompletionItem:
     description: str = ''
     insert: str = ''
     kind: str = ''
+    priority: int = 0
 
     def __post_init__(self):
         if not self.insert:
@@ -152,10 +153,13 @@ class UEditorSuggestion(tk.Toplevel):
                     description=it.get('description', ''),
                     insert=it.get('insert', ''),
                     kind=it.get('kind', ''),
+                    priority=it.get('priority', 0),
                 ))
             else:
                 raise TypeError(
                     f'unsupported completion item type: {type(it).__name__}')
+        # Sort by priority (lower = higher priority), then alphabetically
+        normalized.sort(key=lambda x: (x.priority, x.label))
         self._items = normalized
         self._selected_index = 0 if normalized else -1
         self._scroll_offset = 0
