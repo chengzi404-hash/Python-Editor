@@ -71,7 +71,11 @@ class PythonHighlighterExpert(HighlighterExpert):
 
     def _tokenize(self, code: str) -> list[HighlightToken]:
         tokens: list[HighlightToken] = []
-        last_def_or_class: tuple[str, int] | None = None
+        # Track names defined in this block for later highlighting
+        defined_functions: set[str] = set()
+        defined_classes: set[str] = set()
+        # Name immediately after def/class (pending highlight)
+        pending_name: tuple[str, str, int] | None = None  # (type_, name, end_pos)
 
         for m in _TOKEN_RE.finditer(code):
             kind = m.lastgroup
@@ -95,20 +99,31 @@ class PythonHighlighterExpert(HighlighterExpert):
                 if word in _KEYWORDS:
                     tokens.append(HighlightToken(start, end, 'keyword'))
                     if word in ('def', 'class'):
-                        last_def_or_class = (word, end)
+                        pending_name = ('function' if word == 'def' else 'class', word, end)
                 elif word in _BUILTINS:
                     tokens.append(HighlightToken(start, end, 'builtin'))
                 else:
-                    if last_def_or_class is not None:
-                        kw, kw_end = last_def_or_class
+                    # Check pending name first (name right after def/class)
+                    if pending_name is not None:
+                        type_, kw_word, kw_end = pending_name
                         between = code[kw_end:start]
                         if between.strip() == '':
-                            type_ = 'function' if kw == 'def' else 'class'
+                            if type_ == 'function':
+                                defined_functions.add(word)
+                            else:
+                                defined_classes.add(word)
                             tokens.append(HighlightToken(start, end, type_))
-                            last_def_or_class = None
+                            pending_name = None
                             continue
-                        last_def_or_class = None
-                    tokens.append(HighlightToken(start, end, 'identifier'))
+                        pending_name = None
+
+                    # Highlight previously defined names when they are used
+                    if word in defined_functions:
+                        tokens.append(HighlightToken(start, end, 'function'))
+                    elif word in defined_classes:
+                        tokens.append(HighlightToken(start, end, 'class'))
+                    else:
+                        tokens.append(HighlightToken(start, end, 'identifier'))
 
             elif kind == 'operator':
                 tokens.append(HighlightToken(start, end, 'operator'))
