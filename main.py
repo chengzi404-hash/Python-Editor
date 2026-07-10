@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from modules.logging import configure_logging, get_logger
 from modules.Uui.widgets import UFrame, ULabel, UButton, UText, UComboBox, UMenuBar, UMenu, theme, UFileTree
 from modules.Uui.widgets.window import Window
 from modules.Uui.widgets.editor_suggestion import UEditorSuggestion, CompletionItem
@@ -109,6 +110,19 @@ FONT_FAMILIES = ['Consolas', 'Courier New', 'Menlo', 'Monaco']
 FONT_SIZES = [9, 10, 11, 12, 14, 16]
 TAB_WIDTHS = [2, 4, 8]
 
+# 日志初始化（最早就位，确保所有后续模块都能拿到已配置的 logger）
+_log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+configure_logging(
+    level="INFO",
+    file_enabled=True,
+    console_enabled=True,
+    log_dir=_log_dir,
+    max_bytes=5 * 1024 * 1024,
+    backup_count=5,
+)
+app_logger = get_logger("app")
+app_logger.info("Application starting...")
+
 
 class CodeEditor:
     def __init__(self):
@@ -200,6 +214,11 @@ class CodeEditor:
 
         self._bind_shortcuts()
         self.window.protocol('WM_DELETE_WINDOW', self._on_close_request)
+        app_logger.info(
+            f"CodeEditor initialized: theme={theme.current().name}, "
+            f"font={self._font_family} {self._font_size}pt, "
+            f"tab_width={self._tab_width}"
+        )
 
     # ------------------------------------------------------------------
     # SettingsManager 桥接层
@@ -331,34 +350,40 @@ class CodeEditor:
         不重建: 编辑器文本、文件树、主题颜色 — 这些与语言无关。
         """
 
-        # 先关掉可能停留在旧语言的 dialog, 避免用户看到半中半英
-        for attr in ('_find_dialog', '_settings_window', '_plugin_manager_window'):
-            win = getattr(self, attr, None)
-            if win is not None and win.winfo_exists():
-                try:
-                    win.destroy()
-                except tk.TclError:
-                    pass
-            if attr == '_find_dialog':
-                self._find_dialog = None
-
-        # 重建菜单栏: 先清空旧按钮, 再走完整 _build_menubar。
-        self._clear_menubar()
-        self._build_menubar()
-
-        # 重建插件菜单 / 语言下拉框: 它们依赖 LANG_CONFIG, 不随 i18n 变
-        # (代码语言与界面语言是两回事), 但插件菜单的 label 是动态拼出来的,
-        # 需要刷新一下, 否则会停留在旧文案。
+        if hasattr(self, '_lang_changing') and self._lang_changing:
+            return
+        self._lang_changing = True
         try:
-            self._refresh_plugin_menu()
-        except Exception:
-            pass
+            # 先关掉可能停留在旧语言的 dialog, 避免用户看到半中半英
+            for attr in ('_find_dialog', '_settings_window', '_plugin_manager_window'):
+                win = getattr(self, attr, None)
+                if win is not None and win.winfo_exists():
+                    try:
+                        win.destroy()
+                    except tk.TclError:
+                        pass
+                if attr == '_find_dialog':
+                    self._find_dialog = None
 
-        # 刷新状态栏与 pos 标签
-        try:
-            self._refresh_status_for_language()
-        except Exception:
-            pass
+            # 重建菜单栏: 先清空旧按钮, 再走完整 _build_menubar。
+            self._clear_menubar()
+            self._build_menubar()
+
+            # 重建插件菜单 / 语言下拉框: 它们依赖 LANG_CONFIG, 不随 i18n 变
+            # (代码语言与界面语言是两回事), 但插件菜单的 label 是动态拼出来的,
+            # 需要刷新一下, 否则会停留在旧文案。
+            try:
+                self._refresh_plugin_menu()
+            except Exception:
+                pass
+
+            # 刷新状态栏与 pos 标签
+            try:
+                self._refresh_status_for_language()
+            except Exception:
+                pass
+        finally:
+            self._lang_changing = False
 
     def _clear_menubar(self) -> None:
         """销毁 UMenuBar 上已渲染的 cascade 按钮,准备 _build_menubar 重建。
@@ -425,7 +450,7 @@ class CodeEditor:
             return
         self._cancel_pending_highlight()
         self._cancel_pending_suggestions()
-        # 给插件一次"编辑器即将关闭"的回调, 适合保存状态/清理资源。
+        app_logger.info("Editor closing...")
         self._emit(HookEvents.EDITOR_CLOSING)
         try:
             self._plugin_manager.unload_all()
@@ -437,6 +462,7 @@ class CodeEditor:
             self._settings.save_all()
         except Exception as exc:
             messagebox.showerror(t('dialog.title.save_settings_failed'), str(exc))
+        app_logger.info("Editor closed. Exiting.")
         self.window.destroy()
 
     # ------------------------------------------------------------------
@@ -994,6 +1020,7 @@ class CodeEditor:
         self._apply_highlight()
         self._update_status()
         self._status_label.config(text=t('status.editor_lang_changed', lang=lang))
+        app_logger.info(f"Language switched to: {lang}")
         self._emit(HookEvents.EDITOR_LANGUAGE_CHANGED, lang)
 
     def _on_lang_changed(self, value):
@@ -1196,8 +1223,6 @@ class CodeEditor:
             t('dialog.unsaved_discard.message'),
         ):
             return
-        # 取消可能 in-flight 的大文件流式回调, 防止旧 after() 在新空编辑器里
-        # 继续 insert 内容。
         self._stream_epoch += 1
         self._editor._text.config(state='normal')
         self._large_file_mode = False
@@ -1207,6 +1232,7 @@ class CodeEditor:
         self._last_emit_code = ''
         self._status_label.config(text=t('status.new_file'))
         self._emit(HookEvents.EDITOR_FILE_CREATED)
+        app_logger.info("New file created")
 
     def _open_file(self):
         if self._dirty and not messagebox.askyesno(
@@ -1223,6 +1249,7 @@ class CodeEditor:
         # 大小判断/分块流式/禁用高亮建议等都在 :meth:`_load_path_into_editor` 里,
         # 这里不再重复 open() + insert() 的逻辑。
         self._load_path_into_editor(path)
+        app_logger.info(f"File opened: {path}")
 
     def _open_project(self):
         """仅打开/切换项目目录, 不动编辑器内容.
@@ -1278,9 +1305,11 @@ class CodeEditor:
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(code)
         except OSError as e:
+            app_logger.error(f"Failed to save file {path}: {e}")
             messagebox.showerror(t('dialog.title.save_failed'), str(e))
             return
         self._dirty = False
+        app_logger.info(f"File saved: {path}")
         self._status_label.config(text=t('status.saved', name=os.path.basename(path)))
         self._emit(HookEvents.EDITOR_FILE_SAVED, path)
 
@@ -1549,7 +1578,9 @@ class CodeEditor:
                 self._theme_tk_var.set(name)
             self._status_label.config(text=t('status.theme', name=name))
             self._force_redraw()
+            app_logger.info(f"Theme changed to: {name}")
         except Exception as e:
+            app_logger.error(f"Failed to set theme {name}: {e}")
             self._status_label.config(text=t('status.theme_error', err=str(e)))
             return
         if persist:
@@ -1690,7 +1721,9 @@ class CodeEditor:
         try:
             self._settings.attach_project(root)
             self._current_project_root = root
+            app_logger.info(f"Project attached: {root}")
         except Exception as exc:
+            app_logger.error(f"Failed to attach project {root}: {exc}")
             messagebox.showerror(
                 t('dialog.title.project_attach_failed'),
                 t('dialog.project_settings.attach_failed', root=root, err=exc),
@@ -1966,6 +1999,7 @@ class CodeEditor:
             self._append_output('No code to check.\n')
             return
 
+        app_logger.info(f"Check started: lang={self._lang}")
         self._status_label.config(text=t('status.checking'))
         self.window.update_idletasks()
 
@@ -2002,8 +2036,10 @@ class CodeEditor:
                 self._append_output('No issues found.\n')
             self._output._text.config(state='disabled')
             self._status_label.config(text=t('status.check_complete'))
+            app_logger.info(f"Check complete: {len(results)} issue(s) found")
             self._emit(HookEvents.EDITOR_CHECK_FINISHED, self._lang, results)
         except Exception as e:
+            app_logger.error(f"Check failed: {e}")
             self._output._text.config(state='normal')
             self._append_output(f'Check error: {e}\n')
             self._output._text.config(state='disabled')
@@ -2020,6 +2056,7 @@ class CodeEditor:
         if not code.strip():
             return
 
+        app_logger.info(f"Run started: lang={self._lang}")
         self._status_label.config(text=t('status.running'))
         self.window.update_idletasks()
 
@@ -2166,6 +2203,7 @@ class CodeEditor:
                 self._append_output(f'\n[Exit code: {result.returncode}]\n')
             self._output._text.config(state='disabled')
             self._status_label.config(text=t('status.run_complete'))
+            app_logger.info(f"Run complete: lang={self._lang}, exit_code={result.returncode}")
             self._emit(
                 HookEvents.EDITOR_RUN_FINISHED,
                 self._lang,
@@ -2174,6 +2212,7 @@ class CodeEditor:
                 result.stderr or '',
             )
         except subprocess.TimeoutExpired:
+            app_logger.warning(f"Run timed out: lang={self._lang}")
             self._output._text.config(state='normal')
             if clear_first:
                 self._output.clear()
@@ -2185,6 +2224,7 @@ class CodeEditor:
                 self._lang, -1, '', 'Execution timed out',
             )
         except Exception as e:
+            app_logger.error(f"Run error: lang={self._lang}, err={e}")
             self._output._text.config(state='normal')
             if clear_first:
                 self._output.clear()
@@ -2258,6 +2298,7 @@ class CodeEditor:
                     item = line_q.get_nowait()
                     if item[0] == '__done__':
                         result: RunResult = item[1]
+                        app_logger.info(f"Run stream finished: lang={self._lang}, timed_out={result.timed_out}, exit_code={result.returncode}")
                         self._output._text.config(state='normal')
                         if result.timed_out:
                             self._append_output('\n[Execution timed out]\n')
