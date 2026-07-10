@@ -117,27 +117,27 @@ class Translator:
             for lang in AVAILABLE_LANGUAGES:
                 self._tables[lang] = _load_locale(lang)
 
-    def has(self, key: str, lang: Optional[str] = None) -> bool:
+    def has(self, key: str, locale: Optional[str] = None) -> bool:
         """查询某 key 在指定(默认当前)语言下是否存在翻译。"""
 
-        target = lang if lang is not None else self._current
+        target = locale if locale is not None else self._current
         return key in self._tables.get(target, {})
 
     def translate(self, key: str, default: Optional[str] = None,
-                  lang: Optional[str] = None, **kwargs: Any) -> str:
+                  locale: Optional[str] = None, **kwargs: Any) -> str:
         """查询 key 对应的翻译。
 
         参数:
             key —— 翻译键, 例如 ``"menu.file.new"``。
             default —— 找不到时使用的兜底文本; 缺省则使用 key 本身。
-            lang —— 强制使用某语言(默认当前语言), 便于插件按需求跨语言渲染。
+            locale —— 强制使用某语言(默认当前语言), 便于插件按需求跨语言渲染。
             **kwargs —— 传给 ``str.format`` 的占位符。
 
         返回值: 翻译好的字符串。永远不会是 ``None``, 缺翻译至少返回 key。
         """
 
         with self._lock:
-            target = lang if lang is not None else self._current
+            target = locale if locale is not None else self._current
             text = self._tables.get(target, {}).get(key)
             if text is None and target != self._FALLBACK_LANG:
                 text = self._tables.get(self._FALLBACK_LANG, {}).get(key)

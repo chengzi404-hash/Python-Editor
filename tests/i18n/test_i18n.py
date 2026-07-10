@@ -104,7 +104,7 @@ class TestTranslate:
     def test_translate_force_lang_overrides_current(self):
         tr = get_translator()
         tr.set_language('zh_CN')
-        result = tr.translate('menu.file.new', lang='en_US')
+        result = tr.translate('menu.file.new', locale='en_US')
         assert result == 'New'
 
 
@@ -143,7 +143,7 @@ class TestHas:
     def test_has_with_lang_param(self):
         tr = get_translator()
         tr.set_language('zh_CN')
-        assert tr.has('menu.file.new', lang='en_US') is True
+        assert tr.has('menu.file.new', locale='en_US') is True
 
 
 class TestListeners:

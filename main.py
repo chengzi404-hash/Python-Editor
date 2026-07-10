@@ -14,8 +14,8 @@ from modules.logging import configure_logging, get_logger
 from modules.Uui.widgets import UFrame, ULabel, UButton, UText, UComboBox, UMenuBar, UMenu, theme, UFileTree, TabBar, Tab
 from modules.Uui.widgets.window import Window
 from modules.Uui.widgets.editor_suggestion import UEditorSuggestion, CompletionItem
-from modules.highlighter import PythonHighlighterExpert, CcppHighlighterExpert, HighlightBlock
-from modules.suggestion import PythonSuggestionExpert, CSuggestionExpert, CppSuggestionExpert, SuggestionBlock
+from modules.highlighter import PythonHighlighterExpert, JsonHighlighterExpert, XmlHighlighterExpert, YamlHighlighterExpert, LogHighlighterExpert, HighlightBlock
+from modules.suggestion import PythonSuggestionExpert, SuggestionBlock
 from modules.checker import Flake8Checker, PyrightChecker, CPythonChecker
 from modules.runner import RunResult, run_blocking, stream_command
 from modules.settings import SettingsManager, SettingsScope, SettingsChangeEvent
@@ -25,6 +25,7 @@ from modules.plugins import (
     HookEvents,
 )
 from modules.i18n import AVAILABLE_LANGUAGES, get_translator, t
+from modules.env_manager import EnvironmentManager, get_env_manager
 
 
 @dataclass
@@ -95,6 +96,14 @@ HIGHLIGHT_TOKENS = {
     'self': {'foreground': '#569cd6'},
     'type': {'foreground': '#4ec9b0'},
     'module': {'foreground': '#4fc1ff'},
+    'key': {'foreground': '#9cdcfe'},
+    'tag': {'foreground': '#569cd6'},
+    'timestamp': {'foreground': '#6a9955'},
+    'level_debug': {'foreground': '#808080'},
+    'level_info': {'foreground': '#4ec9b0'},
+    'level_warn': {'foreground': '#dcdcaa'},
+    'level_error': {'foreground': '#f44747'},
+    'level_critical': {'foreground': '#ff0000'},
 }
 
 LANG_CONFIG = {
@@ -105,19 +114,33 @@ LANG_CONFIG = {
         'suggestion_factory': lambda: PythonSuggestionExpert(),
         'sample': 'def hello():\n    print("Hello, world!")\n\nhello()\n',
     },
-    'C': {
-        'ext': '.c',
-        'highlighter': CcppHighlighterExpert,
-        'suggestion': CSuggestionExpert,
-        'suggestion_factory': lambda: CSuggestionExpert(),
-        'sample': '#include <stdio.h>\n\nint main() {\n    printf("Hello, world!\\n");\n    return 0;\n}\n',
+    'JSON': {
+        'ext': '.json',
+        'highlighter': JsonHighlighterExpert,
+        'suggestion': None,
+        'suggestion_factory': lambda: None,
+        'sample': '{\n  "name": "Alice",\n  "age": 30,\n  "city": "New York",\n  "active": true,\n  "data": null\n}\n',
     },
-    'C++': {
-        'ext': '.cpp',
-        'highlighter': CcppHighlighterExpert,
-        'suggestion': CppSuggestionExpert,
-        'suggestion_factory': lambda: CppSuggestionExpert(),
-        'sample': '#include <iostream>\n\nint main() {\n    std::cout << "Hello, world!" << std::endl;\n    return 0;\n}\n',
+    'XML': {
+        'ext': '.xml',
+        'highlighter': XmlHighlighterExpert,
+        'suggestion': None,
+        'suggestion_factory': lambda: None,
+        'sample': '<?xml version="1.0"?>\n<root>\n  <person id="1">\n    <name>Alice</name>\n    <age>30</age>\n  </person>\n</root>\n',
+    },
+    'YAML': {
+        'ext': '.yaml',
+        'highlighter': YamlHighlighterExpert,
+        'suggestion': None,
+        'suggestion_factory': lambda: None,
+        'sample': '# Configuration file\nserver:\n  host: "localhost"\n  port: 8080\n  debug: true\n\ndatabase:\n  url: "postgres://localhost/mydb"\n  pool_size: 10\n',
+    },
+    'LOG': {
+        'ext': '.log',
+        'highlighter': LogHighlighterExpert,
+        'suggestion': None,
+        'suggestion_factory': lambda: None,
+        'sample': '2024-01-15 10:30:45,123 INFO  Server started on port 8080\n2024-01-15 10:30:46,002 DEBUG Initializing database connection...\n2024-01-15 10:30:46,150 WARN  Configuration file not found, using defaults\n2024-01-15 10:30:47,890 ERROR Failed to connect to database: timeout\n2024-01-15 10:30:48,001 CRITICAL Application crashed\n',
     },
 }
 
@@ -224,6 +247,11 @@ class CodeEditor:
             pass
         self._refresh_plugin_menu()
         self._refresh_plugin_languages()
+
+        # ── 环境管理 ──────────────────────────────────────────────────────
+        self._env_manager = get_env_manager()
+        self._env_manager.add_listener(self._on_env_changed)
+        self.window.after(100, self._scan_environments)
 
         # 在所有控件都已构造后再注册 listener, 避免启动期触发未初始化控件。
         self._settings.add_listener(self._on_settings_changed)
@@ -745,6 +773,14 @@ class CodeEditor:
         query_menu.add_command(t('menu.query.trigger_suggestions'), self._show_suggestions, 'Ctrl+Space')
         query_menu.add_command(t('menu.query.hide_suggestions'), self._hide_suggestions, 'Esc')
 
+        env_menu = self._menubar.add_cascade(t('menu.environment'))
+        env_menu.add_command(t('menu.environment.manage'), self._open_env_manager, 'Ctrl+Shift+E')
+        env_menu.add_command(t('menu.environment.create'), self._create_venv_dialog, 'Ctrl+Shift+V')
+        env_menu.add_separator()
+        env_menu.add_command(t('menu.environment.refresh'), self._scan_environments)
+        env_menu.add_separator()
+        env_menu.add_command(t('menu.environment.no_env'), lambda: None)
+
         settings_menu = self._menubar.add_cascade(t('menu.settings'))
         theme_sub = settings_menu.add_cascade(t('menu.settings.theme'))
         for name in THEME_NAMES:
@@ -823,6 +859,9 @@ class CodeEditor:
         self.window.bind('<Control-space>', lambda e: self._show_suggestions())
         self.window.bind('<F1>', lambda e: self._show_documentation())
         self.window.bind('<Control-slash>', lambda e: self._toggle_comment())
+        # 环境管理快捷键
+        self.window.bind('<Control-Shift-E>', lambda e: self._open_env_manager())
+        self.window.bind('<Control-Shift-V>', lambda e: self._create_venv_dialog())
         # 多文档标签快捷键
         self.window.bind('<Control-w>', lambda e: self._close_active_tab())
         self.window.bind('<Control-Tab>', lambda e: self._next_tab())
@@ -905,6 +944,15 @@ class CodeEditor:
             command=self._on_lang_changed,
         )
         self._lang_combo.pack(side=tk.LEFT, padx=10, pady=6)
+
+        ULabel(bar, text='|', variant='secondary', bg=theme.BG_TITLE).pack(side=tk.LEFT, padx=2, pady=6)
+
+        env_values = [t('menu.environment.no_env')]
+        self._env_combo = UComboBox(
+            bar, values=env_values,
+            command=self._on_env_combo_changed,
+        )
+        self._env_combo.pack(side=tk.LEFT, padx=10, pady=6)
 
     def _build_editor(self):
         body = UFrame(self.window, variant='base')
@@ -1171,6 +1219,10 @@ class CodeEditor:
                                      bg=theme.BG_TITLE)
         self._status_label.pack(side=tk.LEFT, padx=10, pady=2)
 
+        self._env_label = ULabel(status, text='', variant='secondary',
+                                  bg=theme.BG_TITLE)
+        self._env_label.pack(side=tk.RIGHT, padx=10, pady=2)
+
         self._lang_label = ULabel(status, text='Python', variant='secondary',
                                    bg=theme.BG_TITLE)
         self._lang_label.pack(side=tk.RIGHT, padx=10, pady=2)
@@ -1210,6 +1262,7 @@ class CodeEditor:
             self._apply_highlight()
         self._update_status()
         self._status_label.config(text=t('status.editor_lang_changed', lang=lang))
+        self.window.after(3000, lambda: self._status_label.config(text=t('status.ready')))
         app_logger.info(f"Language switched to: {lang}")
         self._emit(HookEvents.EDITOR_LANGUAGE_CHANGED, lang)
 
@@ -2302,18 +2355,8 @@ class CodeEditor:
 
         try:
             if self._lang == 'Python':
-                cmd: List[str] = [sys.executable, temp_path]
-            elif self._lang in ('C', 'C++'):
-                ok, artifact = self._compile_c_cpp(temp_path)
-                if not ok:
-                    # 编译失败 / 编译器找不到: 错误已写到 output, 这里
-                    # 只负责把临时源文件清掉。
-                    try:
-                        os.unlink(temp_path)
-                    except OSError:
-                        pass
-                    return
-                cmd = [artifact]
+                python_path = self._env_manager.get_python_path() if hasattr(self, '_env_manager') else sys.executable
+                cmd: List[str] = [python_path, temp_path]
             else:
                 try:
                     os.unlink(temp_path)
@@ -2373,44 +2416,6 @@ class CodeEditor:
             self._append_output(f'Run error: {e}\n')
             self._output._text.config(state='disabled')
             self._status_label.config(text=t('status.run_failed'))
-
-    def _compile_c_cpp(self, temp_path: str) -> tuple:
-        """编译 C / C++ 源文件; 返回 ``(ok, binary_path_or_stderr)``.
-
-        失败时 ``ok=False`` 且错误信息已写到 output widget; 成功时
-        ``ok=True`` 且第二项是产物可执行文件路径。
-
-        与原 ``_run_code`` 内的内联代码不同点: 错误处理抽到这里集中,
-        让 :meth:`_run_code` 主路径只剩"准备 cmd + 选 blocking/streaming
-        两条路"两件事, 便于在流式 / 阻塞之间切换时不会让编译错误
-        漏到其中一条路径上。
-        """
-
-        binary_ext = '.exe' if sys.platform == 'win32' else ''
-        binary = temp_path.rsplit('.', 1)[0] + binary_ext
-        compiler = 'g++' if self._lang == 'C++' else 'gcc'
-        try:
-            compile_result = subprocess.run(
-                [compiler, temp_path, '-o', binary],
-                capture_output=True, text=True, timeout=30,
-            )
-        except FileNotFoundError:
-            self._output._text.config(state='normal')
-            self._output.clear()
-            self._append_output(
-                'Compiler not found. Please install GCC/G++ for C/C++ support.\n'
-            )
-            self._output._text.config(state='disabled')
-            self._status_label.config(text=t('status.compiler_not_found'))
-            return False, 'compiler not found'
-        if compile_result.returncode != 0:
-            self._output._text.config(state='normal')
-            self._output.clear()
-            self._append_output(f'Compile error:\n{compile_result.stderr}\n')
-            self._output._text.config(state='disabled')
-            self._status_label.config(text=t('status.compile_failed'))
-            return False, compile_result.stderr
-        return True, binary
 
     def _run_blocking_path(
         self,
@@ -2600,6 +2605,265 @@ class CodeEditor:
 
     def run(self):
         self.window.mainloop()
+
+    # ── Environment Management ────────────────────────────────────────
+
+    def _scan_environments(self) -> None:
+        self._status_label.config(text=t('status.env_scanning'))
+        try:
+            envs = self._env_manager.scan()
+            keys = list(envs.keys())
+            current = self._env_manager.current_name
+            self._env_combo.set_values(keys if keys else [t('menu.environment.no_env')])
+            if current and current in keys:
+                self._env_combo.set(current)
+            elif keys:
+                self._env_combo.set(keys[0])
+            self._update_env_status()
+        except Exception as exc:
+            app_logger.error(f"Environment scan failed: {exc}")
+        finally:
+            self._status_label.config(text=t('status.ready'))
+
+    def _on_env_combo_changed(self, value: str) -> None:
+        if value == t('menu.environment.no_env'):
+            return
+        self._env_manager.set_current(value)
+        self._update_env_status()
+
+    def _on_env_changed(self, env_name: str) -> None:
+        self._update_env_status()
+        try:
+            envs = self._env_manager.list_environments()
+            keys = list(envs.keys())
+            self._env_combo.set_values(keys if keys else [t('menu.environment.no_env')])
+            if env_name in keys:
+                self._env_combo.set(env_name)
+        except Exception:
+            pass
+
+    def _update_env_status(self) -> None:
+        env = self._env_manager.get_current()
+        if env:
+            self._env_label.config(text=t('status.env_ready', name=env.display_name))
+        else:
+            self._env_label.config(text='')
+
+    def _open_env_manager(self) -> None:
+        self._show_env_manager_dialog()
+
+    def _create_venv_dialog(self) -> None:
+        self._show_env_manager_dialog(create_tab=True)
+
+    def _show_env_manager_dialog(self, create_tab: bool = False) -> None:
+        if hasattr(self, '_env_dialog') and self._env_dialog and self._env_dialog.winfo_exists():
+            self._env_dialog.lift()
+            return
+
+        dialog = tk.Toplevel(self.window)
+        dialog.title(t('dialog.title.env_manager'))
+        dialog.geometry('700x500+300+150')
+        dialog.transient(self.window)
+        dialog.grab_set()
+        self._env_dialog = dialog
+
+        notebook = ttk_notebook = tk.Frame(dialog)
+        _has_ttk = False
+        try:
+            import tkinter.ttk as ttk
+            notebook = ttk.Notebook(dialog)
+            _has_ttk = True
+        except Exception:
+            notebook = tk.Frame(dialog)
+
+        if _has_ttk:
+            manage_frame = ttk.Frame(notebook)
+            create_frame = ttk.Frame(notebook)
+            notebook.add(manage_frame, text=t('dialog.env_manager.packages'))
+            notebook.add(create_frame, text=t('dialog.env_manager.create'))
+        else:
+            manage_frame = tk.Frame(notebook)
+            create_frame = tk.Frame(notebook)
+
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # ── Manage / Packages tab ──
+        envs = self._env_manager.list_environments()
+        if not envs:
+            tk.Label(manage_frame, text=t('dialog.env_manager.no_env'),
+                     wraplength=500).pack(padx=20, pady=40)
+        else:
+            top = tk.Frame(manage_frame)
+            top.pack(fill=tk.X, padx=10, pady=5)
+
+            tk.Label(top, text='Environment:').pack(side=tk.LEFT, padx=5)
+            env_names = list(envs.keys())
+            current_name = self._env_manager.current_name or (env_names[0] if env_names else '')
+            env_var = tk.StringVar(value=current_name if current_name in env_names else (env_names[0] if env_names else ''))
+            env_menu = tk.OptionMenu(top, env_var, *env_names)
+            env_menu.pack(side=tk.LEFT, padx=5)
+
+            tk.Button(top, text=t('dialog.env_manager.refresh'),
+                      command=lambda: self._env_dialog_refresh(dialog)).pack(side=tk.RIGHT, padx=5)
+
+            # Packages list
+            list_frame = tk.Frame(manage_frame)
+            list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+            cols = ('name', 'version')
+            try:
+                from tkinter import ttk as ttk2
+                tree = ttk2.Treeview(list_frame, columns=cols, show='headings', height=12)
+            except Exception:
+                tree = tk.Listbox(list_frame)
+                tree_packages = []
+
+            try:
+                tree.heading('name', text='Package')
+                tree.heading('version', text='Version')
+                tree.column('name', width=300)
+                tree.column('version', width=150)
+            except Exception:
+                pass
+
+            vsb = tk.Scrollbar(list_frame, orient=tk.VERTICAL, command=tree.yview)
+            tree.configure(yscrollcommand=vsb.set)
+            tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            vsb.pack(side=tk.RIGHT, fill=tk.Y)
+
+            def load_packages(*_):
+                for item in tree.get_children():
+                    tree.delete(item)
+                selected = env_var.get()
+                if selected in envs:
+                    pkgs = self._env_manager.get_packages(selected)
+                    for name, ver in sorted(pkgs.items()):
+                        tree.insert('', tk.END, values=(name, ver))
+
+            env_var.trace_add('write', load_packages)
+
+            btn_frame = tk.Frame(manage_frame)
+            btn_frame.pack(fill=tk.X, padx=10, pady=5)
+
+            def install_pkg():
+                selected = env_var.get()
+                pkg = simpledialog.askstring(
+                    t('dialog.env_manager.install'),
+                    t('dialog.env_manager.install_prompt'),
+                    parent=dialog,
+                )
+                if pkg:
+                    err = self._env_manager.install_package(pkg.strip(), selected)
+                    if err:
+                        messagebox.showerror(
+                            t('dialog.env_manager.install_failed', err=err),
+                            err, parent=dialog,
+                        )
+                    else:
+                        load_packages()
+                        self._status_label.config(
+                            text=t('dialog.env_manager.install_success', pkg=pkg.strip())
+                        )
+
+            def uninstall_pkg():
+                selected = env_var.get()
+                try:
+                    sel = tree.selection()[0]
+                    pkg = tree.item(sel, 'values')[0]
+                except (IndexError, Exception):
+                    return
+                if messagebox.askyesno(
+                    t('dialog.env_manager.uninstall'),
+                    t('dialog.env_manager.uninstall_confirm', pkg=pkg),
+                    parent=dialog,
+                ):
+                    err = self._env_manager.uninstall_package(pkg, selected)
+                    if err:
+                        messagebox.showerror(
+                            t('dialog.env_manager.uninstall_failed', err=err),
+                            err, parent=dialog,
+                        )
+                    else:
+                        load_packages()
+                        self._status_label.config(
+                            text=t('dialog.env_manager.uninstall_success', pkg=pkg)
+                        )
+
+            tk.Button(btn_frame, text=t('dialog.env_manager.install'),
+                      command=install_pkg).pack(side=tk.LEFT, padx=5)
+            tk.Button(btn_frame, text=t('dialog.env_manager.uninstall'),
+                      command=uninstall_pkg).pack(side=tk.LEFT, padx=5)
+
+            load_packages()
+
+        # ── Create tab ──
+        create_inner = tk.Frame(create_frame)
+        create_inner.pack(padx=20, pady=20, fill=tk.X)
+
+        tk.Label(create_inner, text=t('dialog.env_manager.create_path')).grid(row=0, column=0, sticky=tk.W, pady=5)
+        path_var = tk.StringVar(value=os.path.join(os.getcwd(), '.venv'))
+        path_entry = tk.Entry(create_inner, textvariable=path_var, width=50)
+        path_entry.grid(row=0, column=1, padx=10, pady=5)
+        tk.Button(create_inner, text='...',
+                  command=lambda: path_var.set(
+                      filedialog.askdirectory(
+                          title=t('dialog.env_manager.create_path'),
+                          initialdir=os.getcwd(),
+                          parent=dialog,
+                      ) or path_var.get()
+                  )).grid(row=0, column=2, pady=5)
+
+        tk.Label(create_inner, text=t('dialog.env_manager.create_python')).grid(row=1, column=0, sticky=tk.W, pady=5)
+        py_var = tk.StringVar(value=sys.executable)
+        py_entry = tk.Entry(create_inner, textvariable=py_var, width=50)
+        py_entry.grid(row=1, column=1, padx=10, pady=5)
+        tk.Button(create_inner, text='...',
+                  command=lambda: py_var.set(
+                      filedialog.askopenfilename(
+                          title=t('dialog.env_manager.create_python'),
+                          parent=dialog,
+                      ) or py_var.get()
+                  )).grid(row=1, column=2, pady=5)
+
+        def do_create():
+            path = path_var.get().strip()
+            python = py_var.get().strip()
+            if not path:
+                return
+            err = self._env_manager.create_venv(path, python_path=python or None)
+            if err:
+                messagebox.showerror(
+                    t('dialog.env_manager.create_failed', err=err),
+                    err, parent=dialog,
+                )
+            else:
+                messagebox.showinfo(
+                    t('dialog.title.env_manager'),
+                    t('dialog.env_manager.create_success'),
+                    parent=dialog,
+                )
+                self._scan_environments()
+                dialog.destroy()
+
+        tk.Button(create_inner, text=t('dialog.env_manager.create_btn'),
+                  command=do_create, width=20).grid(row=2, column=0, columnspan=3, pady=20)
+
+        # Bottom close button
+        close_frame = tk.Frame(dialog)
+        close_frame.pack(fill=tk.X, padx=10, pady=10)
+        tk.Button(close_frame, text=t('dialog.env_manager.close'),
+                  command=dialog.destroy, width=15).pack()
+
+        if _has_ttk and create_tab:
+            notebook.select(create_frame)
+
+        dialog.protocol('WM_DELETE_WINDOW', dialog.destroy)
+        self.window.wait_window(dialog)
+
+    def _env_dialog_refresh(self, dialog: tk.Toplevel) -> None:
+        self._scan_environments()
+        dialog.destroy()
+        self._show_env_manager_dialog()
 
 
 if __name__ == '__main__':
