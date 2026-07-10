@@ -1,8 +1,18 @@
 {
-  "priority": 25,
   "items": [
-    "assert.h", "ctype.h", "errno.h", "float.h", "limits.h", "math.h",
-    "signal.h", "stdarg.h", "stddef.h", "stdint.h", "stdio.h", "stdlib.h",
-    "string.h", "time.h"
+    {"label": "assert.h", "priority": 25},
+    {"label": "ctype.h", "priority": 25},
+    {"label": "errno.h", "priority": 25},
+    {"label": "float.h", "priority": 25},
+    {"label": "limits.h", "priority": 25},
+    {"label": "math.h", "priority": 25},
+    {"label": "signal.h", "priority": 25},
+    {"label": "stdarg.h", "priority": 25},
+    {"label": "stddef.h", "priority": 25},
+    {"label": "stdint.h", "priority": 25},
+    {"label": "stdio.h", "priority": 25},
+    {"label": "stdlib.h", "priority": 25},
+    {"label": "string.h", "priority": 25},
+    {"label": "time.h", "priority": 25}
   ]
 }

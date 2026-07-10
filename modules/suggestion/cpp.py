@@ -17,7 +17,7 @@ _PRIORITY_VARIABLE = 50
 _CACHED_LISTS: dict = {}
 
 
-def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
+def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
     """Load suggestion list from data file.
 
     Args:
@@ -25,7 +25,7 @@ def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
         category: Category name (e.g., 'keywords', 'builtins')
 
     Returns:
-        Tuple of (items list, priority)
+        List of (label, priority) tuples
     """
     cache_key = f"{lang}:{category}"
     if cache_key in _CACHED_LISTS:
@@ -38,55 +38,69 @@ def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
             try:
                 with open(filepath, encoding='utf-8') as f:
                     data = json.load(f)
-                    items = data.get('items', [])
-                    priority = data.get('priority', _PRIORITY_KEYWORD)
-                    _CACHED_LISTS[cache_key] = (items, priority)
-                    return (items, priority)
+                    items_data = data.get('items', [])
+                    # Parse per-item priorities
+                    result = []
+                    for item in items_data:
+                        if isinstance(item, dict):
+                            result.append((item['label'], item.get('priority', _PRIORITY_KEYWORD)))
+                        else:
+                            result.append((item, _PRIORITY_KEYWORD))
+                    _CACHED_LISTS[cache_key] = result
+                    return result
             except (json.JSONDecodeError, OSError):
                 pass
 
     # Fallback hardcoded values
-    _CACHED_LISTS[cache_key] = _FALLBACKS.get(category, ([], _PRIORITY_KEYWORD))
+    _CACHED_LISTS[cache_key] = _FALLBACKS.get(category, [])
     return _CACHED_LISTS[cache_key]
 
 
-# Fallback hardcoded suggestion lists
+# Fallback hardcoded suggestion lists with per-item priorities
 _FALLBACK_KEYWORDS = [
-    'alignas', 'alignof', 'and', 'and_eq', 'auto', 'bitand', 'bitor', 'bool',
-    'break', 'case', 'catch', 'char', 'char8_t', 'char16_t', 'char32_t',
-    'class', 'compl', 'concept', 'const', 'consteval', 'constexpr',
-    'constinit', 'const_cast', 'continue', 'co_await', 'co_return',
-    'co_yield', 'decltype', 'default', 'delete', 'do', 'double',
-    'dynamic_cast', 'else', 'enum', 'explicit', 'export', 'extern', 'false',
-    'float', 'for', 'friend', 'goto', 'if', 'inline', 'int', 'long',
-    'mutable', 'namespace', 'new', 'noexcept', 'not', 'not_eq', 'nullptr',
-    'operator', 'or', 'or_eq', 'private', 'protected', 'public',
-    'register', 'reinterpret_cast', 'requires', 'return', 'short', 'signed',
-    'sizeof', 'static', 'static_assert', 'static_cast', 'struct', 'switch',
-    'template', 'this', 'thread_local', 'throw', 'true', 'try', 'typedef',
-    'typeid', 'typename', 'union', 'unsigned', 'using', 'virtual', 'void',
-    'volatile', 'wchar_t', 'while', 'xor', 'xor_eq',
+    ('alignas', 10), ('alignof', 10), ('and', 10), ('and_eq', 10), ('auto', 10),
+    ('bitand', 10), ('bitor', 10), ('bool', 10), ('break', 10), ('case', 10),
+    ('catch', 10), ('char', 10), ('char8_t', 10), ('char16_t', 10), ('char32_t', 10),
+    ('class', 30), ('compl', 10), ('concept', 10), ('const', 10), ('consteval', 10),
+    ('constexpr', 10), ('constinit', 10), ('const_cast', 10), ('continue', 10),
+    ('co_await', 10), ('co_return', 10), ('co_yield', 10), ('decltype', 10),
+    ('default', 10), ('delete', 10), ('do', 10), ('double', 10), ('dynamic_cast', 10),
+    ('else', 10), ('enum', 30), ('explicit', 10), ('export', 10), ('extern', 10),
+    ('false', 10), ('float', 10), ('for', 10), ('friend', 10), ('goto', 10),
+    ('if', 10), ('inline', 10), ('int', 10), ('long', 10), ('mutable', 10),
+    ('namespace', 30), ('new', 10), ('noexcept', 10), ('not', 10), ('not_eq', 10),
+    ('nullptr', 10), ('operator', 30), ('or', 10), ('or_eq', 10), ('private', 10),
+    ('protected', 10), ('public', 10), ('register', 10), ('reinterpret_cast', 10),
+    ('requires', 10), ('return', 10), ('short', 10), ('signed', 10), ('sizeof', 20),
+    ('static', 10), ('static_assert', 10), ('static_cast', 10), ('struct', 30),
+    ('switch', 10), ('template', 30), ('this', 10), ('thread_local', 10), ('throw', 10),
+    ('true', 10), ('try', 10), ('typedef', 30), ('typeid', 10), ('typename', 10),
+    ('union', 30), ('unsigned', 10), ('using', 10), ('virtual', 10), ('void', 10),
+    ('volatile', 10), ('wchar_t', 10), ('while', 10), ('xor', 10), ('xor_eq', 10),
 ]
 
 _FALLBACK_HEADERS = [
-    'algorithm', 'array', 'atomic', 'bitset', 'chrono', 'deque', 'exception',
-    'fstream', 'functional', 'future', 'iostream', 'map', 'memory',
-    'mutex', 'optional', 'queue', 'random', 'regex', 'set', 'shared_mutex',
-    'stack', 'string', 'thread', 'tuple', 'unordered_map', 'unordered_set',
-    'variant', 'vector',
+    ('algorithm', 25), ('array', 25), ('atomic', 25), ('bitset', 25), ('chrono', 25),
+    ('deque', 25), ('exception', 25), ('fstream', 25), ('functional', 25),
+    ('future', 25), ('iostream', 25), ('map', 25), ('memory', 25), ('mutex', 25),
+    ('optional', 25), ('queue', 25), ('random', 25), ('regex', 25), ('set', 25),
+    ('shared_mutex', 25), ('stack', 25), ('string', 25), ('thread', 25), ('tuple', 25),
+    ('unordered_map', 25), ('unordered_set', 25), ('variant', 25), ('vector', 25),
 ]
 
 _FALLBACK_BUILTINS = [
-    'sizeof', 'NULL', 'nullptr', 'printf', 'scanf', 'malloc', 'calloc', 'free',
-    'realloc', 'memcpy', 'memset', 'string', 'vector', 'map', 'set', 'pair',
-    'make_pair', 'make_shared', 'make_unique', 'move', 'forward', 'swap',
-    'begin', 'end', 'size', 'empty', 'push_back', 'pop_back', 'insert', 'erase',
+    ('NULL', 20), ('nullptr', 20), ('printf', 20), ('scanf', 20), ('malloc', 20),
+    ('calloc', 20), ('free', 20), ('realloc', 20), ('memcpy', 20), ('memset', 20),
+    ('string', 20), ('vector', 20), ('map', 20), ('set', 20), ('pair', 20),
+    ('make_pair', 20), ('make_shared', 20), ('make_unique', 20), ('move', 20),
+    ('forward', 20), ('swap', 20), ('begin', 20), ('end', 20), ('size', 20),
+    ('empty', 20), ('push_back', 20), ('pop_back', 20), ('insert', 20), ('erase', 20),
 ]
 
 _FALLBACKS = {
-    'keywords': (_FALLBACK_KEYWORDS, _PRIORITY_KEYWORD),
-    'builtins': (_FALLBACK_BUILTINS, _PRIORITY_BUILTIN),
-    'headers': (_FALLBACK_HEADERS, _PRIORITY_HEADER),
+    'keywords': _FALLBACK_KEYWORDS,
+    'builtins': _FALLBACK_BUILTINS,
+    'headers': _FALLBACK_HEADERS,
 }
 
 
@@ -181,7 +195,7 @@ class CppSuggestionExpert(SuggestionExpert):
                 obj_name = current_line[obj_start + 1:obj_end]
                 suggestions = self._suggest_attributes(block, line_no, obj_name)
             else:
-                suggestions = self._suggest_names(block, line_no)
+                suggestions = self._suggest_names(block)
 
             if prefix:
                 suggestions = [s for s in suggestions if s.label.lower().startswith(prefix.lower())]
@@ -189,26 +203,26 @@ class CppSuggestionExpert(SuggestionExpert):
         suggestions.sort(key=lambda x: (x.priority, x.label.lower()))
         return suggestions
 
-    def _suggest_names(self, block: SuggestionBlock, line_no: int) -> list[SuggestionItem]:
+    def _suggest_names(self, block: SuggestionBlock) -> list[SuggestionItem]:
         suggestions: list[SuggestionItem] = []
 
-        # Load from data files (use current language)
+        # Load from data files with per-item priorities (use current language)
         lang = get_translator().current_language
-        keywords, kw_priority = _load_suggestion_list(lang, 'keywords')
-        builtins, builtin_priority = _load_suggestion_list(lang, 'builtins')
-        headers, header_priority = _load_suggestion_list(lang, 'headers')
+        keywords = _load_suggestion_list(lang, 'keywords')
+        builtins = _load_suggestion_list(lang, 'builtins')
+        headers = _load_suggestion_list(lang, 'headers')
 
-        for kw in keywords:
-            suggestions.append(SuggestionItem(label=kw, priority=kw_priority, kind='keyword'))
-        for b in builtins:
-            suggestions.append(SuggestionItem(label=b, priority=builtin_priority, kind='builtin'))
-        for h in headers:
-            suggestions.append(SuggestionItem(label=h, priority=header_priority, kind='header'))
+        for label, priority in keywords:
+            suggestions.append(SuggestionItem(label=label, priority=priority, kind='keyword'))
+        for label, priority in builtins:
+            suggestions.append(SuggestionItem(label=label, priority=priority, kind='builtin'))
+        for label, priority in headers:
+            suggestions.append(SuggestionItem(label=label, priority=priority, kind='header'))
 
         # Extract user-defined items
         root = self._build_scope_tree(block.code)
 
-        def _walk(scope: DOMScope, pos: int) -> None:
+        def _walk(scope: DOMScope) -> None:
             for fn in scope.functions:
                 suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_FUNCTION, kind='function'))
             for cls in scope.classes:
@@ -217,11 +231,9 @@ class CppSuggestionExpert(SuggestionExpert):
                 suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_VARIABLE, kind='variable'))
 
             for sub in scope.subDOM:
-                if sub.begin <= pos < sub.end:
-                    _walk(sub, pos)
-                    break
+                _walk(sub)
 
-        _walk(root, line_no)
+        _walk(root)
         return suggestions
 
     def _suggest_attributes(self, block: SuggestionBlock, line_no: int, obj_name: str) -> list[SuggestionItem]:

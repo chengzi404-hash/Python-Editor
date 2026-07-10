@@ -1,10 +1,32 @@
 {
-  "priority": 25,
   "items": [
-    "algorithm", "array", "atomic", "bitset", "chrono", "deque", "exception",
-    "fstream", "functional", "future", "iostream", "map", "memory",
-    "mutex", "optional", "queue", "random", "regex", "set", "shared_mutex",
-    "stack", "string", "thread", "tuple", "unordered_map", "unordered_set",
-    "variant", "vector"
+    {"label": "algorithm", "priority": 25},
+    {"label": "array", "priority": 25},
+    {"label": "atomic", "priority": 25},
+    {"label": "bitset", "priority": 25},
+    {"label": "chrono", "priority": 25},
+    {"label": "deque", "priority": 25},
+    {"label": "exception", "priority": 25},
+    {"label": "fstream", "priority": 25},
+    {"label": "functional", "priority": 25},
+    {"label": "future", "priority": 25},
+    {"label": "iostream", "priority": 25},
+    {"label": "map", "priority": 25},
+    {"label": "memory", "priority": 25},
+    {"label": "mutex", "priority": 25},
+    {"label": "optional", "priority": 25},
+    {"label": "queue", "priority": 25},
+    {"label": "random", "priority": 25},
+    {"label": "regex", "priority": 25},
+    {"label": "set", "priority": 25},
+    {"label": "shared_mutex", "priority": 25},
+    {"label": "stack", "priority": 25},
+    {"label": "string", "priority": 25},
+    {"label": "thread", "priority": 25},
+    {"label": "tuple", "priority": 25},
+    {"label": "unordered_map", "priority": 25},
+    {"label": "unordered_set", "priority": 25},
+    {"label": "variant", "priority": 25},
+    {"label": "vector", "priority": 25}
   ]
 }

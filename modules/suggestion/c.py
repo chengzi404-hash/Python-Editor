@@ -17,7 +17,7 @@ _PRIORITY_VARIABLE = 50
 _CACHED_LISTS: dict = {}
 
 
-def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
+def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
     """Load suggestion list from data file.
 
     Args:
@@ -25,7 +25,7 @@ def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
         category: Category name (e.g., 'keywords', 'builtins')
 
     Returns:
-        Tuple of (items list, priority)
+        List of (label, priority) tuples
     """
     cache_key = f"{lang}:{category}"
     if cache_key in _CACHED_LISTS:
@@ -38,52 +38,66 @@ def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
             try:
                 with open(filepath, encoding='utf-8') as f:
                     data = json.load(f)
-                    items = data.get('items', [])
-                    priority = data.get('priority', _PRIORITY_KEYWORD)
-                    _CACHED_LISTS[cache_key] = (items, priority)
-                    return (items, priority)
+                    items_data = data.get('items', [])
+                    # Parse per-item priorities
+                    result = []
+                    for item in items_data:
+                        if isinstance(item, dict):
+                            result.append((item['label'], item.get('priority', _PRIORITY_KEYWORD)))
+                        else:
+                            result.append((item, _PRIORITY_KEYWORD))
+                    _CACHED_LISTS[cache_key] = result
+                    return result
             except (json.JSONDecodeError, OSError):
                 pass
 
     # Fallback hardcoded values
-    _CACHED_LISTS[cache_key] = _FALLBACKS.get(category, ([], _PRIORITY_KEYWORD))
+    _CACHED_LISTS[cache_key] = _FALLBACKS.get(category, [])
     return _CACHED_LISTS[cache_key]
 
 
-# Fallback hardcoded suggestion lists
+# Fallback hardcoded suggestion lists with per-item priorities
 _FALLBACK_KEYWORDS = [
-    'auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
-    'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if',
-    'inline', 'int', 'long', 'register', 'restrict', 'return', 'short',
-    'signed', 'sizeof', 'static', 'struct', 'switch', 'typedef', 'union',
-    'unsigned', 'void', 'volatile', 'while',
+    ('auto', 10), ('break', 10), ('case', 10), ('char', 10), ('const', 10),
+    ('continue', 10), ('default', 10), ('do', 10), ('double', 10), ('else', 10),
+    ('enum', 30), ('extern', 10), ('float', 10), ('for', 10), ('goto', 10),
+    ('if', 10), ('inline', 10), ('int', 10), ('long', 10), ('register', 10),
+    ('restrict', 10), ('return', 10), ('short', 10), ('signed', 10), ('sizeof', 20),
+    ('static', 10), ('struct', 30), ('switch', 10), ('typedef', 30), ('union', 30),
+    ('unsigned', 10), ('void', 10), ('volatile', 10), ('while', 10),
 ]
 
 _FALLBACK_BUILTINS = [
-    'sizeof', 'offsetof', 'NULL', 'printf', 'scanf', 'malloc', 'calloc', 'free',
-    'realloc', 'memcpy', 'memmove', 'memset', 'memcmp', 'strcpy', 'strncpy',
-    'strcat', 'strncat', 'strcmp', 'strncmp', 'strlen', 'sprintf', 'sscanf',
-    'fopen', 'fclose', 'fread', 'fwrite', 'fprintf', 'fscanf', 'getchar', 'putchar',
-    'gets', 'puts', 'fgets', 'fputs', 'getc', 'putc', 'ungetc', 'feof', 'ferror',
-    'atoi', 'atof', 'atol', 'strtol', 'strtod', 'abs', 'labs', 'div', 'exit',
+    ('offsetof', 20), ('NULL', 20), ('printf', 20), ('scanf', 20), ('malloc', 20),
+    ('calloc', 20), ('free', 20), ('realloc', 20), ('memcpy', 20), ('memmove', 20),
+    ('memset', 20), ('memcmp', 20), ('strcpy', 20), ('strncpy', 20), ('strcat', 20),
+    ('strncat', 20), ('strcmp', 20), ('strncmp', 20), ('strlen', 20), ('sprintf', 20),
+    ('sscanf', 20), ('fopen', 20), ('fclose', 20), ('fread', 20), ('fwrite', 20),
+    ('fprintf', 20), ('fscanf', 20), ('getchar', 20), ('putchar', 20), ('gets', 20),
+    ('puts', 20), ('fgets', 20), ('fputs', 20), ('getc', 20), ('putc', 20),
+    ('ungetc', 20), ('feof', 20), ('ferror', 20), ('atoi', 20), ('atof', 20),
+    ('atol', 20), ('strtol', 20), ('strtod', 20), ('abs', 20), ('labs', 20),
+    ('div', 20), ('exit', 20),
 ]
 
 _FALLBACK_HEADERS = [
-    'assert.h', 'ctype.h', 'errno.h', 'float.h', 'limits.h', 'math.h',
-    'signal.h', 'stdarg.h', 'stddef.h', 'stdint.h', 'stdio.h', 'stdlib.h',
-    'string.h', 'time.h',
+    ('assert.h', 25), ('ctype.h', 25), ('errno.h', 25), ('float.h', 25),
+    ('limits.h', 25), ('math.h', 25), ('signal.h', 25), ('stdarg.h', 25),
+    ('stddef.h', 25), ('stdint.h', 25), ('stdio.h', 25), ('stdlib.h', 25),
+    ('string.h', 25), ('time.h', 25),
 ]
 
 _FALLBACK_PREPROCESSOR = [
-    '#define', '#elif', '#else', '#endif', '#error', '#if', '#ifdef',
-    '#ifndef', '#include', '#line', '#pragma', '#undef', '#warning',
+    ('#define', 10), ('#elif', 10), ('#else', 10), ('#endif', 10), ('#error', 10),
+    ('#if', 10), ('#ifdef', 10), ('#ifndef', 10), ('#include', 10), ('#line', 10),
+    ('#pragma', 10), ('#undef', 10), ('#warning', 10),
 ]
 
 _FALLBACKS = {
-    'keywords': (_FALLBACK_KEYWORDS, _PRIORITY_KEYWORD),
-    'builtins': (_FALLBACK_BUILTINS, _PRIORITY_BUILTIN),
-    'headers': (_FALLBACK_HEADERS, _PRIORITY_HEADER),
-    'preprocessor': (_FALLBACK_PREPROCESSOR, _PRIORITY_KEYWORD),
+    'keywords': _FALLBACK_KEYWORDS,
+    'builtins': _FALLBACK_BUILTINS,
+    'headers': _FALLBACK_HEADERS,
+    'preprocessor': _FALLBACK_PREPROCESSOR,
 }
 
 
@@ -158,7 +172,7 @@ class CSuggestionExpert(SuggestionExpert):
             obj_name = current_line[obj_start + 1:obj_end]
             suggestions = self._suggest_attributes(block, line_no, obj_name)
         else:
-            suggestions = self._suggest_names(block, line_no)
+            suggestions = self._suggest_names(block)
 
         if prefix:
             suggestions = [s for s in suggestions if s.label.lower().startswith(prefix.lower())]
@@ -166,29 +180,29 @@ class CSuggestionExpert(SuggestionExpert):
         suggestions.sort(key=lambda x: (x.priority, x.label.lower()))
         return suggestions
 
-    def _suggest_names(self, block: SuggestionBlock, line_no: int) -> list[SuggestionItem]:
+    def _suggest_names(self, block: SuggestionBlock) -> list[SuggestionItem]:
         suggestions: list[SuggestionItem] = []
 
-        # Load from data files (use current language)
+        # Load from data files with per-item priorities (use current language)
         lang = get_translator().current_language
-        keywords, kw_priority = _load_suggestion_list(lang, 'keywords')
-        builtins, builtin_priority = _load_suggestion_list(lang, 'builtins')
-        headers, header_priority = _load_suggestion_list(lang, 'headers')
-        preprocessor, pp_priority = _load_suggestion_list(lang, 'preprocessor')
+        keywords = _load_suggestion_list(lang, 'keywords')
+        builtins = _load_suggestion_list(lang, 'builtins')
+        headers = _load_suggestion_list(lang, 'headers')
+        preprocessor = _load_suggestion_list(lang, 'preprocessor')
 
-        for kw in keywords:
-            suggestions.append(SuggestionItem(label=kw, priority=kw_priority, kind='keyword'))
-        for b in builtins:
-            suggestions.append(SuggestionItem(label=b, priority=builtin_priority, kind='builtin'))
-        for h in headers:
-            suggestions.append(SuggestionItem(label=h, priority=header_priority, kind='header'))
-        for pp in preprocessor:
-            suggestions.append(SuggestionItem(label=pp, priority=pp_priority, kind='preprocessor'))
+        for label, priority in keywords:
+            suggestions.append(SuggestionItem(label=label, priority=priority, kind='keyword'))
+        for label, priority in builtins:
+            suggestions.append(SuggestionItem(label=label, priority=priority, kind='builtin'))
+        for label, priority in headers:
+            suggestions.append(SuggestionItem(label=label, priority=priority, kind='header'))
+        for label, priority in preprocessor:
+            suggestions.append(SuggestionItem(label=label, priority=priority, kind='preprocessor'))
 
         # Extract user-defined items
         root = self._build_scope_tree(block.code)
 
-        def _walk(scope: DOMScope, pos: int) -> None:
+        def _walk(scope: DOMScope) -> None:
             for fn in scope.functions:
                 suggestions.append(SuggestionItem(label=fn, priority=_PRIORITY_FUNCTION, kind='function'))
             for cls in scope.classes:
@@ -197,11 +211,9 @@ class CSuggestionExpert(SuggestionExpert):
                 suggestions.append(SuggestionItem(label=var, priority=_PRIORITY_VARIABLE, kind='variable'))
 
             for sub in scope.subDOM:
-                if sub.begin <= pos < sub.end:
-                    _walk(sub, pos)
-                    break
+                _walk(sub)
 
-        _walk(root, line_no)
+        _walk(root)
         return suggestions
 
     def _suggest_attributes(self, block: SuggestionBlock, line_no: int, obj_name: str) -> list[SuggestionItem]:

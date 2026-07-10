@@ -1,7 +1,17 @@
 {
-  "priority": 10,
   "items": [
-    "#define", "#elif", "#else", "#endif", "#error", "#if", "#ifdef",
-    "#ifndef", "#include", "#line", "#pragma", "#undef", "#warning"
+    {"label": "#define", "priority": 10},
+    {"label": "#elif", "priority": 10},
+    {"label": "#else", "priority": 10},
+    {"label": "#endif", "priority": 10},
+    {"label": "#error", "priority": 10},
+    {"label": "#if", "priority": 10},
+    {"label": "#ifdef", "priority": 10},
+    {"label": "#ifndef", "priority": 10},
+    {"label": "#include", "priority": 10},
+    {"label": "#line", "priority": 10},
+    {"label": "#pragma", "priority": 10},
+    {"label": "#undef", "priority": 10},
+    {"label": "#warning", "priority": 10}
   ]
 }

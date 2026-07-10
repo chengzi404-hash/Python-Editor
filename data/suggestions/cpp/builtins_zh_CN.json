@@ -1,9 +1,33 @@
 {
-  "priority": 20,
   "items": [
-    "sizeof", "NULL", "nullptr", "printf", "scanf", "malloc", "calloc", "free",
-    "realloc", "memcpy", "memset", "string", "vector", "map", "set", "pair",
-    "make_pair", "make_shared", "make_unique", "move", "forward", "swap",
-    "begin", "end", "size", "empty", "push_back", "pop_back", "insert", "erase"
+    {"label": "NULL", "priority": 20},
+    {"label": "nullptr", "priority": 20},
+    {"label": "printf", "priority": 20},
+    {"label": "scanf", "priority": 20},
+    {"label": "malloc", "priority": 20},
+    {"label": "calloc", "priority": 20},
+    {"label": "free", "priority": 20},
+    {"label": "realloc", "priority": 20},
+    {"label": "memcpy", "priority": 20},
+    {"label": "memset", "priority": 20},
+    {"label": "string", "priority": 20},
+    {"label": "vector", "priority": 20},
+    {"label": "map", "priority": 20},
+    {"label": "set", "priority": 20},
+    {"label": "pair", "priority": 20},
+    {"label": "make_pair", "priority": 20},
+    {"label": "make_shared", "priority": 20},
+    {"label": "make_unique", "priority": 20},
+    {"label": "move", "priority": 20},
+    {"label": "forward", "priority": 20},
+    {"label": "swap", "priority": 20},
+    {"label": "begin", "priority": 20},
+    {"label": "end", "priority": 20},
+    {"label": "size", "priority": 20},
+    {"label": "empty", "priority": 20},
+    {"label": "push_back", "priority": 20},
+    {"label": "pop_back", "priority": 20},
+    {"label": "insert", "priority": 20},
+    {"label": "erase", "priority": 20}
   ]
 }

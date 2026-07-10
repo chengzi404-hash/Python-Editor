@@ -16,7 +16,7 @@ _PRIORITY_VARIABLE = 50
 _CACHED_LISTS: dict = {}
 
 
-def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
+def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
     """Load suggestion list from data file.
 
     Args:
@@ -24,7 +24,7 @@ def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
         category: Category name (e.g., 'keywords', 'builtins')
 
     Returns:
-        Tuple of (items list, priority)
+        List of (label, priority) tuples
     """
     cache_key = f"{lang}:{category}"
     if cache_key in _CACHED_LISTS:
@@ -37,52 +37,63 @@ def _load_suggestion_list(lang: str, category: str) -> tuple[list[str], int]:
             try:
                 with open(filepath, encoding='utf-8') as f:
                     data = json.load(f)
-                    items = data.get('items', [])
-                    priority = data.get('priority', _PRIORITY_BUILTIN)
-                    _CACHED_LISTS[cache_key] = (items, priority)
-                    return (items, priority)
+                    items_data = data.get('items', [])
+                    # Parse per-item priorities
+                    result = []
+                    for item in items_data:
+                        if isinstance(item, dict):
+                            result.append((item['label'], item.get('priority', _PRIORITY_BUILTIN)))
+                        else:
+                            result.append((item, _PRIORITY_BUILTIN))
+                    _CACHED_LISTS[cache_key] = result
+                    return result
             except (json.JSONDecodeError, OSError):
                 pass
 
     # Fallback hardcoded values
-    _CACHED_LISTS[cache_key] = _FALLBACKS.get(category, ([], _PRIORITY_BUILTIN))
+    _CACHED_LISTS[cache_key] = _FALLBACKS.get(category, [])
     return _CACHED_LISTS[cache_key]
 
 
-# Fallback hardcoded suggestion lists (used when data files are missing)
+# Fallback hardcoded suggestion lists with per-item priorities
+# Format: (label, priority)
 _FALLBACK_KEYWORDS = [
-    'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
-    'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
-    'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
-    'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try',
-    'while', 'with', 'yield',
+    ('False', 10), ('None', 10), ('True', 10), ('and', 10), ('as', 10),
+    ('assert', 10), ('async', 10), ('await', 10), ('break', 10), ('class', 30),
+    ('continue', 10), ('def', 30), ('del', 10), ('elif', 10), ('else', 10),
+    ('except', 10), ('finally', 10), ('for', 10), ('from', 10), ('global', 10),
+    ('if', 10), ('import', 10), ('in', 10), ('is', 10), ('lambda', 15),
+    ('nonlocal', 10), ('not', 10), ('or', 10), ('pass', 10), ('raise', 10),
+    ('return', 10), ('try', 10), ('while', 10), ('with', 10), ('yield', 10),
 ]
 
-_FALLBACK_BUILTIN_FUNCTIONS = [
-    'abs', 'all', 'any', 'ascii', 'bin', 'breakpoint', 'callable',
-    'chr', 'compile', 'delattr', 'dir', 'divmod', 'eval', 'exec',
-    'format', 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex',
-    'id', 'input', 'isinstance', 'issubclass', 'len', 'locals',
-    'max', 'min', 'next', 'oct', 'open', 'ord', 'pow', 'print',
-    'repr', 'round', 'setattr', 'sorted', 'sum', 'vars', '__import__',
-]
-
-_FALLBACK_BUILTIN_CLASSES = [
-    'bool', 'bytearray', 'bytes', 'classmethod', 'complex', 'dict',
-    'enumerate', 'filter', 'float', 'frozenset', 'int', 'list',
-    'map', 'memoryview', 'object', 'property', 'range', 'reversed',
-    'set', 'slice', 'staticmethod', 'str', 'super', 'tuple', 'zip',
-]
-
-_FALLBACK_BUILTIN_PROPERTIES = [
-    'True', 'False', 'None', 'Ellipsis', 'NotImplemented',
-    '__name__', '__file__', '__doc__', '__package__', '__loader__',
-    '__spec__', '__path__', '__all__',
+_FALLBACK_BUILTINS = [
+    # Builtin functions
+    ('abs', 20), ('all', 20), ('any', 20), ('ascii', 20), ('bin', 20),
+    ('breakpoint', 20), ('callable', 20), ('chr', 20), ('compile', 20),
+    ('delattr', 20), ('dir', 20), ('divmod', 20), ('eval', 20), ('exec', 20),
+    ('format', 20), ('getattr', 20), ('globals', 20), ('hasattr', 20),
+    ('hash', 20), ('help', 20), ('hex', 20), ('id', 20), ('input', 20),
+    ('isinstance', 20), ('issubclass', 20), ('len', 20), ('locals', 20),
+    ('max', 20), ('min', 20), ('next', 20), ('oct', 20), ('open', 20),
+    ('ord', 20), ('pow', 20), ('print', 20), ('repr', 20), ('round', 20),
+    ('setattr', 20), ('sorted', 20), ('sum', 20), ('vars', 20), ('__import__', 20),
+    # Builtin classes
+    ('bool', 20), ('bytearray', 20), ('bytes', 20), ('classmethod', 20),
+    ('complex', 20), ('dict', 20), ('enumerate', 20), ('filter', 20),
+    ('float', 20), ('frozenset', 20), ('int', 20), ('list', 20), ('map', 20),
+    ('memoryview', 20), ('object', 20), ('property', 20), ('range', 20),
+    ('reversed', 20), ('set', 20), ('slice', 20), ('staticmethod', 20),
+    ('str', 20), ('super', 20), ('tuple', 20), ('zip', 20),
+    # Builtin constants
+    ('Ellipsis', 20), ('NotImplemented', 20), ('__name__', 20), ('__file__', 20),
+    ('__doc__', 20), ('__package__', 20), ('__loader__', 20), ('__spec__', 20),
+    ('__path__', 20), ('__all__', 20),
 ]
 
 _FALLBACKS = {
-    'keywords': (_FALLBACK_KEYWORDS, _PRIORITY_KEYWORD),
-    'builtins': (_FALLBACK_BUILTIN_FUNCTIONS + _FALLBACK_BUILTIN_CLASSES + _FALLBACK_BUILTIN_PROPERTIES, _PRIORITY_BUILTIN),
+    'keywords': _FALLBACK_KEYWORDS,
+    'builtins': _FALLBACK_BUILTINS,
 }
 
 
@@ -285,15 +296,15 @@ class PythonSuggestionExpert(SuggestionExpert):
     def _suggest_names(self, block: SuggestionBlock, line_no: int) -> list[SuggestionItem]:
         suggestions: list[SuggestionItem] = []
 
-        # Load from data files with priorities (use current language)
+        # Load from data files with per-item priorities (use current language)
         lang = get_translator().current_language
-        keywords, kw_priority = _load_suggestion_list(lang, 'keywords')
-        builtins, builtin_priority = _load_suggestion_list(lang, 'builtins')
+        keywords = _load_suggestion_list(lang, 'keywords')
+        builtins = _load_suggestion_list(lang, 'builtins')
 
-        for kw in keywords:
-            suggestions.append(SuggestionItem(label=kw, priority=kw_priority, kind='keyword'))
-        for b in builtins:
-            suggestions.append(SuggestionItem(label=b, priority=builtin_priority, kind='builtin'))
+        for label, priority in keywords:
+            suggestions.append(SuggestionItem(label=label, priority=priority, kind='keyword'))
+        for label, priority in builtins:
+            suggestions.append(SuggestionItem(label=label, priority=priority, kind='builtin'))
 
         # Extract user-defined items from scope
         root = self._build_scope_tree(block.code)
