@@ -194,6 +194,8 @@
   "dialog.env_manager.uninstall_success": "Uninstalled {pkg}",
   "dialog.env_manager.uninstall_failed": "Uninstall failed: {err}",
   "dialog.env_manager.refresh": "Refresh",
+  "dialog.env_manager.search": "Search",
+  "dialog.env_manager.search_install": "Install",
   "dialog.env_manager.close": "Close",
   "dialog.env_manager.no_env": "No environments detected. Create one to get started.",
 

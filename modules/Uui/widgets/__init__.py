@@ -17,6 +17,14 @@ from .settings_nav import USettingsNavBar, NavSelection
 from .tree_canvas import TreeCanvas
 from .line_number import LineNumberCanvas
 from .tab_bar import TabBar, Tab
+from .dialog import UDialog
+from .tab_view import UTabView
+from .list_view import UListView
+from . import message_box
+from .sidebar import ActivityBar, ActivityBarItem, SideBar
+from .explorer_card import ExplorerCard
+from .debug_card import DebugCard
+from .git_card import GitCard
 
 
 __all__ = [
@@ -31,4 +39,12 @@ __all__ = [
     'TreeCanvas',
     'LineNumberCanvas',
     'TabBar', 'Tab',
+    'UDialog',
+    'UTabView',
+    'UListView',
+    'message_box',
+    'ActivityBar', 'ActivityBarItem', 'SideBar',
+    'ExplorerCard',
+    'DebugCard',
+    'GitCard',
 ]

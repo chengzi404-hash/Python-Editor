@@ -11,7 +11,10 @@ from typing import Any, Dict, List, Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from modules.logging import configure_logging, get_logger
-from modules.Uui.widgets import UFrame, ULabel, UButton, UText, UComboBox, UMenuBar, UMenu, theme, UFileTree, TabBar, Tab
+from modules.Uui.widgets import (UFrame, ULabel, UButton, UEntry, UText, UComboBox,
+                                 UMenuBar, theme, TabBar, Tab,
+                                 UDialog, UTabView, UListView, message_box,
+                                 SideBar, ExplorerCard, DebugCard, GitCard)
 from modules.Uui.widgets.window import Window
 from modules.Uui.widgets.editor_suggestion import UEditorSuggestion, CompletionItem
 from modules.highlighter import PythonHighlighterExpert, JsonHighlighterExpert, XmlHighlighterExpert, YamlHighlighterExpert, LogHighlighterExpert, HighlightBlock
@@ -939,21 +942,6 @@ class CodeEditor:
         bar = UFrame(self.window, variant='title')
         bar.pack(fill=tk.X, padx=0, pady=0)
 
-        self._lang_combo = UComboBox(
-            bar, values=list(LANG_CONFIG.keys()),
-            command=self._on_lang_changed,
-        )
-        self._lang_combo.pack(side=tk.LEFT, padx=10, pady=6)
-
-        ULabel(bar, text='|', variant='secondary', bg=theme.BG_TITLE).pack(side=tk.LEFT, padx=2, pady=6)
-
-        env_values = [t('menu.environment.no_env')]
-        self._env_combo = UComboBox(
-            bar, values=env_values,
-            command=self._on_env_combo_changed,
-        )
-        self._env_combo.pack(side=tk.LEFT, padx=10, pady=6)
-
     def _build_editor(self):
         body = UFrame(self.window, variant='base')
         body.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
@@ -967,28 +955,48 @@ class CodeEditor:
         )
         self._tab_bar.pack(fill=tk.X, padx=0, pady=0)
 
-        # 水平 PanedWindow: 左 = 编辑器, 右 = Solution Explorer 风格的文件树。
-        # sashrelief / sashwidth 让分隔条可见可拖动。
-        self._paned = tk.PanedWindow(
+        # 主体区域: 水平布局, 左=编辑器, 右=侧边栏
+        main_paned = tk.PanedWindow(
             body, orient=tk.HORIZONTAL,
             sashwidth=4, sashrelief='flat',
             bg=theme.BORDER, bd=0,
             showhandle=False,
         )
-        self._paned.pack(fill=tk.BOTH, expand=True)
+        main_paned.pack(fill=tk.BOTH, expand=True)
 
-        self._editor = UText(self._paned, width=80, height=20, show_line_numbers=True)
-        self._paned.add(self._editor, minsize=200, stretch='always')
+        # 编辑器
+        self._editor = UText(main_paned, width=80, height=20, show_line_numbers=True)
+        main_paned.add(self._editor, minsize=200, stretch='always')
 
-        self._file_tree = UFileTree(
-            self._paned,
-            title='Project',
-            on_activate=self._open_path_from_tree,
-            width=260,
+        # VSCode 风格侧边栏
+        self._sidebar = SideBar(
+            main_paned,
+            items=[
+                ('explorer', 'Explorer', 'explorer'),
+                ('debug', 'Debug', 'debug'),
+                ('git', 'Git', 'git'),
+            ],
+            on_select=self._on_sidebar_select,
         )
-        self._paned.add(self._file_tree, minsize=160, stretch='never')
-        # 默认把分隔条放到窗口右侧 260px 处。
-        self._paned.bind('<Map>', self._init_paned_position, add='+')
+        main_paned.add(self._sidebar, minsize=240, stretch='never')
+
+        # Explorer 卡片 (文件树)
+        self._explorer_card = ExplorerCard(
+            self._sidebar,
+            on_activate=self._open_path_from_tree,
+        )
+        self._sidebar.add_card('explorer', self._explorer_card)
+
+        # Debug 卡片
+        self._debug_card = DebugCard(self._sidebar)
+        self._sidebar.add_card('debug', self._debug_card)
+
+        # Git 卡片
+        self._git_card = GitCard(self._sidebar)
+        self._sidebar.add_card('git', self._git_card)
+
+        # 默认显示 Explorer
+        self._sidebar.set_active('explorer')
 
         self._editor._text.bind('<KeyRelease>', self._on_key_release)
         self._editor._text.bind('<KeyPress>', self._on_key_press)
@@ -996,18 +1004,12 @@ class CodeEditor:
         self._editor._text.bind('<FocusIn>', self._on_focus_in)
         self._editor._text.config(undo=True)
 
-    def _init_paned_position(self, event=None) -> None:
-        """在 PanedWindow 首次显示后,把分隔条放到合适位置(右 260px)."""
-        try:
-            total = self._paned.winfo_width()
-            if total <= 1:
-                # 还未真正布局完成,推迟一帧
-                self.window.after(10, self._init_paned_position)
-                return
-            self._paned.sash_place(0, max(total - 260, 200), 0)
-            self._paned.unbind('<Map>')
-        except tk.TclError:
-            pass
+    def _on_sidebar_select(self, card_id: str) -> None:
+        """侧边栏选中回调."""
+        if card_id == 'explorer' and self._current_project_root:
+            self._explorer_card.set_root(self._current_project_root)
+        elif card_id == 'git' and self._current_project_root:
+            self._git_card.set_workspace_root(self._current_project_root)
 
     def _open_path_from_tree(self, path: str) -> None:
         """文件树双击回调: 复用 ``_load_file_into_editor`` 加载文件."""
@@ -1025,6 +1027,15 @@ class CodeEditor:
         ):
             return
         self._load_path_into_editor(path)
+
+    @staticmethod
+    def _detect_lang_from_path(path: str) -> str:
+        _, ext = os.path.splitext(path)
+        ext = ext.lower()
+        for lang, config in LANG_CONFIG.items():
+            if config['ext'] == ext:
+                return lang
+        return 'Python'
 
     def _load_path_into_editor(self, path: str) -> None:
         """把 ``path`` 读进编辑器,统一处理"小文件快路径 / 大文件流式路径".
@@ -1064,7 +1075,8 @@ class CodeEditor:
 
         # 创建新文档（用路径作为 doc_id，便于重新打开同一文件时复用）
         doc_id = path
-        doc = Document(path=path, content='', dirty=False, lang=self._lang, seq=0)
+        detected_lang = self._detect_lang_from_path(path)
+        doc = Document(path=path, content='', dirty=False, lang=detected_lang, seq=0)
         self._documents[doc_id] = doc
         self._active_id = doc_id
 
@@ -1109,6 +1121,8 @@ class CodeEditor:
 
         # 大文件不触发高亮
         if not is_large:
+            if detected_lang != self._lang:
+                self._switch_language(detected_lang, from_doc_switch=True)
             self._apply_highlight()
         if is_large:
             self._last_emit_code = None
@@ -1575,10 +1589,12 @@ class CodeEditor:
         path = filedialog.asksaveasfilename(defaultextension=ext, filetypes=filetypes)
         if path:
             self._save_to_path(path)
-            # 同时更新文档的 path
             if self._active_id and self._active_id in self._documents:
                 self._documents[self._active_id].path = path
             self._current_file = path
+            detected_lang = self._detect_lang_from_path(path)
+            if detected_lang != self._lang:
+                self._switch_language(detected_lang, from_doc_switch=True)
             new_root = self._should_reattach_for_path(path)
             if new_root:
                 self._attach_project(new_root)
@@ -2019,9 +2035,8 @@ class CodeEditor:
             )
             return
         # 同步刷新右侧文件树。
-        tree = getattr(self, '_file_tree', None)
-        if tree is not None:
-            tree.set_root(root)
+        if hasattr(self, '_explorer_card') and self._explorer_card is not None:
+            self._explorer_card.set_root(root)
         # 加载项目级插件 (<root>/plugins/)
         try:
             self._plugin_manager.load_project_plugins(root)
@@ -2131,7 +2146,6 @@ class CodeEditor:
         }
         if contrib.name not in self._plugin_lang_combo_added:
             self._plugin_lang_combo_added.append(contrib.name)
-        self._lang_combo.set_values(list(LANG_CONFIG.keys()))
 
     def _refresh_plugin_menu(self) -> None:
         """重建插件主菜单: 按 ``menu`` 分组的子菜单 + 每条命令 + 末尾的"管理插件"。"""
@@ -2172,11 +2186,7 @@ class CodeEditor:
         menu.add_command(t('menu.plugins.rescan'), self._reload_all_plugins)
 
     def _refresh_plugin_languages(self) -> None:
-        """同步下拉框: 把插件新增的语言值塞进去。"""
-
-        if not hasattr(self, '_lang_combo'):
-            return
-        self._lang_combo.set_values(list(LANG_CONFIG.keys()))
+        pass
 
     def _safe_run_plugin_command(self, callback: Any) -> None:
         """包装一层 try/except, 避免插件崩溃搞坏编辑器。"""
@@ -2611,36 +2621,15 @@ class CodeEditor:
     def _scan_environments(self) -> None:
         self._status_label.config(text=t('status.env_scanning'))
         try:
-            envs = self._env_manager.scan()
-            keys = list(envs.keys())
-            current = self._env_manager.current_name
-            self._env_combo.set_values(keys if keys else [t('menu.environment.no_env')])
-            if current and current in keys:
-                self._env_combo.set(current)
-            elif keys:
-                self._env_combo.set(keys[0])
+            self._env_manager.scan()
             self._update_env_status()
         except Exception as exc:
             app_logger.error(f"Environment scan failed: {exc}")
         finally:
             self._status_label.config(text=t('status.ready'))
 
-    def _on_env_combo_changed(self, value: str) -> None:
-        if value == t('menu.environment.no_env'):
-            return
-        self._env_manager.set_current(value)
-        self._update_env_status()
-
     def _on_env_changed(self, env_name: str) -> None:
         self._update_env_status()
-        try:
-            envs = self._env_manager.list_environments()
-            keys = list(envs.keys())
-            self._env_combo.set_values(keys if keys else [t('menu.environment.no_env')])
-            if env_name in keys:
-                self._env_combo.set(env_name)
-        except Exception:
-            pass
 
     def _update_env_status(self) -> None:
         env = self._env_manager.get_current()
@@ -2660,126 +2649,156 @@ class CodeEditor:
             self._env_dialog.lift()
             return
 
-        dialog = tk.Toplevel(self.window)
-        dialog.title(t('dialog.title.env_manager'))
-        dialog.geometry('700x500+300+150')
-        dialog.transient(self.window)
-        dialog.grab_set()
+        dialog = UDialog(self.window, title=t('dialog.title.env_manager'),
+                         width=720, height=540)
         self._env_dialog = dialog
 
-        notebook = ttk_notebook = tk.Frame(dialog)
-        _has_ttk = False
-        try:
-            import tkinter.ttk as ttk
-            notebook = ttk.Notebook(dialog)
-            _has_ttk = True
-        except Exception:
-            notebook = tk.Frame(dialog)
+        tab_view = UTabView(dialog.body)
+        tab_view.pack(fill=tk.BOTH, expand=True)
 
-        if _has_ttk:
-            manage_frame = ttk.Frame(notebook)
-            create_frame = ttk.Frame(notebook)
-            notebook.add(manage_frame, text=t('dialog.env_manager.packages'))
-            notebook.add(create_frame, text=t('dialog.env_manager.create'))
-        else:
-            manage_frame = tk.Frame(notebook)
-            create_frame = tk.Frame(notebook)
-
-        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        manage_frame = tab_view.add_tab('manage', t('dialog.env_manager.packages'))
+        create_frame = tab_view.add_tab('create', t('dialog.env_manager.create'))
 
         # ── Manage / Packages tab ──
         envs = self._env_manager.list_environments()
         if not envs:
-            tk.Label(manage_frame, text=t('dialog.env_manager.no_env'),
-                     wraplength=500).pack(padx=20, pady=40)
+            ULabel(manage_frame, text=t('dialog.env_manager.no_env'),
+                   variant='secondary').pack(padx=20, pady=40)
         else:
-            top = tk.Frame(manage_frame)
-            top.pack(fill=tk.X, padx=10, pady=5)
+            top = UFrame(manage_frame, variant='panel')
+            top.pack(fill=tk.X, padx=10, pady=(10, 5))
 
-            tk.Label(top, text='Environment:').pack(side=tk.LEFT, padx=5)
+            ULabel(top, text='Environment:', variant='secondary').pack(side=tk.LEFT, padx=(0, 5))
             env_names = list(envs.keys())
             current_name = self._env_manager.current_name or (env_names[0] if env_names else '')
             env_var = tk.StringVar(value=current_name if current_name in env_names else (env_names[0] if env_names else ''))
-            env_menu = tk.OptionMenu(top, env_var, *env_names)
-            env_menu.pack(side=tk.LEFT, padx=5)
+            env_combo = UComboBox(top, values=env_names, textvariable=env_var, select_first=False)
+            env_combo.pack(side=tk.LEFT, padx=5)
 
-            tk.Button(top, text=t('dialog.env_manager.refresh'),
-                      command=lambda: self._env_dialog_refresh(dialog)).pack(side=tk.RIGHT, padx=5)
+            UButton(top, text=t('dialog.env_manager.refresh'),
+                    command=lambda: self._env_dialog_refresh(dialog),
+                    variant='ghost', width=70, height=26).pack(side=tk.RIGHT, padx=5)
 
             # Packages list
-            list_frame = tk.Frame(manage_frame)
+            list_frame = UFrame(manage_frame, variant='panel')
             list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
-            cols = ('name', 'version')
-            try:
-                from tkinter import ttk as ttk2
-                tree = ttk2.Treeview(list_frame, columns=cols, show='headings', height=12)
-            except Exception:
-                tree = tk.Listbox(list_frame)
-                tree_packages = []
-
-            try:
-                tree.heading('name', text='Package')
-                tree.heading('version', text='Version')
-                tree.column('name', width=300)
-                tree.column('version', width=150)
-            except Exception:
-                pass
-
-            vsb = tk.Scrollbar(list_frame, orient=tk.VERTICAL, command=tree.yview)
-            tree.configure(yscrollcommand=vsb.set)
-            tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-            vsb.pack(side=tk.RIGHT, fill=tk.Y)
+            pkg_list = UListView(
+                list_frame,
+                columns=['Package', 'Version'],
+                column_widths={'Package': 300, 'Version': 150},
+            )
+            pkg_list.pack(fill=tk.BOTH, expand=True)
 
             def load_packages(*_):
-                for item in tree.get_children():
-                    tree.delete(item)
                 selected = env_var.get()
                 if selected in envs:
                     pkgs = self._env_manager.get_packages(selected)
-                    for name, ver in sorted(pkgs.items()):
-                        tree.insert('', tk.END, values=(name, ver))
+                    data = [{'Package': name, 'Version': ver}
+                            for name, ver in sorted(pkgs.items())]
+                    pkg_list.set_data(data)
+                else:
+                    pkg_list.clear()
 
             env_var.trace_add('write', load_packages)
 
-            btn_frame = tk.Frame(manage_frame)
+            btn_frame = UFrame(manage_frame, variant='panel')
             btn_frame.pack(fill=tk.X, padx=10, pady=5)
 
             def install_pkg():
+                PKPYPI_MIRROR = 'https://mirrors.tuna.tsinghua.edu.cn/pypi'
                 selected = env_var.get()
-                pkg = simpledialog.askstring(
-                    t('dialog.env_manager.install'),
-                    t('dialog.env_manager.install_prompt'),
-                    parent=dialog,
+
+                inst_dlg = UDialog(dialog, title=t('dialog.env_manager.install'),
+                                   width=600, height=480)
+
+                # Top: entry + search button
+                top_frame = UFrame(inst_dlg.body, variant='panel')
+                top_frame.pack(fill=tk.X, padx=10, pady=(10, 5))
+
+                pkg_var = tk.StringVar()
+                entry = UEntry(top_frame, textvariable=pkg_var, width=40)
+                entry.pack(side=tk.LEFT, padx=(0, 5))
+                entry.focus_set()
+
+                UButton(top_frame, text=t('dialog.env_manager.search'),
+                        command=lambda: do_search(), variant='secondary',
+                        width=70, height=26).pack(side=tk.LEFT, padx=5)
+                entry.bind('<Return>', lambda e: do_search())
+
+                # Search results container (always visible)
+                result_frame = tk.Frame(inst_dlg.body, bg=theme.BG_PANEL,
+                                        highlightbackground=theme.BG_TITLE,
+                                        highlightthickness=1)
+                result_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+                result_frame.pack_propagate(False)
+
+                search_list = UListView(
+                    result_frame,
+                    columns=['Name', 'Version', 'Summary'],
+                    column_widths={'Name': 180, 'Version': 70, 'Summary': 280},
                 )
-                if pkg:
-                    err = self._env_manager.install_package(pkg.strip(), selected)
+                search_list.pack(fill=tk.BOTH, expand=True)
+
+                def do_search():
+                    q = pkg_var.get().strip()
+                    if not q:
+                        return
+                    results = self._env_manager.search_packages_on_pypi(q)
+                    data = [{'Name': r['name'], 'Version': r['version'],
+                             'Summary': r['summary']} for r in results]
+                    search_list.set_data(data)
+
+                # Bottom buttons
+                btn_frame = UFrame(inst_dlg.body, variant='panel')
+                btn_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
+
+                def do_install():
+                    final_pkg = pkg_var.get().strip()
+                    if not final_pkg:
+                        sel = search_list.selected_value()
+                        if sel:
+                            final_pkg = sel.get('Name', '')
+                    if not final_pkg:
+                        return
+                    err = self._env_manager.install_package(final_pkg, selected, PKPYPI_MIRROR)
+                    inst_dlg.destroy()
                     if err:
-                        messagebox.showerror(
+                        message_box.showerror(
                             t('dialog.env_manager.install_failed', err=err),
                             err, parent=dialog,
                         )
                     else:
                         load_packages()
                         self._status_label.config(
-                            text=t('dialog.env_manager.install_success', pkg=pkg.strip())
+                            text=t('dialog.env_manager.install_success', pkg=final_pkg)
                         )
+
+                UButton(btn_frame, text=t('dialog.env_manager.search_install'),
+                        command=do_install, variant='primary',
+                        width=80, height=28).pack(side=tk.RIGHT, padx=5)
+                UButton(btn_frame, text=t('dialog.env_manager.close'),
+                        command=inst_dlg.destroy, variant='ghost',
+                        width=80, height=28).pack(side=tk.RIGHT, padx=5)
+
+                inst_dlg.wait_window()
 
             def uninstall_pkg():
                 selected = env_var.get()
-                try:
-                    sel = tree.selection()[0]
-                    pkg = tree.item(sel, 'values')[0]
-                except (IndexError, Exception):
+                sel = pkg_list.selected_value()
+                if sel is None:
                     return
-                if messagebox.askyesno(
+                pkg = sel.get('Package', '')
+                if not pkg:
+                    return
+                if message_box.askyesno(
                     t('dialog.env_manager.uninstall'),
                     t('dialog.env_manager.uninstall_confirm', pkg=pkg),
                     parent=dialog,
                 ):
                     err = self._env_manager.uninstall_package(pkg, selected)
                     if err:
-                        messagebox.showerror(
+                        message_box.showerror(
                             t('dialog.env_manager.uninstall_failed', err=err),
                             err, parent=dialog,
                         )
@@ -2789,41 +2808,43 @@ class CodeEditor:
                             text=t('dialog.env_manager.uninstall_success', pkg=pkg)
                         )
 
-            tk.Button(btn_frame, text=t('dialog.env_manager.install'),
-                      command=install_pkg).pack(side=tk.LEFT, padx=5)
-            tk.Button(btn_frame, text=t('dialog.env_manager.uninstall'),
-                      command=uninstall_pkg).pack(side=tk.LEFT, padx=5)
+            UButton(btn_frame, text=t('dialog.env_manager.install'),
+                    command=install_pkg, variant='primary', width=80, height=26).pack(side=tk.LEFT, padx=5)
+            UButton(btn_frame, text=t('dialog.env_manager.uninstall'),
+                    command=uninstall_pkg, variant='danger', width=80, height=26).pack(side=tk.LEFT, padx=5)
 
             load_packages()
 
         # ── Create tab ──
-        create_inner = tk.Frame(create_frame)
+        create_inner = UFrame(create_frame, variant='panel')
         create_inner.pack(padx=20, pady=20, fill=tk.X)
 
-        tk.Label(create_inner, text=t('dialog.env_manager.create_path')).grid(row=0, column=0, sticky=tk.W, pady=5)
+        ULabel(create_inner, text=t('dialog.env_manager.create_path'),
+               variant='secondary').grid(row=0, column=0, sticky=tk.W, pady=8)
         path_var = tk.StringVar(value=os.path.join(os.getcwd(), '.venv'))
-        path_entry = tk.Entry(create_inner, textvariable=path_var, width=50)
+        path_entry = UEntry(create_inner, textvariable=path_var, width=50)
         path_entry.grid(row=0, column=1, padx=10, pady=5)
-        tk.Button(create_inner, text='...',
-                  command=lambda: path_var.set(
-                      filedialog.askdirectory(
-                          title=t('dialog.env_manager.create_path'),
-                          initialdir=os.getcwd(),
-                          parent=dialog,
-                      ) or path_var.get()
-                  )).grid(row=0, column=2, pady=5)
+        UButton(create_inner, text='...', width=32, height=26,
+                command=lambda: path_var.set(
+                    filedialog.askdirectory(
+                        title=t('dialog.env_manager.create_path'),
+                        initialdir=os.getcwd(),
+                        parent=dialog,
+                    ) or path_var.get()
+                )).grid(row=0, column=2, pady=5)
 
-        tk.Label(create_inner, text=t('dialog.env_manager.create_python')).grid(row=1, column=0, sticky=tk.W, pady=5)
+        ULabel(create_inner, text=t('dialog.env_manager.create_python'),
+               variant='secondary').grid(row=1, column=0, sticky=tk.W, pady=8)
         py_var = tk.StringVar(value=sys.executable)
-        py_entry = tk.Entry(create_inner, textvariable=py_var, width=50)
+        py_entry = UEntry(create_inner, textvariable=py_var, width=50)
         py_entry.grid(row=1, column=1, padx=10, pady=5)
-        tk.Button(create_inner, text='...',
-                  command=lambda: py_var.set(
-                      filedialog.askopenfilename(
-                          title=t('dialog.env_manager.create_python'),
-                          parent=dialog,
-                      ) or py_var.get()
-                  )).grid(row=1, column=2, pady=5)
+        UButton(create_inner, text='...', width=32, height=26,
+                command=lambda: py_var.set(
+                    filedialog.askopenfilename(
+                        title=t('dialog.env_manager.create_python'),
+                        parent=dialog,
+                    ) or py_var.get()
+                )).grid(row=1, column=2, pady=5)
 
         def do_create():
             path = path_var.get().strip()
@@ -2832,12 +2853,12 @@ class CodeEditor:
                 return
             err = self._env_manager.create_venv(path, python_path=python or None)
             if err:
-                messagebox.showerror(
+                message_box.showerror(
                     t('dialog.env_manager.create_failed', err=err),
                     err, parent=dialog,
                 )
             else:
-                messagebox.showinfo(
+                message_box.showinfo(
                     t('dialog.title.env_manager'),
                     t('dialog.env_manager.create_success'),
                     parent=dialog,
@@ -2845,22 +2866,22 @@ class CodeEditor:
                 self._scan_environments()
                 dialog.destroy()
 
-        tk.Button(create_inner, text=t('dialog.env_manager.create_btn'),
-                  command=do_create, width=20).grid(row=2, column=0, columnspan=3, pady=20)
+        UButton(create_inner, text=t('dialog.env_manager.create_btn'),
+                command=do_create, variant='success', width=120, height=28
+                ).grid(row=2, column=0, columnspan=3, pady=20)
 
         # Bottom close button
-        close_frame = tk.Frame(dialog)
+        close_frame = UFrame(dialog.body, variant='panel')
         close_frame.pack(fill=tk.X, padx=10, pady=10)
-        tk.Button(close_frame, text=t('dialog.env_manager.close'),
-                  command=dialog.destroy, width=15).pack()
+        UButton(close_frame, text=t('dialog.env_manager.close'),
+                command=dialog.destroy, variant='ghost', width=100, height=28).pack()
 
-        if _has_ttk and create_tab:
-            notebook.select(create_frame)
+        if create_tab:
+            tab_view.select('create')
 
-        dialog.protocol('WM_DELETE_WINDOW', dialog.destroy)
         self.window.wait_window(dialog)
 
-    def _env_dialog_refresh(self, dialog: tk.Toplevel) -> None:
+    def _env_dialog_refresh(self, dialog: UDialog) -> None:
         self._scan_environments()
         dialog.destroy()
         self._show_env_manager_dialog()

@@ -7,7 +7,7 @@ import subprocess
 import sys
 import threading
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 
 @dataclass
@@ -250,14 +250,17 @@ class EnvironmentManager:
         env.packages = packages
         return packages
 
-    def install_package(self, package: str, name: Optional[str] = None) -> str:
+    def install_package(self, package: str, name: Optional[str] = None,
+                        mirror: str = '') -> str:
         env = self._get_env(name)
         if not env:
             return 'Environment not found'
         try:
+            cmd = [env.python_path, '-m', 'pip', 'install', package]
+            if mirror:
+                cmd.extend(['-i', mirror])
             r = subprocess.run(
-                [env.python_path, '-m', 'pip', 'install', package],
-                capture_output=True, text=True, timeout=120,
+                cmd, capture_output=True, text=True, timeout=120,
             )
             if r.returncode == 0:
                 env.packages = _list_packages(env.python_path)
@@ -285,6 +288,62 @@ class EnvironmentManager:
             return 'Uninstall timed out'
         except Exception as e:
             return str(e)
+
+    # ── search packages ─────────────────────────────────────────────
+
+    def search_packages_on_pypi(self, query: str) -> List[Dict[str, str]]:
+        """
+        Search PyPI for packages matching the query.
+        Uses the mirror's Simple Index API (PEP 503) to list all packages,
+        then filters client-side. Results are cached for the session.
+        Returns list of dicts with keys: name, version, summary.
+        """
+        try:
+            names = self._get_all_package_names()
+        except Exception:
+            return []
+        q = query.lower()
+        matching = [n for n in names if q in n.lower()]
+        matching.sort(key=lambda n: (0 if n.lower().startswith(q) else 1, n))
+        results: List[Dict[str, str]] = []
+        for name in matching[:50]:
+            ver, summary = '', ''
+            if len(results) < 15:
+                ver, summary = self._fetch_package_info(name)
+            results.append({
+                'name': name,
+                'version': ver,
+                'summary': summary[:200] if summary else '',
+            })
+        return results
+
+    _package_names_cache: Optional[List[str]] = None
+
+    def _get_all_package_names(self) -> List[str]:
+        if self._package_names_cache is not None:
+            return self._package_names_cache
+        import re, urllib.request
+        url = 'https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/'
+        req = urllib.request.Request(url)
+        req.add_header('User-Agent', 'PythonEditor/1.0')
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            html = resp.read().decode('utf-8', errors='replace')
+        names = re.findall(r'<a\s+href="[^"]*">([^<]+)</a>', html)
+        EnvironmentManager._package_names_cache = names
+        return names
+
+    def _fetch_package_info(self, name: str) -> tuple:
+        import urllib.request, json
+        try:
+            url = f'https://pypi.org/pypi/{name}/json'
+            req = urllib.request.Request(url)
+            req.add_header('User-Agent', 'PythonEditor/1.0')
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+            info = data.get('info', {})
+            return info.get('version', ''), info.get('summary', '')
+        except Exception:
+            return '', ''
 
     # ── create environment ────────────────────────────────────────────
 
