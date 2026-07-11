@@ -1416,7 +1416,9 @@ class CodeEditor:
                 self._suggestion_popup.hide()
             return
 
-        items = [CompletionItem(label=s.label, priority=s.priority, kind=s.kind) for s in suggestions[:20]]
+        max_suggestions = self._settings.global_settings.get('completion.max_suggestions', 20)
+        max_visible = self._settings.global_settings.get('completion.max_visible', 8)
+        items = [CompletionItem(label=s.label, priority=s.priority, kind=s.kind) for s in suggestions[:max_suggestions]]
         if self._suggestion_popup and self._suggestion_popup.winfo_exists():
             self._suggestion_popup.set_items(items)
             self._suggestion_popup.show(
@@ -1428,7 +1430,7 @@ class CodeEditor:
                 self._editor,
                 items=items,
                 on_select=self._on_suggestion_select,
-                max_visible=8,
+                max_visible=max_visible,
                 show_detail=False,
                 show_description=False,
             )

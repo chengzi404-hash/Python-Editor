@@ -163,6 +163,16 @@ GLOBAL_SPECS: tuple = (
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
+        key="completion.max_visible",
+        type=SettingValueType.INTEGER,
+        default=8,
+        label="候选条数",
+        description="下拉列表可见候选条数。",
+        min=3,
+        max=20,
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
         key="completion.auto_trigger",
         type=SettingValueType.BOOLEAN,
         default=True,
