@@ -184,10 +184,10 @@ class SideBar(UFrame):
         if self._active_card_id and self._active_card_id in self._cards:
             self._cards[self._active_card_id].pack_forget()
 
-        # 显示新卡片
+        # 显示新卡片到内容面板
         self._active_card_id = card_id
         if card_id in self._cards:
-            self._cards[card_id].pack(fill=tk.BOTH, expand=True)
+            self._cards[card_id].pack(in_=self._content_frame, fill=tk.BOTH, expand=True)
 
         self._activity_bar.set_active(card_id)
 

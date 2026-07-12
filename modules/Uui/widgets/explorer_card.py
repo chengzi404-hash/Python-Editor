@@ -39,6 +39,12 @@ class ExplorerCard(UFrame):
         header.pack(fill=tk.X)
         header.pack_propagate(False)
 
+        # 左侧 accent 条 —— 与其他卡片保持一致的视觉锚点
+        self._title_accent = tk.Frame(
+            header, bg=theme.TITLE_ACCENT, width=theme.TITLE_ACCENT_WIDTH,
+        )
+        self._title_accent.pack(side=tk.LEFT, fill=tk.Y)
+
         self._title_label = ULabel(
             header, text=f'  {self._title}',
             variant='secondary', bg=theme.BG_TITLE,
@@ -63,6 +69,8 @@ class ExplorerCard(UFrame):
         except tk.TclError:
             pass
         self._title_label.config(bg=theme.BG_TITLE, fg=theme.FG_SECONDARY)
+        if hasattr(self, '_title_accent'):
+            self._title_accent.config(bg=theme.TITLE_ACCENT)
 
 
 __all__ = ['ExplorerCard']

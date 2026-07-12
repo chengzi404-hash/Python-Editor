@@ -41,6 +41,10 @@ class Theme:
 
     PURPLE: str = '#bf5af2'
 
+    # 卡片标题栏左侧 accent 条(蓝色宽度 3px)
+    TITLE_ACCENT_WIDTH: int = 3
+    TITLE_ACCENT: str = '#0a84ff'
+
     TITLE_FONT: tuple = ('Comic Sans MS', 10)
     MENU_FONT: tuple = ('Arial', 10)
     LABEL_FONT: tuple = ('Arial', 10)
@@ -91,6 +95,8 @@ class LightTheme(Theme):
     BLUE_HOVER = '#1a80e0'
     BLUE_DARK = '#004a99'
 
+    # 与本主题 BLUE 同色
+    TITLE_ACCENT = '#0066cc'
 
 class SolarizedDarkTheme(Theme):
     name = 'Solarized Dark'
@@ -127,6 +133,9 @@ class SolarizedDarkTheme(Theme):
     BLUE = '#268bd2'
     BLUE_HOVER = '#369be2'
     BLUE_DARK = '#066ba2'
+
+    # 与本主题 BLUE 同色
+    TITLE_ACCENT = '#268bd2'
 
 
 _themes: List[Theme] = [DarkTheme(), LightTheme(), SolarizedDarkTheme()]
