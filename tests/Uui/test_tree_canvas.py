@@ -32,21 +32,6 @@ pytestmark = skip_without_tk
 
 
 @pytest.fixture
-def root():
-    """每个用例一个 Tk root, 用例结束自动销毁, 避免状态污染."""
-
-    r = tk.Tk()
-    r.withdraw()  # 不弹窗, 加快测试
-    try:
-        yield r
-    finally:
-        try:
-            r.destroy()
-        except tk.TclError:
-            pass
-
-
-@pytest.fixture
 def hooks() -> dict:
     """空的事件收集 dict — 多个 fixture 共享同一份 hooks 时合并用."""
 

@@ -1,6 +1,14 @@
-from __future__ import annotations
+"""针对 ``modules.suggestion.c.CSuggestionExpert`` 的测试。
 
-import pytest
+覆盖:
+
+* 基础接口(扩展名、``suggest`` 返回列表)
+* 标识符补全:C 关键字、内建函数 / NULL、预处理关键字、前缀过滤
+* 属性补全:``obj.`` 与 ``ptr->`` 语法、前缀过滤
+* 作用域内 struct / typedef 名称能出现在补全候选
+"""
+
+from __future__ import annotations
 
 from modules.suggestion.base import SuggestionBlock
 from modules.suggestion.c import CSuggestionExpert

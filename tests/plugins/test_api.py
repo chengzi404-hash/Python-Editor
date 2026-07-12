@@ -192,6 +192,3 @@ class TestPluginContextAPI:
     def test_on_unregister_validates_callable(self):
         with pytest.raises(TypeError):
             self.ctx.on_unregister("not callable")
-
-
-__all__ = []

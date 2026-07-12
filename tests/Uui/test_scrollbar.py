@@ -32,30 +32,6 @@ pytestmark = skip_without_tk
 
 
 # ----------------------------------------------------------------------
-# Fixtures
-# ----------------------------------------------------------------------
-
-
-@pytest.fixture
-def root():
-    """带 withdraw 的 root — 用于不需要 ismapped 行为的纯属性测试.
-
-    测试模块内自定义避免和 :file:`conftest.py` 的 ``root`` 冲突; 这
-    里也用 withdraw, 速度比 deiconify + 1x1 offscreen 略快。
-    """
-
-    r = tk.Tk()
-    r.withdraw()
-    try:
-        yield r
-    finally:
-        try:
-            r.destroy()
-        except tk.TclError:
-            pass
-
-
-# ----------------------------------------------------------------------
 # bg 选项
 # ----------------------------------------------------------------------
 
