@@ -12,3 +12,101 @@ dependencies = []
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["modules*", "utils*"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ruff: 静态检查 + import 排序 (替代 flake8 + isort + pyupgrade)
+# ─────────────────────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [
+    ".venv",
+    "build",
+    "dist",
+    "cache",
+    "logs",
+    "release",
+    "data",
+    ".docs",
+]
+
+[tool.ruff.lint]
+# 选择常用规则集: pycodestyle / Pyflakes / pyupgrade / pep8-naming /
+# flake8-bugbear / flake8-comprehensions / flake8-simplify / isort
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "E501",   # line length — 由 black 负责
+    "B008",   # function call in default argument (Tk 回调模式常见)
+    "B904",   # raise ... from err — 与 E 冲突, 保留宽松
+    "SIM108", # use ternary operator — 可读性因场景而异
+    "SIM117", # nested with statements — 多上下文管理器写法保留
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 测试目录允许未使用导入/宽松命名
+"tests/**" = ["F401", "F811", "N802", "N803"]
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["modules", "utils"]
+combine-as-imports = true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# mypy: 静态类型检查
+# ─────────────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+ignore_missing_imports = true
+plugins = []
+exclude = [
+    ".venv",
+    "build",
+    "dist",
+    "cache",
+    "logs",
+    "release",
+    "data",
+    "tests/",
+]
+# mypy 在 Tkinter 项目上保持宽松: 不强制全部 def 都标类型,
+# 业务层可渐进式加 annotation; 缺类型不阻塞 CI, 仅对明显错误 (any 返回 / 未使用 ignore) 报警。
+
+# ─────────────────────────────────────────────────────────────────────────────
+# black: 代码格式校验
+# ─────────────────────────────────────────────────────────────────────────────
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+include = '\.pyi?$'
+extend-exclude = '''
+(
+    \.venv
+  | /build
+  | /dist
+  | /cache
+  | /logs
+  | /release
+  | /data
+  | /\.docs
+)
+'''
