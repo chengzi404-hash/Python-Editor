@@ -169,10 +169,9 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         widget.grid(row=row, column=1, sticky='ew', padx=4, pady=4)
         self._widgets[spec.key] = widget
 
-        # 关键修复:为说明列设置明确的字符宽度上限 + 像素级 wraplength,
-        # 这样长说明会按 240px 自动换行,而不会按"最长一行"的像素宽度
-        # 把整列撑开、把输入框挤没。``anchor='w'`` + ``justify='left'`` 保证
-        # 多行文本左上对齐;``sticky='nw'`` 让单元格纵向也顶格。
+        if spec.type is SettingValueType.BUTTON:
+            return
+
         desc = ULabel(
             self,
             text=spec.description or '',
@@ -203,6 +202,16 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
             widget._command = lambda v, k=spec.key: self._user_changed(k, v)  # type: ignore[attr-defined]
             return widget
 
+        if spec.type is SettingValueType.BUTTON:
+            widget = UButton(
+                self,
+                text=spec.label or spec.key,
+                variant='primary',
+                command=lambda k=spec.key: self._on_button(k),
+                width=200, height=28,
+            )
+            return widget
+
         var = tk.StringVar(value=self._stringify(current))
         widget = UEntry(self, textvariable=var, width=24)
         var.trace_add('write', lambda *a, k=spec.key, v=var: self._user_changed(k, v.get()))
@@ -222,6 +231,13 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
             return ", ".join(str(x) for x in value)
         return "" if value is None else str(value)
 
+    def _on_button(self, key: str) -> None:
+        if self._on_change is not None:
+            try:
+                self._on_change(key, None)
+            except Exception:
+                pass
+
     def _user_changed(self, key: str, value: Any) -> None:
         try:
             coerced = self._coerce(key, value)
@@ -238,6 +254,8 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
     def _coerce(self, key: str, value: Any) -> Any:
         spec = self._settings.spec(key)
         if spec is None:
+            return value
+        if spec.type is SettingValueType.BUTTON:
             return value
         if spec.type is SettingValueType.INTEGER:
             if value == "" or value is None:
@@ -261,6 +279,9 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
 
         count = 0
         for key, value in self._working.items():
+            spec = self._settings.spec(key)
+            if spec is not None and spec.type is SettingValueType.BUTTON:
+                continue
             try:
                 self._settings.set(key, value)
                 count += 1
@@ -285,6 +306,8 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         spec = self._settings.spec(key)
         widget = self._widgets.get(key)
         if spec is None or widget is None:
+            return
+        if spec.type is SettingValueType.BUTTON:
             return
         value = self._current_value(spec)
         if spec.type is SettingValueType.BOOLEAN:
@@ -342,6 +365,7 @@ class UProjectSettingsWindow:
         title: str = "Settings",
         parent: Optional[tk.Misc] = None,
         geometry: str = "640x520",
+        on_change: Optional[Callable[[str, Any], None]] = None,
     ) -> None:
         if not _UUI_AVAILABLE:
             raise RuntimeError(
@@ -351,6 +375,7 @@ class UProjectSettingsWindow:
         self._parent = parent
         self._geometry = geometry
         self._title = title
+        self._on_change = on_change
 
         self._root = tk.Toplevel(parent) if parent is not None else tk.Tk()
         self._root.title(title)
@@ -514,22 +539,22 @@ class UProjectSettingsWindow:
         if settings is None:
             return
 
+        kwargs: Dict[str, Any] = {}
+        if self._on_change is not None:
+            kwargs['on_change'] = self._on_change
+
         if selection.keys:
-            # 叶子节点: 精确到单个 key
             panel = USettingPanel(
                 self._body, settings=settings,
-                show_only_keys=list(selection.keys),
+                show_only_keys=list(selection.keys), **kwargs,
             )
         elif selection.group_key is not None:
-            # 分组节点: 走 filter_group_keys, 保留 USettingPanel 的
-            # "分组标题 + 多个设置行"渲染风格
             panel = USettingPanel(
                 self._body, settings=settings,
-                filter_group_keys=[selection.group_key],
+                filter_group_keys=[selection.group_key], **kwargs,
             )
         else:
-            # scope 根: 渲染该 scope 全部
-            panel = USettingPanel(self._body, settings=settings)
+            panel = USettingPanel(self._body, settings=settings, **kwargs)
 
         panel.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         self._panel = panel

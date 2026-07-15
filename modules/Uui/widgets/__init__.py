@@ -1,4 +1,5 @@
 from . import theme
+from . import ui_theme_marketplace
 from .frame import UFrame
 from .label import ULabel
 from .button import UButton
@@ -29,6 +30,7 @@ from .git_card import GitCard
 
 __all__ = [
     'theme',
+    'ui_theme_marketplace',
     'UFrame', 'ULabel', 'UButton', 'UEntry', 'UText',
     'UCheckButton', 'URadioButton', 'UComboBox',
     'UProgressBar', 'USlider', 'UScrollBar',

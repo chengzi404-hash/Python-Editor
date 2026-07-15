@@ -2,21 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from modules.highlighter import HighlightBlock, HighlightToken, CcppHighlighterExpert
-
-
-def _token_types(result: HighlightBlock) -> list[str]:
-    assert result.tokens is not None
-    return [t.type for t in result.tokens]
-
-
-def _tokens_of_type(result: HighlightBlock, type_: str) -> list[HighlightToken]:
-    assert result.tokens is not None
-    return [t for t in result.tokens if t.type == type_]
-
-
-def _snippet(token: HighlightToken, code: str) -> str:
-    return code[token.start:token.end]
+from modules.highlighter import CcppHighlighterExpert, HighlightBlock, HighlightToken
+from tests.highlighter.conftest import snippet, token_types, tokens_of_type
 
 
 class TestCcppHighlighterExpertBasics:
@@ -52,7 +39,7 @@ class TestKeywordAndBuiltin:
     def test_keyword_detection(self, keyword: str) -> None:
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=keyword))
-        assert _token_types(result) == ["keyword"]
+        assert token_types(result) == ["keyword"]
 
     @pytest.mark.parametrize(
         "builtin",
@@ -61,17 +48,17 @@ class TestKeywordAndBuiltin:
     def test_builtin_detection(self, builtin: str) -> None:
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=builtin))
-        assert _token_types(result) == ["builtin"]
+        assert token_types(result) == ["builtin"]
 
     def test_identifier_detection(self) -> None:
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code="my_variable"))
-        assert _token_types(result) == ["identifier"]
+        assert token_types(result) == ["identifier"]
 
     def test_keyword_takes_precedence_over_builtin(self) -> None:
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code="sizeof"))
-        assert _token_types(result) == ["keyword"]
+        assert token_types(result) == ["keyword"]
 
 
 class TestStructAndClass:
@@ -79,7 +66,7 @@ class TestStructAndClass:
         code = "struct Point { int x; };"
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        kinds = _token_types(result)
+        kinds = token_types(result)
         assert kinds[0] == "keyword"
         assert "struct" in kinds
 
@@ -87,7 +74,7 @@ class TestStructAndClass:
         code = "class Widget { public: int id; };"
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        kinds = _token_types(result)
+        kinds = token_types(result)
         assert kinds[0] == "keyword"
         assert "class" in kinds
 
@@ -104,9 +91,9 @@ class TestString:
     def test_string_variants(self, src: str, expected_text: str) -> None:
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=src))
-        tokens = _tokens_of_type(result, "string")
+        tokens = tokens_of_type(result, "string")
         assert len(tokens) == 1
-        assert _snippet(tokens[0], src) == expected_text
+        assert snippet(tokens[0], src) == expected_text
 
 
 class TestComment:
@@ -114,33 +101,33 @@ class TestComment:
         code = "// this is a comment\n"
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        comments = _tokens_of_type(result, "comment")
+        comments = tokens_of_type(result, "comment")
         assert len(comments) == 1
-        assert _snippet(comments[0], code) == "// this is a comment"
+        assert snippet(comments[0], code) == "// this is a comment"
 
     def test_multiline_comment(self) -> None:
         code = "/* block comment */\n"
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        comments = _tokens_of_type(result, "comment")
+        comments = tokens_of_type(result, "comment")
         assert len(comments) == 1
-        assert _snippet(comments[0], code) == "/* block comment */"
+        assert snippet(comments[0], code) == "/* block comment */"
 
     def test_multiline_comment_spans_lines(self) -> None:
         code = "/* line1\n   line2 */\n"
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        comments = _tokens_of_type(result, "comment")
+        comments = tokens_of_type(result, "comment")
         assert len(comments) == 1
-        assert _snippet(comments[0], code) == "/* line1\n   line2 */"
+        assert snippet(comments[0], code) == "/* line1\n   line2 */"
 
     def test_inline_comment(self) -> None:
         code = "int x = 1; // comment\n"
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        comments = _tokens_of_type(result, "comment")
+        comments = tokens_of_type(result, "comment")
         assert len(comments) == 1
-        assert _snippet(comments[0], code).startswith("//")
+        assert snippet(comments[0], code).startswith("//")
 
 
 class TestPreprocessor:
@@ -148,33 +135,33 @@ class TestPreprocessor:
         code = '#include <stdio.h>\n'
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        pp = _tokens_of_type(result, "preprocessor")
+        pp = tokens_of_type(result, "preprocessor")
         assert len(pp) == 1
-        assert _snippet(pp[0], code) == '#include <stdio.h>'
+        assert snippet(pp[0], code) == '#include <stdio.h>'
 
     def test_define(self) -> None:
         code = '#define MAX 100\n'
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        pp = _tokens_of_type(result, "preprocessor")
+        pp = tokens_of_type(result, "preprocessor")
         assert len(pp) == 1
-        assert _snippet(pp[0], code) == '#define MAX 100'
+        assert snippet(pp[0], code) == '#define MAX 100'
 
     def test_ifdef(self) -> None:
         code = '#ifdef DEBUG\n'
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        pp = _tokens_of_type(result, "preprocessor")
+        pp = tokens_of_type(result, "preprocessor")
         assert len(pp) == 1
-        assert _snippet(pp[0], code) == '#ifdef DEBUG'
+        assert snippet(pp[0], code) == '#ifdef DEBUG'
 
     def test_pragma(self) -> None:
         code = '#pragma once\n'
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        pp = _tokens_of_type(result, "preprocessor")
+        pp = tokens_of_type(result, "preprocessor")
         assert len(pp) == 1
-        assert _snippet(pp[0], code) == '#pragma once'
+        assert snippet(pp[0], code) == '#pragma once'
 
 
 class TestNumber:
@@ -185,9 +172,9 @@ class TestNumber:
     def test_number_variants(self, src: str) -> None:
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=src))
-        numbers = _tokens_of_type(result, "number")
+        numbers = tokens_of_type(result, "number")
         assert len(numbers) == 1
-        assert _snippet(numbers[0], src) == src
+        assert snippet(numbers[0], src) == src
 
 
 class TestOperatorAndPunctuation:
@@ -199,9 +186,9 @@ class TestOperatorAndPunctuation:
     def test_basic_operators(self, op: str) -> None:
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=op))
-        operators = _tokens_of_type(result, "operator")
+        operators = tokens_of_type(result, "operator")
         assert len(operators) == 1
-        assert _snippet(operators[0], op) == op
+        assert snippet(operators[0], op) == op
 
     @pytest.mark.parametrize(
         "punct",
@@ -210,9 +197,9 @@ class TestOperatorAndPunctuation:
     def test_punctuation(self, punct: str) -> None:
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=punct))
-        tokens = _tokens_of_type(result, "punctuation")
+        tokens = tokens_of_type(result, "punctuation")
         assert len(tokens) == 1
-        assert _snippet(tokens[0], punct) == punct
+        assert snippet(tokens[0], punct) == punct
 
 
 class TestEndToEnd:
@@ -224,7 +211,7 @@ class TestEndToEnd:
         )
         expert = CcppHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        kinds = _token_types(result)
+        kinds = token_types(result)
         for expected in ("keyword", "identifier", "punctuation", "operator"):
             assert expected in kinds, f"missing token type: {expected}"
 

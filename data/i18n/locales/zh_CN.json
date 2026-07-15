@@ -37,6 +37,10 @@
 
   "menu.settings": "设置(&S)",
   "menu.settings.theme": "主题",
+  "menu.settings.theme_marketplace": "从 Marketplace 获取...",
+  "menu.settings.highlight_theme": "高亮主题",
+  "menu.settings.highlight_theme_marketplace": "从 Marketplace 获取...",
+  "menu.settings.language_marketplace": "从 Marketplace 获取...",
   "menu.settings.font": "字体",
   "menu.settings.font_size": "字号",
   "menu.settings.tab_width": "Tab 宽度",
@@ -63,6 +67,7 @@
 
   "menu.plugins": "插件(&P)",
   "menu.plugins.manage": "管理插件...",
+  "menu.plugins.marketplace": "从 Marketplace 获取...",
   "menu.plugins.rescan": "重新扫描插件目录",
   "menu.plugins.none": "(尚未加载任何插件)",
   "menu.plugins.empty": "(空)",
@@ -70,7 +75,7 @@
   "menu.language.zh_CN": "简体中文",
   "menu.language.en_US": "English",
 
-  "panel.output": "  Output",
+  "panel.output": "  输出",
 
   "status.ready": "就绪",
   "status.loading": "加载中: {name} ({size})",
@@ -82,6 +87,7 @@
   "status.saved": "已保存: {name}",
   "status.theme": "主题: {name}",
   "status.theme_error": "主题错误: {err}",
+  "status.highlight_theme": "高亮主题: {name}",
   "status.font": "字体: {name}",
   "status.font_size": "字号: {n}",
   "status.checking": "正在检查...",
@@ -144,6 +150,10 @@
   "dialog.title.unsaved_exit": "未保存",
   "dialog.title.unsaved_discard": "未保存",
   "dialog.title.large_file": "大文件",
+  "dialog.title.highlight_theme_marketplace": "高亮主题市场",
+  "dialog.title.ui_theme_marketplace": "界面主题市场",
+  "dialog.title.plugin_marketplace": "插件市场",
+  "dialog.title.language_marketplace": "语言市场",
   "dialog.title.save_failed": "保存失败",
   "dialog.title.open_failed": "打开失败",
   "dialog.title.read_failed": "读取失败",
@@ -164,6 +174,14 @@
 
   "dialog.unsaved_exit.message": "有未保存的修改,确认退出?",
   "dialog.unsaved_discard.message": "丢弃当前修改?",
+  "dialog.highlight_theme_marketplace.no_providers": "尚未注册任何 Marketplace 提供者。",
+  "dialog.highlight_theme_marketplace.placeholder": "Marketplace 功能预留——后续版本将支持在线浏览和下载更多高亮主题。\n\n当前已内置 3 款主题: Default Dark / Default Light / Solarized Dark。",
+  "dialog.ui_theme_marketplace.no_providers": "尚未注册任何界面主题 Marketplace 提供者。",
+  "dialog.ui_theme_marketplace.placeholder": "界面主题市场功能预留——后续版本将支持在线浏览和下载更多界面主题。\n\n当前已内置 3 款界面主题: Dark / Light / Solarized Dark。",
+  "dialog.plugin_marketplace.no_providers": "尚未注册任何插件 Marketplace 提供者。",
+  "dialog.plugin_marketplace.placeholder": "插件市场功能预留——后续版本将支持在线浏览和下载更多插件。\n\n目前插件可通过以下路径手动安装:\n• 全局: ~/.python-editor/plugins/<id>/__init__.py\n• 项目: <project_root>/plugins/<id>/__init__.py",
+  "dialog.language_marketplace.no_providers": "尚未注册任何语言市场提供者。",
+  "dialog.language_marketplace.placeholder": "语言市场功能预留——后续版本将支持在线浏览和下载更多语言包。\n\n当前已内置 2 种语言: 简体中文 / English",
   "dialog.large_file.message": "文件大小 {size} 已超过阈值 {threshold}。\n\n• 将分块流式加载以避免界面冻结\n• 已临时禁用语法高亮和代码建议, 以保证响应速度\n• 加载完成后会自动恢复(下次打开小文件即可)",
   "dialog.toggle_comment.unsupported": "当前语言 {lang} 的注释切换未实现",
   "dialog.goto_definition.not_implemented": "跳转到定义功能尚未实现",
@@ -267,8 +285,8 @@
   "settings.msg.reset.confirm.title": "恢复默认",
   "settings.msg.reset.confirm.body": "确认将当前作用域的全部自定义值清除?",
 
-  "file_dialog.lang_filter": "{lang} files",
-  "file_dialog.all_files": "All files",
+  "file_dialog.lang_filter": "{lang} 文件",
+  "file_dialog.all_files": "所有文件",
 
   "settings.label.applied": "已写入 {count} 项设置",
   "settings.label.saved": "设置已落盘",

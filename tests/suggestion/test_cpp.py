@@ -1,6 +1,15 @@
-from __future__ import annotations
+"""针对 ``modules.suggestion.cpp.CppSuggestionExpert`` 的测试。
 
-import pytest
+覆盖:
+
+* 基础接口(扩展名、``suggest`` 返回列表)
+* 标识符补全:C++ 关键字、内建 (``printf`` / ``vector`` / ...)、前缀过滤
+* 属性补全:``obj.`` / ``ptr->``、前缀过滤
+* 作用域补全:``std::`` 后列出 ``cout`` / ``cin`` / ``vector`` 等
+* 作用域内 namespace / enum class 名称能出现在补全候选
+"""
+
+from __future__ import annotations
 
 from modules.suggestion.base import SuggestionBlock
 from modules.suggestion.cpp import CppSuggestionExpert

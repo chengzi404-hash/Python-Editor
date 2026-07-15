@@ -12,24 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from modules.highlighter import HighlightBlock, HighlightToken, PythonHighlighterExpert
-
-
-
-
-def _token_types(result: HighlightBlock) -> list[str]:
-    """返回 token 类型列表(便于顺序无关断言)。"""
-    assert result.tokens is not None
-    return [t.type for t in result.tokens]
-
-
-def _tokens_of_type(result: HighlightBlock, type_: str) -> list[HighlightToken]:
-    assert result.tokens is not None
-    return [t for t in result.tokens if t.type == type_]
-
-
-def _snippet(token: HighlightToken, code: str) -> str:
-    return code[token.start:token.end]
+from modules.highlighter import HighlightBlock, PythonHighlighterExpert
+from tests.highlighter.conftest import snippet, token_types, tokens_of_type
 
 
 
@@ -71,7 +55,7 @@ class TestKeywordAndBuiltin:
     def test_keyword_detection(self, keyword: str) -> None:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=keyword))
-        assert _token_types(result) == ["keyword"]
+        assert token_types(result) == ["keyword"]
 
     @pytest.mark.parametrize(
         "builtin",
@@ -80,18 +64,18 @@ class TestKeywordAndBuiltin:
     def test_builtin_detection(self, builtin: str) -> None:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=builtin))
-        assert _token_types(result) == ["builtin"]
+        assert token_types(result) == ["builtin"]
 
     def test_identifier_detection(self) -> None:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code="my_variable"))
-        assert _token_types(result) == ["identifier"]
+        assert token_types(result) == ["identifier"]
 
     def test_keyword_takes_precedence_over_builtin(self) -> None:
         """``type`` 既在关键字列表中也在内建名集合中,关键字优先。"""
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code="type"))
-        assert _token_types(result) == ["keyword"]
+        assert token_types(result) == ["keyword"]
 
 
 
@@ -102,19 +86,19 @@ class TestDefAndClass:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
 
-        kinds = _token_types(result)
+        kinds = token_types(result)
         assert kinds[0] == "keyword"  # def
         assert kinds[1] == "function"  # greet
 
-        function_tokens = _tokens_of_type(result, "function")
-        assert function_tokens and _snippet(function_tokens[0], code) == "greet"
+        function_tokens = tokens_of_type(result, "function")
+        assert function_tokens and snippet(function_tokens[0], code) == "greet"
 
     def test_class_marks_class(self) -> None:
         code = "class Greeter:\n    pass\n"
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
 
-        kinds = _token_types(result)
+        kinds = token_types(result)
         assert kinds[0] == "keyword"  # class
         assert kinds[1] == "class"  # Greeter
 
@@ -124,7 +108,7 @@ class TestDefAndClass:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
 
-        kinds = _token_types(result)
+        kinds = token_types(result)
         assert "function" in kinds
         assert kinds.index("keyword") < kinds.index("function")
 
@@ -134,7 +118,7 @@ class TestDefAndClass:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
 
-        kinds = _token_types(result)
+        kinds = token_types(result)
         assert "decorator" in kinds
         assert "function" in kinds
 
@@ -149,26 +133,26 @@ class TestDefAndClass:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
 
-        kinds = _token_types(result)
+        kinds = token_types(result)
         assert "function" not in kinds
-        ids = _tokens_of_type(result, "identifier")
-        assert ids and _snippet(ids[0], code) == "foo"
+        ids = tokens_of_type(result, "identifier")
+        assert ids and snippet(ids[0], code) == "foo"
 
     def test_decorator_detection(self) -> None:
         code = "@property\n"
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        decorators = _tokens_of_type(result, "decorator")
+        decorators = tokens_of_type(result, "decorator")
         assert len(decorators) == 1
-        assert _snippet(decorators[0], code) == "@property"
+        assert snippet(decorators[0], code) == "@property"
 
     def test_dotted_decorator(self) -> None:
         code = "@module.decorator\n"
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        decorators = _tokens_of_type(result, "decorator")
+        decorators = tokens_of_type(result, "decorator")
         assert len(decorators) == 1
-        assert _snippet(decorators[0], code) == "@module.decorator"
+        assert snippet(decorators[0], code) == "@module.decorator"
 
 
 
@@ -191,16 +175,16 @@ class TestString:
     def test_string_variants(self, src: str, expected_text: str) -> None:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=src))
-        tokens = _tokens_of_type(result, "string")
+        tokens = tokens_of_type(result, "string")
         assert len(tokens) == 1
-        assert _snippet(tokens[0], src) == expected_text
+        assert snippet(tokens[0], src) == expected_text
 
     def test_string_does_not_break_comment(self) -> None:
         """字符串后的注释应被独立标记为 comment。"""
         code = '"hi" # comment\n'
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        kinds = _token_types(result)
+        kinds = token_types(result)
         assert "string" in kinds
         assert "comment" in kinds
 
@@ -212,17 +196,17 @@ class TestComment:
         code = "# this is a comment\n"
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        comments = _tokens_of_type(result, "comment")
+        comments = tokens_of_type(result, "comment")
         assert len(comments) == 1
-        assert _snippet(comments[0], code) == "# this is a comment"
+        assert snippet(comments[0], code) == "# this is a comment"
 
     def test_inline_comment(self) -> None:
         code = "x = 1  # comment\n"
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        comments = _tokens_of_type(result, "comment")
+        comments = tokens_of_type(result, "comment")
         assert len(comments) == 1
-        assert _snippet(comments[0], code).startswith("#")
+        assert snippet(comments[0], code).startswith("#")
 
 
 
@@ -245,17 +229,17 @@ class TestNumber:
     def test_number_variants(self, src: str) -> None:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=src))
-        numbers = _tokens_of_type(result, "number")
+        numbers = tokens_of_type(result, "number")
         assert len(numbers) == 1
-        assert _snippet(numbers[0], src) == src
+        assert snippet(numbers[0], src) == src
 
     def test_number_with_underscore(self) -> None:
         """当前正则不支持下划线,故 ``1_000_000`` 只会匹配到 ``1``。"""
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code="1_000_000"))
-        numbers = _tokens_of_type(result, "number")
+        numbers = tokens_of_type(result, "number")
         assert len(numbers) == 1
-        assert _snippet(numbers[0], "1_000_000") == "1"
+        assert snippet(numbers[0], "1_000_000") == "1"
 
 
 
@@ -269,14 +253,14 @@ class TestOperatorAndPunctuation:
     def test_basic_operators(self, op: str) -> None:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=op))
-        operators = _tokens_of_type(result, "operator")
+        operators = tokens_of_type(result, "operator")
         assert len(operators) == 1
-        assert _snippet(operators[0], op) == op
+        assert snippet(operators[0], op) == op
 
     def test_arrow_operator(self) -> None:
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code="->"))
-        assert _token_types(result) == ["operator"]
+        assert token_types(result) == ["operator"]
 
     @pytest.mark.parametrize(
         "punct",
@@ -286,15 +270,15 @@ class TestOperatorAndPunctuation:
         """``-`` 因为也匹配运算符,单独测试;此处只测真正的标点。"""
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=punct))
-        tokens = _tokens_of_type(result, "punctuation")
+        tokens = tokens_of_type(result, "punctuation")
         assert len(tokens) == 1
-        assert _snippet(tokens[0], punct) == punct
+        assert snippet(tokens[0], punct) == punct
 
     def test_minus_is_operator(self) -> None:
         """``-`` 因正则顺序优先匹配 operator。"""
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code="-"))
-        assert _token_types(result) == ["operator"]
+        assert token_types(result) == ["operator"]
 
 
 
@@ -309,17 +293,17 @@ class TestEndToEnd:
         )
         expert = PythonHighlighterExpert()
         result = expert.highlight(HighlightBlock(code=code))
-        kinds = _token_types(result)
+        kinds = token_types(result)
 
         for expected in ("keyword", "function", "identifier", "string", "punctuation", "operator"):
             assert expected in kinds, f"missing token type: {expected}"
 
-        funcs = _tokens_of_type(result, "function")
-        assert funcs and _snippet(funcs[0], code) == "greet"
+        funcs = tokens_of_type(result, "function")
+        assert funcs and snippet(funcs[0], code) == "greet"
 
-        strings = _tokens_of_type(result, "string")
-        assert any(_snippet(t, code).startswith('"""') for t in strings)
-        assert any(_snippet(t, code).startswith('f"') for t in strings)
+        strings = tokens_of_type(result, "string")
+        assert any(snippet(t, code).startswith('"""') for t in strings)
+        assert any(snippet(t, code).startswith('f"') for t in strings)
 
     def test_tokens_are_non_overlapping_and_ordered(self) -> None:
         """所有 token 必须按 ``start`` 升序排列,且区间互不重叠。"""

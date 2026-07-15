@@ -35,6 +35,23 @@ GLOBAL_SPECS: tuple = (
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
+        key="ui.highlight_theme",
+        type=SettingValueType.CHOICE,
+        default="Default Dark",
+        label="代码高亮主题",
+        description="语法高亮配色方案。",
+        choices=("Default Dark", "Default Light", "Solarized Dark"),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ui.highlight_theme_marketplace",
+        type=SettingValueType.BUTTON,
+        default=None,
+        label="浏览高亮主题市场...",
+        description="",
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
         key="ui.font_family",
         type=SettingValueType.STRING,
         default="Consolas",
@@ -95,6 +112,14 @@ GLOBAL_SPECS: tuple = (
         description="空闲等待毫秒。",
         min=100,
         max=60000,
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="editor.auto_save_format",
+        type=SettingValueType.STRING,
+        default="{unix.seconds}",
+        label="自动保存文件名格式",
+        description="未命名文件自动保存时的文件名格式。可用字段: {year} {month} {day} {hour} {minute} {second} {unix.seconds} {unix.float}",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
@@ -180,6 +205,21 @@ GLOBAL_SPECS: tuple = (
         description="键入自动触发。",
         scope=SettingsScope.GLOBAL,
     ),
+    SettingSpec(
+        key="completion.min_chars_before_trigger",
+        type=SettingValueType.INTEGER,
+        default=1,
+        label="触发补全的最小连续字符数",
+        description=(
+            "连续输入不少于该字符数后,等待建议延迟才弹出建议窗口;"
+            "在停顿、移动光标或非字符按键时会重置计数。"
+            "默认 1:每次输入字符都会按延迟触发;设为更大的值可延迟弹出。"
+            "设为 0 禁用自动弹窗(只能通过 Ctrl+Space 手动触发)。"
+        ),
+        min=0,
+        max=20,
+        scope=SettingsScope.GLOBAL,
+    ),
 
     SettingSpec(
         key="checker.run_on_open",
@@ -256,6 +296,14 @@ GLOBAL_SPECS: tuple = (
         choices=tuple(AVAILABLE_LANGUAGES),
         scope=SettingsScope.GLOBAL,
     ),
+    SettingSpec(
+        key="i18n.language_marketplace",
+        type=SettingValueType.BUTTON,
+        default=None,
+        label="浏览语言市场...",
+        description="",
+        scope=SettingsScope.GLOBAL,
+    ),
 
     # ── 日志 ────────────────────────────────────────────────────────────
     SettingSpec(
@@ -309,6 +357,16 @@ GLOBAL_SPECS: tuple = (
         description="轮转时保留的旧日志文件数量。",
         min=1,
         max=100,
+        scope=SettingsScope.GLOBAL,
+    ),
+
+    # ── 插件 ────────────────────────────────────────────────────────────
+    SettingSpec(
+        key="plugins.marketplace",
+        type=SettingValueType.BUTTON,
+        default=None,
+        label="浏览插件市场...",
+        description="",
         scope=SettingsScope.GLOBAL,
     ),
 )
