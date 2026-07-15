@@ -1,15 +1,48 @@
-"""pytest 全局配置。
-
-将项目根目录加入 ``sys.path``,使得 ``import modules.xxx`` 能正常解析。
-同时关闭 ``modules`` 子包中以 ``__init__.py`` 为入口的可选依赖(如 flake8、pyright)
-对测试的副作用。
-"""
-
-from __future__ import annotations
-
+import pytest
+import tempfile
 import os
-import sys
+import shutil
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+
+@pytest.fixture
+def temp_dir():
+    """Create a temporary directory for tests."""
+    tmp = tempfile.mkdtemp()
+    yield tmp
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+@pytest.fixture
+def sample_python_file(temp_dir):
+    """Create a sample Python file for testing."""
+    path = os.path.join(temp_dir, "sample.py")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("def hello():\n    print('Hello, World!')\n")
+    return path
+
+
+@pytest.fixture
+def sample_syntax_error_file(temp_dir):
+    """Create a Python file with syntax error."""
+    path = os.path.join(temp_dir, "error.py")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("def hello(\n    print('Hello')\n")
+    return path
+
+
+@pytest.fixture
+def sample_c_file(temp_dir):
+    """Create a sample C file for testing."""
+    path = os.path.join(temp_dir, "sample.c")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("#include <stdio.h>\n\nint main() {\n    printf(\"Hello\\n\");\n    return 0;\n}\n")
+    return path
+
+
+@pytest.fixture
+def sample_cpp_file(temp_dir):
+    """Create a sample C++ file for testing."""
+    path = os.path.join(temp_dir, "sample.cpp")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("#include <iostream>\n\nint main() {\n    std::cout << \"Hello\" << std::endl;\n    return 0;\n}\n")
+    return path

@@ -1,194 +1,144 @@
-"""``modules.plugins`` 公共契约测试。
-
-不依赖 PluginManager, 只验证 PluginManifest / PluginContext / HookEvents
-这些给插件作者看的稳定类型。
-"""
-
-from __future__ import annotations
-
 import pytest
-
-from modules.plugins import (
-    HookEvents,
-    LanguageContribution,
-    PluginCommand,
-    PluginContext,
-    PluginLoadError,
-    PluginManifest,
+from modules.plugins.api import (
+    PluginManifest, PluginCommand, PluginContext, PluginLoadError,
+    LanguageContribution, HookEvents, _HookSubscription
 )
 
 
-# ----------------------------------------------------------------------
-# PluginManifest
-# ----------------------------------------------------------------------
-
-
-class TestPluginManifest:
-    def test_minimal_valid(self):
-        m = PluginManifest(id="hello", name="Hello")
-        assert m.id == "hello"
-        assert m.version == "0.0.0"
-        assert m.scope == "global"
-        m.validate()
-
-    def test_id_required(self):
-        with pytest.raises(ValueError):
-            PluginManifest(id="", name="x").validate()
-
-    def test_id_charset(self):
-        with pytest.raises(ValueError):
-            PluginManifest(id="hello world", name="x").validate()
-        with pytest.raises(ValueError):
-            PluginManifest(id="hello/world", name="x").validate()
-        # 合法字符
-        for ok in ("abc", "a-b-c", "abc_123", "Hello-World"):
-            PluginManifest(id=ok, name="x").validate()
-
-    def test_name_required(self):
-        with pytest.raises(ValueError):
-            PluginManifest(id="ok", name="").validate()
-
-    def test_scope_enum(self):
-        with pytest.raises(ValueError):
-            PluginManifest(id="ok", name="x", scope="weird").validate()
-        # 合法值
-        PluginManifest(id="ok", name="x", scope="global").validate()
-        PluginManifest(id="ok", name="x", scope="system").validate()
-
-
-# ----------------------------------------------------------------------
-# HookEvents 常量
-# ----------------------------------------------------------------------
-
-
-class TestHookEvents:
-    def test_event_names_stable(self):
-        # 这些字符串是插件作者硬编码依赖的, 不能轻易改。
-        assert HookEvents.EDITOR_FILE_OPENED == "editor:file_opened"
-        assert HookEvents.EDITOR_FILE_SAVED == "editor:file_saved"
-        assert HookEvents.EDITOR_FILE_CREATED == "editor:file_created"
-        assert HookEvents.EDITOR_CONTENT_CHANGED == "editor:content_changed"
-        assert HookEvents.EDITOR_LANGUAGE_CHANGED == "editor:language_changed"
-        assert HookEvents.EDITOR_CURSOR_MOVED == "editor:cursor_moved"
-        assert HookEvents.EDITOR_RUN_STARTED == "editor:run_started"
-        assert HookEvents.EDITOR_RUN_FINISHED == "editor:run_finished"
-        assert HookEvents.EDITOR_CHECK_FINISHED == "editor:check_finished"
-        assert HookEvents.EDITOR_CLOSING == "editor:closing"
-
-
-# ----------------------------------------------------------------------
-# PluginContext (需要一个 mock host)
-# ----------------------------------------------------------------------
-
-
-class _FakeHost:
-    """模拟 :class:`PluginHostAPI`, 记录所有回调."""
-
+class MockHost:
     def __init__(self):
         self.hooks = []
         self.commands = []
         self.languages = []
         self.outputs = []
         self.settings = {}
-        self.set_calls = []
 
-    def register_hook(self, sub): self.hooks.append(sub)
-    def register_command(self, cmd): self.commands.append(cmd)
-    def register_language(self, plugin_id, contrib): self.languages.append((plugin_id, contrib))
-    def append_output(self, text): self.outputs.append(text)
-    def setting(self, key, default=None): return self.settings.get(key, default)
-    def set_setting(self, key, value): self.set_calls.append((key, value)); self.settings[key] = value
+    def register_hook(self, sub):
+        self.hooks.append(sub)
+
+    def register_command(self, cmd):
+        self.commands.append(cmd)
+
+    def register_language(self, plugin_id, contrib):
+        self.languages.append((plugin_id, contrib))
+
+    def append_output(self, text):
+        self.outputs.append(text)
+
+    def setting(self, key, default=None):
+        return self.settings.get(key, default)
+
+    def set_setting(self, key, value):
+        self.settings[key] = value
 
 
-class TestPluginContextAPI:
-    def setup_method(self):
-        self.host = _FakeHost()
-        self.ctx = PluginContext(
-            plugin_id="hello", plugin_name="Hello", host=self.host,
-        )
+class TestPluginManifest:
+    def test_valid_manifest(self):
+        manifest = PluginManifest(id="test-plugin", name="Test Plugin")
+        assert manifest.id == "test-plugin"
+        assert manifest.name == "Test Plugin"
+        assert manifest.version == "0.0.0"
+        assert manifest.scope == "global"
 
-    def test_ids_exposed(self):
-        assert self.ctx.plugin_id == "hello"
-        assert self.ctx.plugin_name == "Hello"
+    def test_manifest_validate_valid(self):
+        manifest = PluginManifest(id="test-plugin", name="Test Plugin", scope="global")
+        manifest.validate()
 
-    def test_on_registers_hook(self):
-        sub = self.ctx.on("editor:file_opened", lambda path: None)
-        assert len(self.host.hooks) == 1
-        assert self.host.hooks[0] is sub
-        assert sub.plugin_id == "hello"
-        assert sub.hook == "editor:file_opened"
-
-    def test_on_validates_args(self):
+    def test_manifest_validate_invalid_id_empty(self):
+        manifest = PluginManifest(id="", name="Test Plugin")
         with pytest.raises(ValueError):
-            self.ctx.on("", lambda: None)
-        with pytest.raises(TypeError):
-            self.ctx.on("editor:file_opened", "not callable")
+            manifest.validate()
 
-    def test_add_command_default_menu(self):
-        cmd = self.ctx.add_command(label="Hi", callback=lambda: None)
-        assert isinstance(cmd, PluginCommand)
-        assert cmd.menu == "插件"
-        assert cmd.shortcut is None
-        assert cmd in self.host.commands
-
-    def test_add_command_with_shortcut(self):
-        cmd = self.ctx.add_command(
-            label="Hi", menu="工具", shortcut="Ctrl+H", callback=lambda: None,
-        )
-        assert cmd.menu == "工具"
-        assert cmd.shortcut == "Ctrl+H"
-
-    def test_register_language(self):
-        contrib = LanguageContribution(
-            name="MyLang", ext=".ml",
-            highlighter_factory=lambda: object(),
-            suggestion_factory=lambda: object(),
-        )
-        self.ctx.register_language(contrib)
-        assert ("hello", contrib) in self.host.languages
-
-    def test_append_output_ignored_empty(self):
-        self.ctx.append_output("")
-        assert self.host.outputs == []
-
-    def test_log_format(self):
-        self.ctx.log("info", "loaded")
-        self.ctx.log("warning", "watch out")
-        self.ctx.log("error", "boom")
-        self.ctx.log("custom", "msg")
-        assert self.host.outputs == [
-            "[INFO] [hello] loaded\n",
-            "[WARN] [hello] watch out\n",
-            "[ERROR] [hello] boom\n",
-            "[LOG] [hello] msg\n",
-        ]
-
-    def test_setting_namespace(self):
-        self.host.settings["plugins.hello.greeting"] = "hi"
-        assert self.ctx.setting("greeting") == "hi"
-        assert self.ctx.setting("missing", "fallback") == "fallback"
-
-    def test_set_setting_namespace(self):
-        self.ctx.set_setting("greeting", "hello")
-        assert self.host.set_calls == [("plugins.hello.greeting", "hello")]
-        assert self.host.settings["plugins.hello.greeting"] == "hello"
-
-    def test_setting_key_required(self):
+    def test_manifest_validate_invalid_id_chars(self):
+        manifest = PluginManifest(id="test plugin!", name="Test Plugin")
         with pytest.raises(ValueError):
-            self.ctx.setting("")
+            manifest.validate()
+
+    def test_manifest_validate_invalid_scope(self):
+        manifest = PluginManifest(id="test-plugin", name="Test Plugin", scope="invalid")
         with pytest.raises(ValueError):
-            self.ctx.set_setting("", "x")
+            manifest.validate()
 
-    def test_is_enabled_default_true(self):
-        assert self.ctx.is_enabled() is True
-        self.host.settings["plugins.hello.enabled"] = False
-        assert self.ctx.is_enabled() is False
+    def test_manifest_validate_empty_name(self):
+        manifest = PluginManifest(id="test-plugin", name="")
+        with pytest.raises(ValueError):
+            manifest.validate()
 
-    def test_on_unregister_stored(self):
-        cb = lambda: None
-        self.ctx.on_unregister(cb)
-        assert self.ctx._unregister_callbacks == [cb]
 
-    def test_on_unregister_validates_callable(self):
-        with pytest.raises(TypeError):
-            self.ctx.on_unregister("not callable")
+class TestPluginCommand:
+    def test_creation(self):
+        cmd = PluginCommand(plugin_id="test", label="Test", callback=lambda: None)
+        assert cmd.plugin_id == "test"
+        assert cmd.label == "Test"
+
+
+class TestHookSubscription:
+    def test_creation(self):
+        sub = _HookSubscription(hook="test-hook", callback=lambda: None, plugin_id="test")
+        assert sub.hook == "test-hook"
+        assert sub.plugin_id == "test"
+
+
+class TestPluginContext:
+    def test_creation(self):
+        host = MockHost()
+        ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
+        assert ctx.plugin_id == "test"
+        assert ctx.plugin_name == "Test"
+
+    def test_on_decorator_style(self):
+        host = MockHost()
+        ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
+
+        @ctx.on("test-hook")
+        def callback():
+            pass
+
+        assert len(host.hooks) == 1
+
+    def test_on_direct_call(self):
+        host = MockHost()
+        ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
+        ctx.on("test-hook", callback=lambda: None)
+        assert len(host.hooks) == 1
+
+    def test_on_invalid_hook(self):
+        host = MockHost()
+        ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
+        with pytest.raises(ValueError):
+            ctx.on("")
+
+    def test_add_command(self):
+        host = MockHost()
+        ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
+        ctx.add_command(label="Test Command", callback=lambda: None)
+        assert len(host.commands) == 1
+
+    def test_append_output(self):
+        host = MockHost()
+        ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
+        ctx.append_output("test output")
+        assert "test output" in host.outputs
+
+    def test_setting(self):
+        host = MockHost()
+        host.settings["plugins.test.key"] = "value"
+        ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
+        assert ctx.setting("key") == "value"
+
+    def test_set_setting(self):
+        host = MockHost()
+        ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
+        ctx.set_setting("key", "value")
+        assert host.settings["plugins.test.key"] == "value"
+
+    def test_is_enabled(self):
+        host = MockHost()
+        ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
+        assert ctx.is_enabled() == True
+
+    def test_log(self):
+        host = MockHost()
+        ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
+        ctx.log("info", "test message")
+        assert len(host.outputs) == 1

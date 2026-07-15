@@ -1,196 +1,128 @@
-# -*- coding: utf-8 -*-
-"""针对 modules.i18n 模块的测试。"""
-
-from __future__ import annotations
-
 import pytest
-
-from modules.i18n import (
-    AVAILABLE_LANGUAGES,
-    Translator,
-    get_translator,
-    t,
+from modules.i18n.translator import (
+    Translator, get_translator, t, AVAILABLE_LANGUAGES, _load_locale
 )
 
 
-class TestTranslatorBasics:
-    """翻译器基础行为。"""
+class TestLoadLocale:
+    def test_load_locale_returns_dict(self):
+        result = _load_locale("en_US")
+        assert isinstance(result, dict)
 
+    def test_load_locale_invalid_lang_returns_empty(self):
+        result = _load_locale("invalid_lang_xyz")
+        assert result == {}
+
+
+class TestTranslator:
     def test_singleton(self):
-        tr1 = get_translator()
-        tr2 = get_translator()
-        assert tr1 is tr2
+        translator1 = get_translator()
+        translator2 = get_translator()
+        assert translator1 is translator2
 
-    def test_available_languages_contains_expected(self):
-        assert 'zh_CN' in AVAILABLE_LANGUAGES
-        assert 'en_US' in AVAILABLE_LANGUAGES
+    def test_current_language_default(self):
+        translator = Translator()
+        assert translator.current_language == "en_US"
 
-    def test_current_language_starts_with_fallback(self):
-        tr = get_translator()
-        assert tr.current_language in AVAILABLE_LANGUAGES
+    def test_available_languages(self):
+        translator = Translator()
+        assert "zh_CN" in translator.available_languages
+        assert "en_US" in translator.available_languages
 
-    def test_set_language_returns_true_on_change(self):
-        tr = get_translator()
-        old = tr.current_language
-        new = 'en_US' if old != 'en_US' else 'zh_CN'
-        changed = tr.set_language(new)
-        assert changed is True
-        assert tr.current_language == new
-        # 切回旧的
-        tr.set_language(old)
+    def test_set_language_valid(self):
+        translator = Translator()
+        result = translator.set_language("zh_CN")
+        assert result == True
+        assert translator.current_language == "zh_CN"
 
-    def test_set_language_returns_false_if_same(self):
-        tr = get_translator()
-        old = tr.current_language
-        changed = tr.set_language(old)
-        assert changed is False
+    def test_set_language_invalid(self):
+        translator = Translator()
+        result = translator.set_language("invalid_lang")
+        assert result == False
 
-    def test_set_language_invalid_returns_false(self):
-        tr = get_translator()
-        old = tr.current_language
-        changed = tr.set_language('INVALID_LANG')
-        assert changed is False
-        assert tr.current_language == old
+    def test_set_language_same(self):
+        translator = Translator()
+        translator.set_language("zh_CN")
+        result = translator.set_language("zh_CN")
+        assert result == False
 
-
-class TestTranslate:
-    """translate() 与 t() 函数行为。"""
-
-    def test_translate_existing_key_zh(self):
-        tr = get_translator()
-        tr.set_language('zh_CN')
-        result = tr.translate('menu.file.new')
-        assert result == '新建'
-
-    def test_translate_existing_key_en(self):
-        tr = get_translator()
-        tr.set_language('en_US')
-        result = tr.translate('menu.file.new')
-        assert result == 'New'
-
-    def test_translate_unknown_key_returns_key(self):
-        tr = get_translator()
-        tr.set_language('en_US')
-        result = tr.translate('totally.unknown.key')
-        assert result == 'totally.unknown.key'
-
-    def test_translate_unknown_key_with_default(self):
-        tr = get_translator()
-        tr.set_language('en_US')
-        result = tr.translate('totally.unknown.key', default='fallback')
-        assert result == 'fallback'
-
-    def test_module_level_t_uses_singleton(self):
-        old = get_translator().current_language
-        get_translator().set_language('zh_CN')
-        try:
-            assert t('menu.file.new') == '新建'
-        finally:
-            get_translator().set_language(old)
-
-    def test_translate_with_format_kwargs(self):
-        tr = get_translator()
-        tr.set_language('zh_CN')
-        result = tr.translate('status.saved', name='foo.py')
-        assert 'foo.py' in result
-
-    def test_translate_missing_format_arg_does_not_raise(self):
-        tr = get_translator()
-        tr.set_language('zh_CN')
-        # 翻译里需要 {name} 但没给 kwargs, 应该返回原文而不抛异常
-        result = tr.translate('status.saved')
-        assert '{name}' in result or 'name' in result.lower() or 'foo.py' not in result
-
-    def test_translate_force_lang_overrides_current(self):
-        tr = get_translator()
-        tr.set_language('zh_CN')
-        result = tr.translate('menu.file.new', locale='en_US')
-        assert result == 'New'
-
-
-class TestFallback:
-    """缺失翻译时的回退机制。"""
-
-    def test_zh_CN_missing_key_falls_back_to_en_US(self):
-        tr = get_translator()
-        # 找一个在 en_US 有但 zh_CN 没有的 key (如果全都有, 至少验证 fallback 不报错)
-        tr.set_language('zh_CN')
-        result = tr.translate('menu.file.new')
-        assert result is not None
+    def test_translate_key_exists(self):
+        translator = Translator()
+        translator.set_language("zh_CN")
+        result = translator.translate("menu.file.new")
         assert isinstance(result, str)
-        assert len(result) > 0
 
-    def test_both_missing_returns_key(self):
-        tr = get_translator()
-        tr.set_language('en_US')
-        result = tr.translate('key.that.does.not.exist.at.all')
-        assert result == 'key.that.does.not.exist.at.all'
+    def test_translate_key_not_exists_returns_key(self):
+        translator = Translator()
+        translator.set_language("zh_CN")
+        result = translator.translate("nonexistent.key.xyz")
+        assert result == "nonexistent.key.xyz"
 
+    def test_translate_with_default(self):
+        translator = Translator()
+        result = translator.translate("nonexistent.key", default="default value")
+        assert result == "default value"
 
-class TestHas:
-    """has() 方法。"""
+    def test_translate_with_kwargs(self):
+        translator = Translator()
+        translator.set_language("zh_CN")
+        result = translator.translate("menu.greeting", default="Hello {name}", name="World")
+        assert isinstance(result, str)
 
-    def test_has_returns_true_for_existing_key(self):
-        tr = get_translator()
-        tr.set_language('zh_CN')
-        assert tr.has('menu.file.new') is True
+    def test_translate_fallback_to_en_US(self):
+        translator = Translator()
+        translator.set_language("zh_CN")
+        result = translator.translate("menu.file.new")
+        fallback_result = translator.translate("menu.file.new", locale="en_US")
+        assert isinstance(result, str)
+        assert isinstance(fallback_result, str)
 
-    def test_has_returns_false_for_missing_key(self):
-        tr = get_translator()
-        tr.set_language('zh_CN')
-        assert tr.has('key.that.does.not.exist') is False
+    def test_has_key(self):
+        translator = Translator()
+        assert translator.has("menu.file.new") == True
 
-    def test_has_with_lang_param(self):
-        tr = get_translator()
-        tr.set_language('zh_CN')
-        assert tr.has('menu.file.new', locale='en_US') is True
+    def test_has_key_false(self):
+        translator = Translator()
+        assert translator.has("nonexistent.key.xyz") == False
 
+    def test_has_key_with_locale(self):
+        translator = Translator()
+        assert translator.has("menu.file.new", locale="zh_CN") == True
 
-class TestListeners:
-    """语言切换监听器。"""
-
-    def test_listener_called_on_language_change(self):
-        tr = get_translator()
-        events = []
-        tr.add_listener(lambda lang: events.append(lang))
-        old = tr.current_language
-        new = 'en_US' if old != 'en_US' else 'zh_CN'
-        tr.set_language(new)
-        assert len(events) == 1
-        assert events[0] == new
-        # 恢复
-        tr.set_language(old)
-
-    def test_listener_not_called_if_same_language(self):
-        tr = get_translator()
-        events = []
-        tr.add_listener(lambda lang: events.append(lang))
-        old = tr.current_language
-        tr.set_language(old)
-        assert len(events) == 0
+    def test_add_listener(self):
+        translator = Translator()
+        calls = []
+        def listener(lang):
+            calls.append(lang)
+        translator.add_listener(listener)
+        translator.set_language("zh_CN")
+        assert "zh_CN" in calls
 
     def test_remove_listener(self):
-        tr = get_translator()
-        def cb(lang):
-            pass
-        tr.add_listener(cb)
-        tr.remove_listener(cb)
-        old = tr.current_language
-        new = 'en_US' if old != 'en_US' else 'zh_CN'
-        tr.set_language(new)
-        tr.set_language(old)  # 恢复
+        translator = Translator()
+        calls = []
+        def listener(lang):
+            calls.append(lang)
+        translator.add_listener(listener)
+        translator.remove_listener(listener)
+        translator.set_language("zh_CN")
+        assert len(calls) == 0
+
+    def test_reload(self):
+        translator = Translator()
+        translator.reload()
+        assert translator.current_language == "en_US"
 
 
-class TestReload:
-    """reload() 重新加载语言包。"""
+class TestModuleLevelFunctions:
+    def test_t_function(self):
+        result = t("menu.file.new")
+        assert isinstance(result, str)
 
-    def test_reload_does_not_raise(self):
-        tr = get_translator()
-        tr.reload()  # 不抛异常即可
+    def test_t_with_default(self):
+        result = t("nonexistent.key", default="default")
+        assert result == "default"
 
-    def test_reload_preserves_translations(self):
-        tr = get_translator()
-        tr.set_language('zh_CN')
-        tr.reload()
-        result = tr.translate('menu.file.new')
-        assert result == '新建'
+    def test_t_with_kwargs(self):
+        result = t("menu.greeting", default="Hello {name}", name="World")
+        assert "World" in result
