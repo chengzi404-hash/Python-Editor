@@ -1,5 +1,5 @@
 import tkinter as tk
-from typing import Optional
+
 from . import theme
 
 
@@ -16,7 +16,7 @@ class ULabel(tk.Label):
     }
 
     def __init__(self, parent, text: str = '', variant: str = 'primary',
-                 font=None, bg: Optional[str] = None, **kwargs):
+                 font=None, bg: str | None = None, **kwargs):
         self._variant = variant
         self._explicit_bg = bg
         if bg is None:

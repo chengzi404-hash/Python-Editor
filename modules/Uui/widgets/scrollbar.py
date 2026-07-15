@@ -19,8 +19,8 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any, Callable, Dict, Literal, Optional, Union
-
+from collections.abc import Callable
+from typing import Any, Literal
 
 from . import theme
 
@@ -49,17 +49,17 @@ class UScrollBar(tk.Frame):
         parent: tk.Widget,
         *,
         orient: Literal["horizontal", "vertical"] = "vertical",
-        command: Union[Callable[..., Any], str] = "",
+        command: Callable[..., Any] | str = "",
         bg: str = "",
         autohidden: bool = True,
-        troughcolor: Optional[str] = None,
-        activebackground: Optional[str] = None,
+        troughcolor: str | None = None,
+        activebackground: str | None = None,
         width: int = 10,
         **kwargs: Any,
     ) -> None:
         self._orient = orient
         # command: 空串或无 callable 时设 None, 其余存 callable
-        self._command: Optional[Callable[..., Any]] = (
+        self._command: Callable[..., Any] | None = (
             command if callable(command) else None
         )
         self._autohidden = autohidden
@@ -89,10 +89,10 @@ class UScrollBar(tk.Frame):
         self._drag_offset = 0
 
         # --- autohide 缓存 ---
-        self._saved_pack: Dict[str, Any] = {}
+        self._saved_pack: dict[str, Any] = {}
 
         # ---------- 构建 Frame ----------
-        frame_kw: Dict[str, Any] = {
+        frame_kw: dict[str, Any] = {
             'highlightthickness': 0,
             'bd': 0,
             'relief': 'flat',
@@ -125,7 +125,7 @@ class UScrollBar(tk.Frame):
     # 公开 API
     # ==================================================================
 
-    def set(self, first: Union[float, str], last: Union[float, str]) -> None:
+    def set(self, first: float | str, last: float | str) -> None:
         """被控制 widget 在视图变化时调用 (例如 via yscrollcommand).
 
         更新滑块位置/大小, 不转发 command (与标准 :class:`tk.Scrollbar`
@@ -148,7 +148,7 @@ class UScrollBar(tk.Frame):
     # ==================================================================
 
     def config(self, **kwargs: Any) -> Any:  # type: ignore[override]
-        scrollbar_opts: Dict[str, Any] = {}
+        scrollbar_opts: dict[str, Any] = {}
         for key in (
             'command', 'bg', 'troughcolor', 'activebackground',
             'orient', 'autohidden', 'width',
@@ -163,7 +163,7 @@ class UScrollBar(tk.Frame):
     configure = config  # type: ignore[assignment]
 
     def cget(self, key: str) -> Any:  # type: ignore[override]
-        custom: Dict[str, Any] = {
+        custom: dict[str, Any] = {
             'command': self._command if self._command else '',
             'bg': self._slider_color,
             'troughcolor': self._trough_color,
@@ -321,7 +321,7 @@ class UScrollBar(tk.Frame):
     # 内部 option 设置
     # ==================================================================
 
-    def _apply_config(self, opts: Dict[str, Any]) -> None:
+    def _apply_config(self, opts: dict[str, Any]) -> None:
         if 'command' in opts:
             cmd = opts.pop('command')
             self._command = cmd if callable(cmd) else None

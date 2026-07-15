@@ -15,7 +15,8 @@ from __future__ import annotations
 import json
 import os
 import threading
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 from modules.data import i18n_path
 
@@ -26,7 +27,7 @@ AVAILABLE_LANGUAGES: tuple = ("zh_CN", "en_US")
 I18nListener = Callable[[str], None]
 
 
-def _load_locale(lang: str) -> Dict[str, str]:
+def _load_locale(lang: str) -> dict[str, str]:
     """加载某语言的翻译 JSON。文件不存在或损坏时返回空 dict。
 
     兼容 BOM, 但容忍任何解析错误: 翻译缺失属于正常情况(后续会回退),
@@ -37,7 +38,7 @@ def _load_locale(lang: str) -> Dict[str, str]:
     if not os.path.isfile(path):
         return {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, json.JSONDecodeError):
         return {}
@@ -58,8 +59,8 @@ class Translator:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._current: str = self._FALLBACK_LANG
-        self._tables: Dict[str, Dict[str, str]] = {}
-        self._listeners: List[I18nListener] = []
+        self._tables: dict[str, dict[str, str]] = {}
+        self._listeners: list[I18nListener] = []
         self._changing: bool = False
         for lang in AVAILABLE_LANGUAGES:
             self._tables[lang] = _load_locale(lang)
@@ -117,14 +118,14 @@ class Translator:
             for lang in AVAILABLE_LANGUAGES:
                 self._tables[lang] = _load_locale(lang)
 
-    def has(self, key: str, locale: Optional[str] = None) -> bool:
+    def has(self, key: str, locale: str | None = None) -> bool:
         """查询某 key 在指定(默认当前)语言下是否存在翻译。"""
 
         target = locale if locale is not None else self._current
         return key in self._tables.get(target, {})
 
-    def translate(self, key: str, default: Optional[str] = None,
-                  locale: Optional[str] = None, **kwargs: Any) -> str:
+    def translate(self, key: str, default: str | None = None,
+                  locale: str | None = None, **kwargs: Any) -> str:
         """查询 key 对应的翻译。
 
         参数:
@@ -161,7 +162,7 @@ def get_translator() -> Translator:
     return _TRANSLATOR
 
 
-def t(key: str, default: Optional[str] = None, **kwargs: Any) -> str:
+def t(key: str, default: str | None = None, **kwargs: Any) -> str:
     """模块级快捷翻译函数: 等价于 ``get_translator().translate(...)``。"""
 
     return _TRANSLATOR.translate(key, default=default, **kwargs)

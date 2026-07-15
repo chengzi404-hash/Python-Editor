@@ -1,42 +1,67 @@
-import sys
 import os
 import queue
 import subprocess
+import sys
 import tempfile
 import tkinter as tk
+from dataclasses import dataclass
 from tkinter import filedialog, messagebox, simpledialog
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from modules.checker import CPythonChecker, Flake8Checker, PyrightChecker
+from modules.env_manager import get_env_manager
+from modules.highlighter import (
+    HighlightBlock,
+    JsonHighlighterExpert,
+    LogHighlighterExpert,
+    PythonHighlighterExpert,
+    XmlHighlighterExpert,
+    YamlHighlighterExpert,
+    highlight_marketplace,
+    highlight_themes,
+)
+from modules.i18n import AVAILABLE_LANGUAGES, get_translator, language_marketplace, t
 from modules.logging import configure_logging, get_logger
-from modules.Uui.widgets import (UFrame, ULabel, UButton, UEntry, UText, UComboBox,
-                                 UMenuBar, theme, TabBar, Tab,
-                                 UDialog, UTabView, UListView, message_box,
-                                 SideBar, ExplorerCard, DebugCard, GitCard,
-                                 ui_theme_marketplace)
-from modules.Uui.widgets.window import Window
-from modules.Uui.widgets.editor_suggestion import UEditorSuggestion, CompletionItem
-from modules.highlighter import PythonHighlighterExpert, JsonHighlighterExpert, XmlHighlighterExpert, YamlHighlighterExpert, LogHighlighterExpert, HighlightBlock, highlight_themes, highlight_marketplace
-from modules.suggestion import PythonSuggestionExpert, SuggestionBlock
-from modules.checker import Flake8Checker, PyrightChecker, CPythonChecker
-from modules.runner import RunResult, run_blocking, stream_command
-from modules.settings import SettingsManager, SettingsScope, SettingsChangeEvent
 from modules.plugins import (
-    PluginManager,
-    LanguageContribution,
     HookEvents,
+    LanguageContribution,
+    PluginManager,
     plugin_marketplace,
 )
-from modules.i18n import AVAILABLE_LANGUAGES, get_translator, t, language_marketplace
-from modules.env_manager import EnvironmentManager, get_env_manager
+from modules.runner import RunResult, run_blocking, stream_command
+from modules.settings import SettingsChangeEvent, SettingsManager, SettingsScope
+from modules.suggestion import PythonSuggestionExpert, SuggestionBlock
+from modules.Uui.widgets import (
+    DebugCard,
+    ExplorerCard,
+    GitCard,
+    SideBar,
+    Tab,
+    TabBar,
+    UButton,
+    UComboBox,
+    UDialog,
+    UEntry,
+    UFrame,
+    ULabel,
+    UListView,
+    UMenuBar,
+    UTabView,
+    UText,
+    message_box,
+    theme,
+    ui_theme_marketplace,
+)
+from modules.Uui.widgets.editor_suggestion import CompletionItem, UEditorSuggestion
+from modules.Uui.widgets.window import Window
 
 
 @dataclass
 class Document:
     """单个文档的数据模型，对应一个打开的文件（或 Untitled）。"""
-    path: Optional[str]          # None 表示未保存的 Untitled 文档
+    path: str | None          # None 表示未保存的 Untitled 文档
     content: str = ''
     dirty: bool = False
     lang: str = 'Python'          # 代码语言
@@ -185,16 +210,16 @@ class CodeEditor:
         self._translator.add_listener(self._on_language_changed)
 
         self._lang = 'Python'
-        self._current_file: Optional[str] = None
-        self._current_project_root: Optional[str] = None
-        self._suggestion_popup: Optional[UEditorSuggestion] = None
+        self._current_file: str | None = None
+        self._current_project_root: str | None = None
+        self._suggestion_popup: UEditorSuggestion | None = None
         self._dirty = False
 
         # ── 多文档状态 ──────────────────────────────────────────────────
-        self._documents: Dict[str, Document] = {}
-        self._active_id: Optional[str] = None
+        self._documents: dict[str, Document] = {}
+        self._active_id: str | None = None
         self._next_untitled_seq: int = 1
-        self._tab_bar: Optional[TabBar] = None
+        self._tab_bar: TabBar | None = None
 
         gs = self._settings.global_settings
         self._highlighting_enabled = gs.get('completion.enabled', True)
@@ -231,11 +256,11 @@ class CodeEditor:
         self._autosave_delay_ms = int(
             gs.get('editor.auto_save_delay_ms', 800)
         )
-        self._autosave_paths: Dict[str, str] = {}
+        self._autosave_paths: dict[str, str] = {}
 
-        self._find_dialog: Optional[tk.Toplevel] = None
+        self._find_dialog: tk.Toplevel | None = None
         self._find_query = ''
-        self._find_last_index: Optional[str] = None
+        self._find_last_index: str | None = None
 
         # 大文件模式: 打开超过 ``editor.large_file_threshold_bytes`` 的文件时
         # 置 True, _apply_highlight / _show_suggestions 会提前返回。
@@ -258,8 +283,8 @@ class CodeEditor:
         # 这样插件注册的命令 / 语言可以立刻渲染到菜单和下拉框。
         # Project 级插件在 _attach_project 时按需加载。
         self._plugin_manager = PluginManager()
-        self._plugin_menus: Dict[str, Any] = {}
-        self._plugin_lang_combo_added: List[str] = []
+        self._plugin_menus: dict[str, Any] = {}
+        self._plugin_lang_combo_added: list[str] = []
         self._plugin_manager.attach_editor(self)
         try:
             self._plugin_manager.load_global_plugins()
@@ -751,7 +776,7 @@ class CodeEditor:
             return True
         return p.startswith(r + os.sep)
 
-    def _should_reattach_for_path(self, path: str) -> Optional[str]:
+    def _should_reattach_for_path(self, path: str) -> str | None:
         """根据当前已挂载项目,决定打开 ``path`` 后是否需要切换项目根.
 
         规则:
@@ -1174,7 +1199,7 @@ class CodeEditor:
             self._stream_insert_into_editor(path, size, doc_id)
         else:
             try:
-                with open(path, 'r', encoding='utf-8') as f:
+                with open(path, encoding='utf-8') as f:
                     code = f.read()
             except OSError as e:
                 # 读失败时回滚状态
@@ -1219,7 +1244,7 @@ class CodeEditor:
         """
         chunk_size = 64 * 1024  # 64 KiB
         try:
-            f = open(path, 'r', encoding='utf-8', errors='replace')
+            f = open(path, encoding='utf-8', errors='replace')
         except OSError as e:
             messagebox.showerror(t('dialog.title.open_failed'), str(e), parent=self.window)
             self._large_file_mode = False
@@ -1231,7 +1256,7 @@ class CodeEditor:
         my_epoch = self._stream_epoch
         self._large_file_mode = True
         self._editor._text.config(state='disabled')
-        accumulated: List[str] = []
+        accumulated: list[str] = []
 
         def insert_chunk() -> None:
             if my_epoch != self._stream_epoch:
@@ -2208,7 +2233,7 @@ class CodeEditor:
                 on_change=self._on_settings_panel_action,
             )
             self._settings_window = win
-            win._switch(SettingsScope.GLOBAL)  # noqa: SLF001 - 单文件集成
+            win._switch(SettingsScope.GLOBAL)
         except Exception as exc:
             messagebox.showerror(t('dialog.title.settings_load_failed'),
                                t('dialog.settings.load_failed', err=exc), parent=self.window)
@@ -2236,7 +2261,7 @@ class CodeEditor:
             )
             # 切到项目 Tab
             try:
-                win._switch(SettingsScope.PROJECT)  # noqa: SLF001 - 单文件集成
+                win._switch(SettingsScope.PROJECT)
             except Exception:
                 pass
             self._settings_window = win
@@ -2602,7 +2627,7 @@ class CodeEditor:
         try:
             if self._lang == 'Python':
                 python_path = self._env_manager.get_python_path() if hasattr(self, '_env_manager') else sys.executable
-                cmd: List[str] = [python_path, temp_path]
+                cmd: list[str] = [python_path, temp_path]
             else:
                 try:
                     os.unlink(temp_path)
@@ -2665,7 +2690,7 @@ class CodeEditor:
 
     def _run_blocking_path(
         self,
-        cmd: List[str],
+        cmd: list[str],
         temp_path: str,
         clear_first: bool,
         timeout_s: float,
@@ -2729,7 +2754,7 @@ class CodeEditor:
 
     def _run_streaming_path(
         self,
-        cmd: List[str],
+        cmd: list[str],
         temp_path: str,
         clear_first: bool,
         timeout_s: float,
@@ -2763,8 +2788,8 @@ class CodeEditor:
         self._stream_drain_after_id: Any = None
         # 流式输出收集: 用于在结束时给插件回调传完整 stdout/stderr。
         # 字符串拼接为简单实现, 因为运行输出一般 KB 量级。
-        captured_stdout: List[str] = []
-        captured_stderr: List[str] = []
+        captured_stdout: list[str] = []
+        captured_stderr: list[str] = []
 
         def on_line(stream_name: str, line: str) -> None:
             try:

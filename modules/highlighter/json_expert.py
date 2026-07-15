@@ -1,6 +1,6 @@
-from .base import HighlighterExpert, HighlightBlock, HighlightToken
 import re
 
+from .base import HighlightBlock, HighlighterExpert, HighlightToken
 
 _JSON_KEY_VALUE_RE = re.compile(
     r'(?P<string>'
@@ -37,9 +37,7 @@ class JsonHighlighterExpert(HighlighterExpert):
             end = m.end()
 
             if kind == 'string':
-                if is_key_position(start) and code[start:end].endswith('":'):
-                    tokens.append(HighlightToken(start, end, 'key'))
-                elif is_key_position(start) and end < len(code) and code[end:end+1] == ':':
+                if (is_key_position(start) and code[start:end].endswith('":')) or (is_key_position(start) and end < len(code) and code[end:end+1] == ':'):
                     tokens.append(HighlightToken(start, end, 'key'))
                 else:
                     tokens.append(HighlightToken(start, end, 'string'))

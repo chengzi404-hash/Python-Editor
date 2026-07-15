@@ -1,9 +1,8 @@
-from .base import HighlighterExpert, HighlightBlock, HighlightToken
-
 import json
 import os
 import re
 
+from .base import HighlightBlock, HighlighterExpert, HighlightToken
 
 _KEYWORDS: set[str] = set()
 _KEYWORDS_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'keywords', 'c&cpp', 'cpp.json')

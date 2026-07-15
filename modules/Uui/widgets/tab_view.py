@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Callable, Dict, List, Optional
+from collections.abc import Callable
 
 from . import theme
 
@@ -11,10 +11,10 @@ class UTabView(tk.Frame):
         bg = kwargs.pop('bg', theme.BG_PANEL)
         super().__init__(parent, bg=bg, highlightthickness=0, bd=0, **kwargs)
 
-        self._tabs: Dict[str, tk.Frame] = {}
-        self._buttons: Dict[str, tk.Frame] = {}
-        self._active: Optional[str] = None
-        self._on_switch: Optional[Callable[[str], None]] = None
+        self._tabs: dict[str, tk.Frame] = {}
+        self._buttons: dict[str, tk.Frame] = {}
+        self._active: str | None = None
+        self._on_switch: Callable[[str], None] | None = None
 
         self._bar = tk.Frame(self, bg=theme.BG_TITLE, height=30)
         self._bar.pack(fill=tk.X)

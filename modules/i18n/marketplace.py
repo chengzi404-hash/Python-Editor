@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -12,7 +11,7 @@ class MarketplaceItem:
     version: str
     author: str
     description: str
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     download_url: str = ''
     thumbnail_url: str = ''
     rating: float = 0.0
@@ -22,13 +21,13 @@ class MarketplaceItem:
 @dataclass
 class LanguagePackage:
     item: MarketplaceItem
-    locale_data: Dict[str, str] = field(default_factory=dict)
+    locale_data: dict[str, str] = field(default_factory=dict)
 
 
 class MarketplaceSearchResult:
     def __init__(
         self,
-        items: List[MarketplaceItem],
+        items: list[MarketplaceItem],
         total: int = 0,
         page: int = 1,
         page_size: int = 20,
@@ -52,14 +51,14 @@ class MarketplaceProvider(ABC):
     def search(
         self,
         query: str = '',
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> MarketplaceSearchResult:
         ...
 
     @abstractmethod
-    def get_item(self, item_id: str) -> Optional[MarketplaceItem]:
+    def get_item(self, item_id: str) -> MarketplaceItem | None:
         ...
 
     @abstractmethod
@@ -69,7 +68,7 @@ class MarketplaceProvider(ABC):
 
 class LanguageMarketplace:
     def __init__(self):
-        self._providers: Dict[str, MarketplaceProvider] = {}
+        self._providers: dict[str, MarketplaceProvider] = {}
 
     def register_provider(self, provider: MarketplaceProvider) -> None:
         self._providers[provider.name()] = provider
@@ -78,17 +77,17 @@ class LanguageMarketplace:
         self._providers.pop(name, None)
 
     @property
-    def providers(self) -> List[str]:
+    def providers(self) -> list[str]:
         return list(self._providers.keys())
 
     def search(
         self,
         query: str = '',
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> Dict[str, MarketplaceSearchResult]:
-        results: Dict[str, MarketplaceSearchResult] = {}
+    ) -> dict[str, MarketplaceSearchResult]:
+        results: dict[str, MarketplaceSearchResult] = {}
         for name, provider in self._providers.items():
             try:
                 results[name] = provider.search(query, tags, page, page_size)
@@ -100,7 +99,7 @@ class LanguageMarketplace:
         self,
         item: MarketplaceItem,
         install_dir: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         for provider in self._providers.values():
             try:
                 pkg_path = provider.download(item, install_dir)
@@ -109,7 +108,7 @@ class LanguageMarketplace:
                 continue
         return None
 
-    def get_provider(self, name: str) -> Optional[MarketplaceProvider]:
+    def get_provider(self, name: str) -> MarketplaceProvider | None:
         return self._providers.get(name)
 
 
@@ -121,10 +120,10 @@ def get_marketplace() -> LanguageMarketplace:
 
 
 __all__ = [
-    'MarketplaceItem',
-    'LanguagePackage',
-    'MarketplaceSearchResult',
-    'MarketplaceProvider',
     'LanguageMarketplace',
+    'LanguagePackage',
+    'MarketplaceItem',
+    'MarketplaceProvider',
+    'MarketplaceSearchResult',
     'get_marketplace',
 ]

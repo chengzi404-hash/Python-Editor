@@ -12,9 +12,8 @@ from __future__ import annotations
 
 import subprocess
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Tuple
-
 
 # --------------------------------------------------------------------------
 # 结果类型
@@ -41,14 +40,14 @@ class RunResult:
 
 
 def stream_command(
-    cmd: List[str],
+    cmd: list[str],
     *,
     timeout_s: float = 30.0,
-    cwd: Optional[str] = None,
-    env: Optional[Dict[str, str]] = None,
-    line_callback: Optional[Callable[[str, str], None]] = None,
-    done_callback: Optional[Callable[[RunResult], None]] = None,
-) -> Tuple[subprocess.Popen, threading.Thread]:
+    cwd: str | None = None,
+    env: dict[str, str] | None = None,
+    line_callback: Callable[[str, str], None] | None = None,
+    done_callback: Callable[[RunResult], None] | None = None,
+) -> tuple[subprocess.Popen, threading.Thread]:
     """异步流式执行 ``cmd``; stdout/stderr 按行推给回调.
 
     参数:
@@ -166,11 +165,11 @@ def stream_command(
 
 
 def run_blocking(
-    cmd: List[str],
+    cmd: list[str],
     *,
     timeout_s: float = 30.0,
-    cwd: Optional[str] = None,
-    env: Optional[Dict[str, str]] = None,
+    cwd: str | None = None,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess:
     """同步执行 ``cmd`` 并在结束后一次性返回 ``CompletedProcess``."""
 
@@ -184,4 +183,4 @@ def run_blocking(
     )
 
 
-__all__ = ["RunResult", "stream_command", "run_blocking"]
+__all__ = ["RunResult", "run_blocking", "stream_command"]

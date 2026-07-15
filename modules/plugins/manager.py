@@ -35,28 +35,19 @@ import os
 import sys
 import threading
 import traceback
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import (
     Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
 )
 
 from .api import (
-    _HookSubscription,
     LanguageContribution,
     PluginContext,
     PluginHostAPI,
     PluginLoadError,
     PluginManifest,
+    _HookSubscription,
 )
-from .hooks import HookEvents
-
 
 _log = logging.getLogger("modules.plugins")
 
@@ -71,7 +62,7 @@ class _PluginRecord:
     location: str  # 来自的目录, 用于在 UI 里展示
     scope: str  # "system" / "project"
     enabled: bool = True
-    error: Optional[str] = None  # 加载/注册失败时记录, UI 显示
+    error: str | None = None  # 加载/注册失败时记录, UI 显示
 
 
 @dataclass
@@ -94,17 +85,17 @@ class PluginManager(PluginHostAPI):
     def __init__(
         self,
         *,
-        global_plugins_dir: Optional[str] = None,
+        global_plugins_dir: str | None = None,
     ) -> None:
         self._lock = threading.RLock()
-        self._plugins: Dict[str, _PluginRecord] = {}
-        self._discovered: Dict[str, DiscoveredPlugin] = {}
-        self._hooks: List[_HookSubscription] = []
-        self._commands: List[Any] = []  # PluginCommand list
-        self._languages: List[Tuple[str, LanguageContribution]] = []  # (plugin_id, contrib)
-        self._shortcuts: Dict[str, Any] = {}  # shortcut -> command record
+        self._plugins: dict[str, _PluginRecord] = {}
+        self._discovered: dict[str, DiscoveredPlugin] = {}
+        self._hooks: list[_HookSubscription] = []
+        self._commands: list[Any] = []  # PluginCommand list
+        self._languages: list[tuple[str, LanguageContribution]] = []  # (plugin_id, contrib)
+        self._shortcuts: dict[str, Any] = {}  # shortcut -> command record
         self._editor = None  # editor.CodeEditor, see attach_editor
-        self._project_root: Optional[str] = None
+        self._project_root: str | None = None
         self._global_plugins_dir = global_plugins_dir or self._default_global_dir()
 
     # ------------------------------------------------------------------
@@ -145,24 +136,24 @@ class PluginManager(PluginHostAPI):
     # 目录扫描
     # ------------------------------------------------------------------
 
-    def discover_global(self) -> List[DiscoveredPlugin]:
+    def discover_global(self) -> list[DiscoveredPlugin]:
         """扫描全局插件目录, 返回发现列表 (不执行 import)。"""
 
         return self._discover_dir(self._global_plugins_dir, scope="system")
 
-    def discover_project(self, root: str) -> List[DiscoveredPlugin]:
+    def discover_project(self, root: str) -> list[DiscoveredPlugin]:
         """扫描项目级 ``<root>/plugins/`` 目录。"""
 
         if not root:
             return []
         return self._discover_dir(os.path.join(root, "plugins"), scope="project")
 
-    def _discover_dir(self, directory: str, *, scope: str) -> List[DiscoveredPlugin]:
+    def _discover_dir(self, directory: str, *, scope: str) -> list[DiscoveredPlugin]:
         """通用目录扫描: 每个直接子目录视作一个插件 (有 ``__init__.py`` 才算)。"""
 
         if not directory or not os.path.isdir(directory):
             return []
-        out: List[DiscoveredPlugin] = []
+        out: list[DiscoveredPlugin] = []
         try:
             entries = sorted(os.listdir(directory))
         except OSError:
@@ -675,19 +666,19 @@ class PluginManager(PluginHostAPI):
     # 查询 API (供 UI 用)
     # ------------------------------------------------------------------
 
-    def list_loaded(self) -> List[_PluginRecord]:
+    def list_loaded(self) -> list[_PluginRecord]:
         with self._lock:
             return list(self._plugins.values())
 
-    def list_discovered(self) -> List[DiscoveredPlugin]:
+    def list_discovered(self) -> list[DiscoveredPlugin]:
         with self._lock:
             return list(self._discovered.values())
 
-    def get_commands(self) -> List[Any]:
+    def get_commands(self) -> list[Any]:
         with self._lock:
             return list(self._commands)
 
-    def get_languages(self) -> List[Tuple[str, LanguageContribution]]:
+    def get_languages(self) -> list[tuple[str, LanguageContribution]]:
         with self._lock:
             return list(self._languages)
 
@@ -714,6 +705,6 @@ class PluginManager(PluginHostAPI):
 
 
 __all__ = [
-    "PluginManager",
     "DiscoveredPlugin",
+    "PluginManager",
 ]

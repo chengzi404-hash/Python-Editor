@@ -1,5 +1,4 @@
 """User model and helpers for the auth system."""
-from typing import Any, Dict, Optional
 
 from ..orm import Model, fields
 from . import password as _pw
@@ -75,7 +74,7 @@ class User(Model):  # type: ignore[misc]
         return f'<User {self.username!r}>'
 
 
-def authenticate(username: Optional[str], password: Optional[str]) -> Optional[User]:
+def authenticate(username: str | None, password: str | None) -> User | None:
     """Return a matching :class:`User` or ``None``."""
     if not username or not password:
         return None
@@ -90,7 +89,7 @@ def authenticate(username: Optional[str], password: Optional[str]) -> Optional[U
     return user
 
 
-def get_user_by_id(pk: int) -> Optional[User]:
+def get_user_by_id(pk: int) -> User | None:
     try:
         return User.objects.get(id=pk)
     except Exception:

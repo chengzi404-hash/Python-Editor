@@ -1,14 +1,14 @@
 """ORM Model base and metaclass."""
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from . import connection as _conn
-from .fields import AutoField, Field, ForeignKey
+from .fields import AutoField, Field
 
 if TYPE_CHECKING:
     from .query import QuerySet
 
 
-_models: Dict[str, 'Model'] = {}
+_models: dict[str, 'Model'] = {}
 
 
 def _resolve_model_string(path: str) -> Any:
@@ -30,8 +30,8 @@ class ModelMeta(type):
         if name == 'Model' and not bases:
             return super().__new__(mcs, name, bases, attrs)
 
-        fields: Dict[str, Field] = {}
-        pk_field: Optional[Field] = None
+        fields: dict[str, Field] = {}
+        pk_field: Field | None = None
         for key, value in list(attrs.items()):
             if isinstance(value, Field):
                 fields[key] = value
@@ -82,7 +82,7 @@ class Model(metaclass=ModelMeta):
     """Base class for all ORM models."""
 
     objects: 'QuerySet' = None  # type: ignore
-    _meta: Dict[str, Any]
+    _meta: dict[str, Any]
 
     def __init__(self, **kwargs) -> None:
         for fname, fld in self._meta['fields'].items():
@@ -110,7 +110,7 @@ class Model(metaclass=ModelMeta):
         pk_field = fields[pk_field_name]
         pk_value = getattr(self, pk_field_name, None)
 
-        values: Dict[str, Any] = {}
+        values: dict[str, Any] = {}
         for fname, fld in fields.items():
             if fld.primary_key and pk_value is None and not fld.auto:
                 continue
@@ -160,8 +160,8 @@ class Model(metaclass=ModelMeta):
         instance.save()
         return instance
 
-    def to_dict(self) -> Dict[str, Any]:
-        result: Dict[str, Any] = {}
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {}
         for fname in self._meta['fields']:
             value = getattr(self, fname, None)
             if hasattr(value, 'isoformat'):

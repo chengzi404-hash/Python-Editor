@@ -1,14 +1,22 @@
 import sys
 import tkinter as tk
-from .widgets.window import Window
-from .widgets import (
-    UFrame, ULabel, UButton, UMenuBar,
-    UEntry, UText, UCheckButton, URadioButton,
-    UComboBox, UProgressBar, USlider,
-    UScrollBar,
-)
-from .widgets import theme
 
+from .widgets import (
+    UButton,
+    UCheckButton,
+    UComboBox,
+    UEntry,
+    UFrame,
+    ULabel,
+    UMenuBar,
+    UProgressBar,
+    URadioButton,
+    UScrollBar,
+    USlider,
+    UText,
+    theme,
+)
+from .widgets.window import Window
 
 BOLD = ('Arial', 12, 'bold')
 H1 = ('Arial', 14, 'bold')

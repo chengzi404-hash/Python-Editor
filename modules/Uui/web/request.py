@@ -1,5 +1,6 @@
 """WSGI request wrapper with lazy body parsing."""
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from collections.abc import Mapping
+from typing import Any
 from urllib.parse import parse_qs, parse_qsl
 
 
@@ -13,21 +14,29 @@ class URequest:
     """
 
     __slots__ = (
-        '_environ', '_headers', '_form', '_files', '_json', '_body',
-        '_path', '_method', '_query', 'state',
+        '_body',
+        '_environ',
+        '_files',
+        '_form',
+        '_headers',
+        '_json',
+        '_method',
+        '_path',
+        '_query',
+        'state',
     )
 
     def __init__(self, environ: Mapping[str, Any]) -> None:
         self._environ = environ
-        self._headers: Optional[Dict[str, str]] = None
-        self._form: Optional[List[Tuple[str, str]]] = None
+        self._headers: dict[str, str] | None = None
+        self._form: list[tuple[str, str]] | None = None
         self._files = None
         self._json: Any = None
-        self._body: Optional[bytes] = None
+        self._body: bytes | None = None
         self._path: str = environ.get('PATH_INFO', '/')
         self._method: str = environ.get('REQUEST_METHOD', 'GET').upper()
-        self._query: Optional[List[Tuple[str, str]]] = None
-        self.state: Dict[str, Any] = {}
+        self._query: list[tuple[str, str]] | None = None
+        self.state: dict[str, Any] = {}
         if 'uui.user' in environ:
             self.state['user'] = environ['uui.user']
         if 'uui.session' in environ:
@@ -76,20 +85,20 @@ class URequest:
 
 
     @property
-    def headers(self) -> Dict[str, str]:
+    def headers(self) -> dict[str, str]:
         if self._headers is None:
             self._headers = _parse_headers(self._environ)
         return self._headers
 
-    def get_header(self, name: str, default: Optional[str] = None) -> Optional[str]:
+    def get_header(self, name: str, default: str | None = None) -> str | None:
         return self.headers.get(name.lower(), default)
 
 
     @property
-    def GET(self) -> Dict[str, object]:
+    def GET(self) -> dict[str, object]:
         return dict(parse_qs(self._environ.get('QUERY_STRING', ''), keep_blank_values=True))
 
-    def query(self, key: str, default: Optional[str] = None) -> Optional[str]:
+    def query(self, key: str, default: str | None = None) -> str | None:
         if self._query is None:
             self._query = parse_qsl(self._environ.get('QUERY_STRING', ''), keep_blank_values=True)
         for k, v in self._query:
@@ -105,11 +114,11 @@ class URequest:
         return self._body
 
     @property
-    def POST(self) -> Dict[str, object]:
+    def POST(self) -> dict[str, object]:
         return self.form
 
     @property
-    def form(self) -> Dict[str, object]:
+    def form(self) -> dict[str, object]:
         if self._form is None:
             self._form = _parse_form(self._environ, self.body, self.content_type)
         return dict(self._form)
@@ -122,7 +131,7 @@ class URequest:
 
 
     @property
-    def cookies(self) -> Dict[str, str]:
+    def cookies(self) -> dict[str, str]:
         return _parse_cookies(self._environ.get('HTTP_COOKIE', ''))
 
 
@@ -156,8 +165,8 @@ class URequest:
 
 
 
-def _parse_headers(environ: Mapping[str, Any]) -> Dict[str, str]:
-    headers: Dict[str, str] = {}
+def _parse_headers(environ: Mapping[str, Any]) -> dict[str, str]:
+    headers: dict[str, str] = {}
     for key, value in environ.items():
         if not isinstance(value, str):
             continue
@@ -190,7 +199,7 @@ def _read_body(environ: Mapping[str, Any]) -> bytes:
     return data or b''
 
 
-def _parse_form(environ: Mapping[str, Any], body: bytes, content_type: str) -> List[Tuple[str, str]]:
+def _parse_form(environ: Mapping[str, Any], body: bytes, content_type: str) -> list[tuple[str, str]]:
     if not body:
         return []
     ctype = content_type.split(';', 1)[0].strip().lower()
@@ -206,7 +215,7 @@ def _parse_form(environ: Mapping[str, Any], body: bytes, content_type: str) -> L
 
 
 def _parse_multipart(environ: Mapping[str, Any], body: bytes,
-                     content_type: str) -> List[Tuple[str, str]]:
+                     content_type: str) -> list[tuple[str, str]]:
     try:
         from multipart import parse_multipart  # type: ignore
     except ImportError:
@@ -214,7 +223,7 @@ def _parse_multipart(environ: Mapping[str, Any], body: bytes,
     try:
         fields = parse_multipart(environ, {'CONTENT_LENGTH': str(len(body)),
                                             'CONTENT_TYPE': content_type})
-        result: List[Tuple[str, str]] = []
+        result: list[tuple[str, str]] = []
         for key, values in fields.items():
             for v in values:
                 if hasattr(v, 'decode'):
@@ -238,8 +247,8 @@ def _parse_json(body: bytes, content_type: str) -> Any:
         return None
 
 
-def _parse_cookies(cookie_header: str) -> Dict[str, str]:
-    cookies: Dict[str, str] = {}
+def _parse_cookies(cookie_header: str) -> dict[str, str]:
+    cookies: dict[str, str] = {}
     if not cookie_header:
         return cookies
     for chunk in cookie_header.split(';'):

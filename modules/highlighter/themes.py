@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from copy import deepcopy
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
 class HighlightTheme:
     name: str
     label: str = ''
-    tokens: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    tokens: dict[str, dict[str, Any]] = field(default_factory=dict)
     description: str = ''
 
 
-def _default_dark_tokens() -> Dict[str, Dict[str, Any]]:
+def _default_dark_tokens() -> dict[str, dict[str, Any]]:
     return {
         'keyword': {'foreground': '#569cd6'},
         'builtin': {'foreground': '#dcdcaa'},
@@ -42,7 +42,7 @@ def _default_dark_tokens() -> Dict[str, Dict[str, Any]]:
     }
 
 
-def _default_light_tokens() -> Dict[str, Dict[str, Any]]:
+def _default_light_tokens() -> dict[str, dict[str, Any]]:
     return {
         'keyword': {'foreground': '#0000ff'},
         'builtin': {'foreground': '#795e26'},
@@ -71,7 +71,7 @@ def _default_light_tokens() -> Dict[str, Dict[str, Any]]:
     }
 
 
-def _solarized_dark_tokens() -> Dict[str, Dict[str, Any]]:
+def _solarized_dark_tokens() -> dict[str, dict[str, Any]]:
     return {
         'keyword': {'foreground': '#859900'},
         'builtin': {'foreground': '#b58900'},
@@ -100,9 +100,9 @@ def _solarized_dark_tokens() -> Dict[str, Dict[str, Any]]:
     }
 
 
-_themes: Dict[str, HighlightTheme] = {}
+_themes: dict[str, HighlightTheme] = {}
 _current_name: str = 'Default Dark'
-_listeners: List[Callable[[str], None]] = []
+_listeners: list[Callable[[str], None]] = []
 
 
 def register(theme: HighlightTheme) -> None:
@@ -113,15 +113,15 @@ def unregister(name: str) -> None:
     _themes.pop(name, None)
 
 
-def get(name: str) -> Optional[HighlightTheme]:
+def get(name: str) -> HighlightTheme | None:
     return _themes.get(name)
 
 
-def available() -> List[HighlightTheme]:
+def available() -> list[HighlightTheme]:
     return list(_themes.values())
 
 
-def available_names() -> List[str]:
+def available_names() -> list[str]:
     return list(_themes.keys())
 
 
@@ -138,7 +138,7 @@ def current() -> HighlightTheme:
     return t
 
 
-def tokens(name: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+def tokens(name: str | None = None) -> dict[str, dict[str, Any]]:
     t = get(name or _current_name)
     if t is None:
         return {}
@@ -192,7 +192,15 @@ register(HighlightTheme(
 
 __all__ = [
     'HighlightTheme',
-    'register', 'unregister', 'get', 'available', 'available_names',
-    'current', 'current_name', 'tokens',
-    'set_theme', 'on_change', 'off_change',
+    'available',
+    'available_names',
+    'current',
+    'current_name',
+    'get',
+    'off_change',
+    'on_change',
+    'register',
+    'set_theme',
+    'tokens',
+    'unregister',
 ]

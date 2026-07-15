@@ -22,17 +22,17 @@ from __future__ import annotations
 
 import tkinter as tk
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 from . import theme
 from .frame import UFrame
 from .label import ULabel
 from .tree_canvas import TreeCanvas
 
-
 if TYPE_CHECKING:
-    from modules.settings.base import SettingsScope, SettingsSchema, SettingSpec
+    from modules.settings.base import SettingsSchema
 
 
 # --------------------------------------------------------------------------
@@ -52,8 +52,8 @@ def group_key(spec_key: str) -> str:
     return "_"
 
 
-def node_id(scope_value: str, group_key: Optional[str] = None,
-            key: Optional[str] = None) -> str:
+def node_id(scope_value: str, group_key: str | None = None,
+            key: str | None = None) -> str:
     """生成稳定的 iid.
 
     * ``node_id("global")`` -> ``"global"``  (scope 根)
@@ -68,7 +68,7 @@ def node_id(scope_value: str, group_key: Optional[str] = None,
     return scope_value
 
 
-def parse_node_id(iid: str) -> Tuple[str, Optional[str], Optional[str]]:
+def parse_node_id(iid: str) -> tuple[str, str | None, str | None]:
     """逆向解析 :func:`node_id` 生成的结果。
 
     返回 ``(scope_value, group_key, key)``; 任意中间段为 ``None`` 表示
@@ -84,7 +84,7 @@ def parse_node_id(iid: str) -> Tuple[str, Optional[str], Optional[str]]:
     return (head, group, key)
 
 
-def group_keys_for_schema(schema: "SettingsSchema") -> "OrderedDict[str, List[Tuple[str, str]]]":
+def group_keys_for_schema(schema: SettingsSchema) -> OrderedDict[str, list[tuple[str, str]]]:
     """把一个 schema 拆成 ``{group_key: [(key, label), ...]}``。
 
     * 分组与组内 spec 都按 schema 的声明顺序保留 (使用 ``OrderedDict``),
@@ -93,7 +93,7 @@ def group_keys_for_schema(schema: "SettingsSchema") -> "OrderedDict[str, List[Tu
     * 无 group 前缀的 spec 会归到 ``"_"`` 桶。
     """
 
-    groups: "OrderedDict[str, List[Tuple[str, str]]]" = OrderedDict()
+    groups: OrderedDict[str, list[tuple[str, str]]] = OrderedDict()
     for spec in schema:
         g = group_key(spec.key)
         groups.setdefault(g, []).append((spec.key, spec.label or spec.key))
@@ -118,8 +118,8 @@ class NavSelection:
     """
 
     scope: Any  # modules.settings.base.SettingsScope (懒加载)
-    group_key: Optional[str] = None
-    keys: Tuple[str, ...] = field(default_factory=tuple)
+    group_key: str | None = None
+    keys: tuple[str, ...] = field(default_factory=tuple)
     label: str = ""
 
 
@@ -158,7 +158,7 @@ class USettingsNavBar(UFrame):
         parent,
         *,
         title: str = "Settings",
-        on_select: Optional[Callable[[NavSelection], None]] = None,
+        on_select: Callable[[NavSelection], None] | None = None,
         scope_label_global: str = "全球",
         scope_label_project: str = "项目",
         **kwargs,
@@ -173,12 +173,12 @@ class USettingsNavBar(UFrame):
         self._scope_label_project = scope_label_project
 
         # iid -> NavSelection, 由 set_roots 重置。
-        self._node_data: Dict[str, NavSelection] = {}
+        self._node_data: dict[str, NavSelection] = {}
 
         # 懒加载 SettingsScope 枚举; 失败时用字符串兜底以保证组件仍可
         # 构造 (例如在脱离 settings 子系统的演示场景)。
         try:
-            from modules.settings.base import SettingsScope  # noqa: WPS433
+            from modules.settings.base import SettingsScope
             self._SettingsScope = SettingsScope
         except Exception:  # pragma: no cover - 防御性兜底
             self._SettingsScope = None
@@ -217,7 +217,7 @@ class USettingsNavBar(UFrame):
     # ------------------------------------------------------------------
 
     def set_on_select(
-        self, callback: Optional[Callable[[NavSelection], None]],
+        self, callback: Callable[[NavSelection], None] | None,
     ) -> None:
         self._on_select = callback
 
@@ -227,9 +227,9 @@ class USettingsNavBar(UFrame):
 
     def set_roots(
         self,
-        global_schema: Optional["SettingsSchema"],
-        project_schema: Optional["SettingsSchema"],
-    ) -> Optional[NavSelection]:
+        global_schema: SettingsSchema | None,
+        project_schema: SettingsSchema | None,
+    ) -> NavSelection | None:
         """按两个 schema 重建整棵树并自动选中第一片叶子.
 
         返回被自动选中的 :class:`NavSelection`; 若两侧 schema 都为空
@@ -239,7 +239,7 @@ class USettingsNavBar(UFrame):
         self._tree.clear()
         self._node_data.clear()
 
-        first_leaf_iid: Optional[str] = None
+        first_leaf_iid: str | None = None
 
         if global_schema is not None:
             leaf_iid = self._populate_scope(
@@ -266,8 +266,8 @@ class USettingsNavBar(UFrame):
     def set_selected(
         self,
         scope: Any,
-        group_key: Optional[str] = None,
-        key: Optional[str] = None,
+        group_key: str | None = None,
+        key: str | None = None,
     ) -> None:
         """编程式选中: scope 根 / group / leaf 三种深度皆可."""
 
@@ -276,7 +276,7 @@ class USettingsNavBar(UFrame):
         if self._tree.exists(iid):
             self._tree.set_selected(iid, fire=False)
 
-    def get_selected(self) -> Optional[NavSelection]:
+    def get_selected(self) -> NavSelection | None:
         iid = self._tree.get_selected()
         if iid is None:
             return None
@@ -289,10 +289,10 @@ class USettingsNavBar(UFrame):
     def _populate_scope(
         self,
         scope: Any,
-        schema: "SettingsSchema",
+        schema: SettingsSchema,
         *,
         label: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """插入 ``scope -> group -> leaf`` 三层, 返回第一片叶子的 iid."""
 
         scope_value = getattr(scope, "value", str(scope))
@@ -306,7 +306,7 @@ class USettingsNavBar(UFrame):
         # 在 _relayout 时立刻渲染其下子节点。
         self._tree.add_node(scope_iid, None, is_open=True, data=sel)
 
-        first_leaf_iid: Optional[str] = None
+        first_leaf_iid: str | None = None
         for g, items in group_keys_for_schema(schema).items():
             group_iid = node_id(scope_value, g)
             g_sel = NavSelection(
@@ -370,10 +370,10 @@ class USettingsNavBar(UFrame):
 
 
 __all__ = [
-    "USettingsNavBar",
     "NavSelection",
+    "USettingsNavBar",
     "group_key",
+    "group_keys_for_schema",
     "node_id",
     "parse_node_id",
-    "group_keys_for_schema",
 ]

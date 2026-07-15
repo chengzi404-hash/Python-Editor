@@ -15,14 +15,11 @@ from __future__ import annotations
 from modules.i18n import AVAILABLE_LANGUAGES
 
 from .base import (
+    SettingSpec,
     SettingsSchema,
     SettingsScope,
-    SettingSpec,
     SettingValueType,
 )
-
-
-
 
 GLOBAL_SPECS: tuple = (
     SettingSpec(
@@ -493,10 +490,10 @@ def get_schema(scope: SettingsScope) -> SettingsSchema:
 
 
 __all__ = [
-    "GLOBAL_SPECS",
     "GLOBAL_SCHEMA",
-    "PROJECT_SPECS",
+    "GLOBAL_SPECS",
     "PROJECT_SCHEMA",
+    "PROJECT_SPECS",
     "SCHEMA_BY_SCOPE",
     "get_schema",
 ]

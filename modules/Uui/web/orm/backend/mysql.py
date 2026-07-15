@@ -6,7 +6,7 @@ Tries drivers in this order:
     3. MySQLdb
 """
 import threading
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from .base import Backend, Row
 
@@ -76,7 +76,7 @@ class MysqlBackend(Backend):
     def _cursor(self) -> Any:
         return self.connection().cursor()
 
-    def execute(self, sql: str, params: Tuple = ()) -> Any:
+    def execute(self, sql: str, params: tuple = ()) -> Any:
         cur = self._cursor()
         try:
             cur.execute(sql, self._convert_params(params))
@@ -87,7 +87,7 @@ class MysqlBackend(Backend):
             except Exception:
                 pass
 
-    def executemany(self, sql: str, seq: List[Tuple]) -> None:
+    def executemany(self, sql: str, seq: list[tuple]) -> None:
         cur = self._cursor()
         try:
             cur.executemany(sql, [self._convert_params(p) for p in seq])
@@ -97,7 +97,7 @@ class MysqlBackend(Backend):
             except Exception:
                 pass
 
-    def fetchall(self, sql: str, params: Tuple = ()) -> List[Row]:
+    def fetchall(self, sql: str, params: tuple = ()) -> list[Row]:
         cur = self._cursor()
         try:
             cur.execute(sql, self._convert_params(params))
@@ -109,7 +109,7 @@ class MysqlBackend(Backend):
             except Exception:
                 pass
 
-    def fetchone(self, sql: str, params: Tuple = ()) -> Optional[Row]:
+    def fetchone(self, sql: str, params: tuple = ()) -> Row | None:
         cur = self._cursor()
         try:
             cur.execute(sql, self._convert_params(params))

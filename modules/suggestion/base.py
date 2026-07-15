@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass
@@ -38,7 +37,7 @@ class SuggestionExpert(ABC):
         super().__init__()
 
     @abstractmethod
-    def suggest(self, block: SuggestionBlock) -> List[SuggestionItem]:
+    def suggest(self, block: SuggestionBlock) -> list[SuggestionItem]:
         ...
 
     @abstractmethod

@@ -1,7 +1,7 @@
 """SQLite backend."""
 import sqlite3
 import threading
-from typing import Any, List, Tuple
+from typing import Any
 
 from .base import Backend
 
@@ -45,27 +45,27 @@ class SqliteBackend(Backend):
                 pass
             self._local.conn = None
 
-    def execute(self, sql: str, params: Tuple = ()) -> Any:
+    def execute(self, sql: str, params: tuple = ()) -> Any:
         cur = self.connection().execute(sql, params)
         try:
             return cur.fetchall()
         except Exception:
             return cur
 
-    def executemany(self, sql: str, seq: List[Tuple]) -> None:
+    def executemany(self, sql: str, seq: list[tuple]) -> None:
         cur = self.connection().executemany(sql, seq)
         try:
             cur.close()
         except Exception:
             pass
 
-    def fetchall(self, sql: str, params: Tuple = ()) -> List[Tuple]:
+    def fetchall(self, sql: str, params: tuple = ()) -> list[tuple]:
         cur = self.connection().execute(sql, params)
         rows = cur.fetchall()
         cur.close()
         return rows
 
-    def fetchone(self, sql: str, params: Tuple = ()) -> Tuple:
+    def fetchone(self, sql: str, params: tuple = ()) -> tuple:
         cur = self.connection().execute(sql, params)
         row = cur.fetchone()
         cur.close()

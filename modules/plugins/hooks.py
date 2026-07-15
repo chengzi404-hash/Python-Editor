@@ -29,7 +29,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple
 
 
 class HookEvents:
@@ -52,7 +51,7 @@ class HookSpec:
     """钩子事件的形参签名描述, 仅供 UI 展示 / 类型检查使用。"""
 
     name: str
-    params: Tuple[str, ...]
+    params: tuple[str, ...]
     description: str = ""
 
 
@@ -82,4 +81,4 @@ HOOK_SPECS = (
 )
 
 
-__all__ = ["HookEvents", "HookSpec", "HOOK_SPECS"]
+__all__ = ["HOOK_SPECS", "HookEvents", "HookSpec"]

@@ -1,8 +1,8 @@
 import ctypes
 import sys
 import tkinter as tk
-from . import theme
 
+from . import theme
 
 GWL_EXSTYLE = -20
 WS_EX_APPWINDOW = 0x00040000

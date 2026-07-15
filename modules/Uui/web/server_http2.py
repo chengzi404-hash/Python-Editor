@@ -17,20 +17,21 @@ import socket
 import ssl
 import sys
 import threading
-from socketserver import ThreadingMixIn, BaseServer
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple
+from collections.abc import Callable
+from socketserver import ThreadingMixIn
+from typing import TYPE_CHECKING, Any
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
 if TYPE_CHECKING:
     import h2  # type: ignore[import-not-found]
-    import h2.connection  # type: ignore[import-not-found]
     import h2.config  # type: ignore[import-not-found]
+    import h2.connection  # type: ignore[import-not-found]
     import h2.events  # type: ignore[import-not-found]
     import h2.exceptions  # type: ignore[import-not-found]
 
 try:
-    import h2.connection
     import h2.config
+    import h2.connection
     import h2.events
     import h2.exceptions
     H2_AVAILABLE = True
@@ -38,7 +39,6 @@ except ImportError:  # pragma: no cover
     H2_AVAILABLE = False
 
 from .exceptions import ImproperlyConfigured
-
 
 
 def _h2_config(settings: Any) -> 'h2.config.H2Configuration':
@@ -68,13 +68,13 @@ _STATUS_REASONS = {
 }
 
 
-def _build_http2_headers(status: str, headers: List[Tuple[str, str]]) -> List[Tuple[bytes, bytes]]:
+def _build_http2_headers(status: str, headers: list[tuple[str, str]]) -> list[tuple[bytes, bytes]]:
     try:
         code = int(status.split(' ', 1)[0])
     except (TypeError, ValueError):
         code = 200
     reason = _STATUS_REASONS.get(code, '')
-    out: List[Tuple[bytes, bytes]] = [(b':status', str(code).encode('ascii'))]
+    out: list[tuple[bytes, bytes]] = [(b':status', str(code).encode('ascii'))]
     if reason:
         out.append((b'reason', reason.encode('ascii')))
     for k, v in headers:
@@ -94,7 +94,7 @@ def _build_http2_headers(status: str, headers: List[Tuple[str, str]]) -> List[Tu
 
 
 
-def _consume_app_iter(app_iter: Any, chunks: List[bytes], max_bytes: int) -> int:
+def _consume_app_iter(app_iter: Any, chunks: list[bytes], max_bytes: int) -> int:
     """Pull bytes from a WSGI app iterable into ``chunks``. Stops if more than
     ``max_bytes`` have been collected (to avoid unbounded buffering)."""
     total = 0
@@ -128,34 +128,45 @@ def _consume_app_iter(app_iter: Any, chunks: List[bytes], max_bytes: int) -> int
 class _H2Stream:
     """Coordinates one HTTP/2 stream through the WSGI app."""
 
-    __slots__ = ('stream_id', 'request_method', 'request_path',
-                 'request_headers', 'request_body', 'response_started',
-                 'response_status', 'response_headers', 'response_chunks',
-                 'wsgi_result', 'environ', 'trailers', 'pushed')
+    __slots__ = (
+        'environ',
+        'pushed',
+        'request_body',
+        'request_headers',
+        'request_method',
+        'request_path',
+        'response_chunks',
+        'response_headers',
+        'response_started',
+        'response_status',
+        'stream_id',
+        'trailers',
+        'wsgi_result',
+    )
 
     def __init__(self, stream_id: int) -> None:
         self.stream_id = stream_id
         self.request_method: str = ''
         self.request_path: str = ''
-        self.request_headers: List[Tuple[bytes, bytes]] = []
+        self.request_headers: list[tuple[bytes, bytes]] = []
         self.request_body: bytes = b''
         self.response_started: bool = False
         self.response_status: str = '200 OK'
-        self.response_headers: List[Tuple[str, str]] = []
-        self.response_chunks: List[bytes] = []
+        self.response_headers: list[tuple[str, str]] = []
+        self.response_chunks: list[bytes] = []
         self.wsgi_result: Any = None
-        self.environ: Optional[dict] = None
-        self.trailers: List[Tuple[bytes, bytes]] = []
+        self.environ: dict | None = None
+        self.trailers: list[tuple[bytes, bytes]] = []
         self.pushed: bool = False
 
     def add_request_data(self, data: bytes) -> None:
         if data:
             self.request_body += data
 
-    def start_response(self, status: str, headers: List[Tuple[str, str]],
+    def start_response(self, status: str, headers: list[tuple[str, str]],
                        exc_info: Any = None) -> Callable[[bytes], None]:
         self.response_status = status
-        merged: List[Tuple[str, str]] = []
+        merged: list[tuple[str, str]] = []
         for k, v in headers:
             kl = k.lower()
             if kl == 'set-cookie':
@@ -179,7 +190,7 @@ class _H2Stream:
                                 [('content-type', 'text/plain')])
         _consume_app_iter(app_iter, self.response_chunks, max_bytes)
 
-    def build_headers(self) -> List[Tuple[bytes, bytes]]:
+    def build_headers(self) -> list[tuple[bytes, bytes]]:
         return _build_http2_headers(self.response_status, self.response_headers)
 
 
@@ -222,7 +233,7 @@ class _H2Connection:
             pass
         try:
             data = self.sock.recv(65535)
-        except (socket.timeout, BlockingIOError, OSError):
+        except (TimeoutError, BlockingIOError, OSError):
             return b''
         return data or b''
 
@@ -380,7 +391,7 @@ class _H2Connection:
             while True:
                 try:
                     data = self.sock.recv(65535)
-                except socket.timeout:
+                except TimeoutError:
                     break
                 if not data:
                     break
@@ -484,7 +495,7 @@ class HybridRequestHandler:
             pass
         try:
             head = self._peek(request, len(_HTTP2_PREFACE))
-        except (socket.timeout, OSError):
+        except (TimeoutError, OSError):
             head = b''
         if head.startswith(_HTTP2_PREFACE):
             try:
@@ -533,8 +544,8 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, server_address: Tuple[str, int], wsgi_app: Callable,
-                 settings: Any, ssl_context: Optional[ssl.SSLContext] = None) -> None:
+    def __init__(self, server_address: tuple[str, int], wsgi_app: Callable,
+                 settings: Any, ssl_context: ssl.SSLContext | None = None) -> None:
         self.settings = settings
         self._wsgi_app = wsgi_app
         self._ssl_context = ssl_context
@@ -562,7 +573,7 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
                 'wsgi.run_once': False,
             }
 
-    def get_request(self) -> Tuple[socket.socket, Any]:
+    def get_request(self) -> tuple[socket.socket, Any]:
         conn, addr = self.socket.accept()
         if self._ssl_context is not None:
             pass
@@ -590,13 +601,13 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
             try:
                 self.socket.settimeout(0.5)
                 self._handle_request_noblock()
-            except (socket.timeout, OSError):
+            except (TimeoutError, OSError):
                 continue
 
     def _handle_request_noblock(self) -> None:
         try:
             request, client_address = self.get_request()
-        except (socket.timeout, OSError):
+        except (TimeoutError, OSError):
             return
         t = threading.Thread(target=self.process_request_thread,
                              args=(request, client_address))
@@ -634,7 +645,7 @@ def run_http2(host: str, port: int, settings: Any,
     app = get_application(settings)
     wsgi = app.wsgi()
 
-    ssl_ctx: Optional[ssl.SSLContext] = None
+    ssl_ctx: ssl.SSLContext | None = None
     if ssl_certfile and ssl_keyfile:
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(certfile=ssl_certfile, keyfile=ssl_keyfile)
@@ -649,10 +660,10 @@ def run_http2(host: str, port: int, settings: Any,
     scheme = 'https' if ssl_ctx else 'http'
     print(f'  Uui.web HTTP/1.1+HTTP/2 server listening on {scheme}://{host}:{port}/', flush=True)
     if ssl_ctx:
-        print(f'  (ALPN: h2, http/1.1)', flush=True)
+        print('  (ALPN: h2, http/1.1)', flush=True)
     else:
-        print(f'  (h2c via Upgrade + prior-knowledge; for production, use --ssl-cert / --ssl-key)', flush=True)
-    print(f'  (use Ctrl+C to stop)', flush=True)
+        print('  (h2c via Upgrade + prior-knowledge; for production, use --ssl-cert / --ssl-key)', flush=True)
+    print('  (use Ctrl+C to stop)', flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

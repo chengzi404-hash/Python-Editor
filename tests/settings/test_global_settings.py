@@ -1,7 +1,9 @@
-import pytest
-import tempfile
-import os
 import json
+import os
+import tempfile
+
+import pytest
+
 from modules.settings.global_settings import GlobalSettings, default_global_path
 
 

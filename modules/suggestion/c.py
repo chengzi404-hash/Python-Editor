@@ -1,9 +1,11 @@
-from .base import SuggestionExpert, SuggestionBlock, DOMScope, SuggestionItem
-from modules.data import suggestions_path
-from modules.i18n import get_translator
 import json
 import os
 import re
+
+from modules.data import suggestions_path
+from modules.i18n import get_translator
+
+from .base import DOMScope, SuggestionBlock, SuggestionExpert, SuggestionItem
 
 # Priority constants (lower = higher priority)
 # User-defined items take highest priority

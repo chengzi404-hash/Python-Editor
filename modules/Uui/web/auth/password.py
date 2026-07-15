@@ -2,9 +2,7 @@
 import base64
 import hashlib
 import hmac
-import os
 import secrets
-
 
 ALGO = 'pbkdf2_sha256'
 ITERATIONS = 320_000

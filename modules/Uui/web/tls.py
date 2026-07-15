@@ -12,8 +12,6 @@ installed).
 import os
 import shutil
 import subprocess
-import sys
-from typing import Optional, Tuple
 
 
 def openssl_available() -> bool:
@@ -21,14 +19,15 @@ def openssl_available() -> bool:
 
 
 def _generate_via_cryptography(cn: str, cert_path: str, key_path: str,
-                               days: int = 3650) -> Tuple[str, str]:
+                               days: int = 3650) -> tuple[str, str]:
     """Use the optional ``cryptography`` library to issue a real cert."""
     import datetime
+
     from cryptography import x509
     from cryptography.hazmat.backends import default_backend
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
-    from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
+    from cryptography.x509.oid import NameOID
 
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048,
                                     backend=default_backend())
@@ -66,7 +65,7 @@ def _generate_via_cryptography(cn: str, cert_path: str, key_path: str,
 def generate_self_signed_cert(cn: str = 'localhost',
                               days: int = 3650,
                               cert_path: str = 'cert.pem',
-                              key_path: str = 'key.pem') -> Tuple[str, str]:
+                              key_path: str = 'key.pem') -> tuple[str, str]:
     """Generate a self-signed RSA-2048 cert + key pair.
 
     Preference order:
@@ -99,7 +98,7 @@ def generate_self_signed_cert(cn: str = 'localhost',
 def ensure_dev_cert(cn: str = 'localhost',
                     cert_path: str = 'cert.pem',
                     key_path: str = 'key.pem',
-                    regenerate: bool = False) -> Tuple[str, str]:
+                    regenerate: bool = False) -> tuple[str, str]:
     """Return existing cert paths, or generate a fresh self-signed pair."""
     if not regenerate and os.path.isfile(cert_path) and os.path.isfile(key_path):
         return cert_path, key_path

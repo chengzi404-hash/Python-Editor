@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import os
 
-
 _ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 _CACHE_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cache")
 
@@ -52,4 +51,4 @@ def cache_path(*parts: str) -> str:
     return target
 
 
-__all__ = ["i18n_path", "data_path", "data_dir", "suggestions_path", "cache_dir", "cache_path"]
+__all__ = ["cache_dir", "cache_path", "data_dir", "data_path", "i18n_path", "suggestions_path"]

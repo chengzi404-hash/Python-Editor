@@ -1,6 +1,6 @@
-from .base import HighlighterExpert, HighlightBlock, HighlightToken
 import re
 
+from .base import HighlightBlock, HighlighterExpert, HighlightToken
 
 _LOG_TOKEN_RE = re.compile(
     r'(?P<timestamp>'

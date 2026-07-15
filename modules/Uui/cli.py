@@ -17,7 +17,6 @@ import sys
 import textwrap
 from pathlib import Path
 
-
 CONFIG_DIR = Path.home() / '.uui'
 CONFIG_FILE = CONFIG_DIR / 'config.py'
 
@@ -582,7 +581,7 @@ def _create_conda(project_dir: str, conda_path: str) -> None:
         stderr = e.stderr.decode(errors='replace') if e.stderr else ''
         _warn(f'conda create failed: {stderr.strip() or e}')
         return
-    _success(f'created conda env at .venv/')
+    _success('created conda env at .venv/')
     _activate_hint(env_path, conda=True)
 
 
@@ -673,7 +672,7 @@ def _init_svn(project_dir: str) -> None:
 
     repo_url = 'file:///' + repo_path.replace('\\', '/').lstrip('/')
 
-    _success(f'created local SVN repo at .svnrepo/')
+    _success('created local SVN repo at .svnrepo/')
     print()
     print('  ' + _c(_C.BOLD, 'To start working with it:'))
     print('    ' + _c(_C.CYAN,
@@ -946,8 +945,8 @@ def cmd_theme(args: argparse.Namespace) -> int:
 
 
 def cmd_info(args: argparse.Namespace) -> int:
-    from .widgets import theme
     from . import widgets
+    from .widgets import theme
 
     print('Uui  —  Component Gallery')
     print()

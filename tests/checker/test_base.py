@@ -1,5 +1,6 @@
 import pytest
-from modules.checker.base import OutputRow, Output, Checker
+
+from modules.checker.base import Checker, Output, OutputRow
 
 
 class MockChecker(Checker):

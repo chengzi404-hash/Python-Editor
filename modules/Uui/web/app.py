@@ -1,20 +1,19 @@
 """WSGI application object."""
 import importlib
 import os
-import sys
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
+from collections.abc import Callable, Mapping
+from typing import Any, Optional
 
-from .exceptions import Http404, Http403, Http400, ImproperlyConfigured
+from .exceptions import Http400, Http403, Http404, ImproperlyConfigured
 from .request import URequest
 from .response import UResponse, error
 from .router import URLRouter, clear_url_caches
 
-
-_SETTINGS_CACHE: Dict[str, Any] = {}
+_SETTINGS_CACHE: dict[str, Any] = {}
 _GLOBAL_APP: Optional['UWSGIApp'] = None
 
 
-def get_settings(module_path: Optional[str] = None) -> Any:
+def get_settings(module_path: str | None = None) -> Any:
     """Return the project's settings module. ``module_path`` is auto-detected
     from ``UUI_SETTINGS`` env var or ``manage.py``'s import order."""
     if module_path is None:
@@ -33,7 +32,7 @@ def get_settings(module_path: Optional[str] = None) -> Any:
     return mod
 
 
-def get_application(settings_path: Optional[str] = None) -> 'UWSGIApp':
+def get_application(settings_path: str | None = None) -> 'UWSGIApp':
     """Build a :class:`UWSGIApp` from a settings module path."""
     settings = get_settings(settings_path)
     return UWSGIApp(settings)
@@ -47,8 +46,8 @@ class UWSGIApp:
 
     def __init__(self, settings: Any) -> None:
         self.settings = settings
-        self._router: Optional[URLRouter] = None
-        self._middleware: List[Callable] = []
+        self._router: URLRouter | None = None
+        self._middleware: list[Callable] = []
         try:
             from .orm import connection as _db
             _db.configure(settings)
@@ -81,7 +80,7 @@ class UWSGIApp:
         self._middleware.append(mw_class)
 
 
-    def __call__(self, environ: Mapping[str, Any], start_response: Callable) -> List[bytes]:
+    def __call__(self, environ: Mapping[str, Any], start_response: Callable) -> list[bytes]:
         try:
             request = URequest(environ)
             return self._handle(request, start_response)
@@ -94,7 +93,7 @@ class UWSGIApp:
         except Exception as exc:
             return self._handle_exception(exc, start_response)
 
-    def _handle(self, request: URequest, start_response: Callable) -> List[bytes]:
+    def _handle(self, request: URequest, start_response: Callable) -> list[bytes]:
         if self._router is None:
             raise ImproperlyConfigured('Router not initialised')
         view, kwargs, ns = self._router.resolve(request.path)
@@ -109,13 +108,13 @@ class UWSGIApp:
             return _respond(start_response, UResponse(result))
         raise ImproperlyConfigured(f'View returned unexpected type: {type(result).__name__}')
 
-    def _handle_exception(self, exc: Exception, start_response: Callable) -> List[bytes]:
+    def _handle_exception(self, exc: Exception, start_response: Callable) -> list[bytes]:
         if getattr(self.settings, 'DEBUG', False):
             tb = _format_traceback(exc)
             return _respond(start_response, _debug_error(exc, tb))
         return _respond(start_response, error(500, str(exc)))
 
-    def _handle_404(self, exc: Http404, start_response: Callable) -> List[bytes]:
+    def _handle_404(self, exc: Http404, start_response: Callable) -> list[bytes]:
         if getattr(self.settings, 'DEBUG', False):
             return _respond(start_response, error(404, str(exc)))
         try:
@@ -141,7 +140,7 @@ class UWSGIApp:
             handler = mw_class(self, handler)
         return handler
 
-    def _dispatch(self, environ: Mapping[str, Any], start_response: Callable) -> List[bytes]:
+    def _dispatch(self, environ: Mapping[str, Any], start_response: Callable) -> list[bytes]:
         return self.__call__(environ, start_response)
 
 
@@ -155,8 +154,8 @@ def _import(path: str) -> Any:
         raise ImproperlyConfigured(f"Could not import '{path}': {exc}")
 
 
-def _respond(start_response: Callable, response: UResponse) -> List[bytes]:
-    header_list: List[Tuple[str, str]] = []
+def _respond(start_response: Callable, response: UResponse) -> list[bytes]:
+    header_list: list[tuple[str, str]] = []
     for k, v in response.headers.items():
         header_list.append((k, v))
     start_response(response.status, header_list)

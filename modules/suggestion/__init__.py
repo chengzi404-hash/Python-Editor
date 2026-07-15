@@ -1,15 +1,14 @@
-from .python import (
-    PythonSuggestionExpert,
-    KEYWORDS,
-    BUILTIN_FUNCTIONS,
-    BUILTIN_CLASSES,
-    BUILTIN_PROPERTIES,
-    BUILTIN_ATTRS,
-)
+from .base import DOMScope, SuggestionBlock, SuggestionExpert, SuggestionItem
 from .c import CSuggestionExpert
 from .cpp import CppSuggestionExpert
-from .base import SuggestionBlock, DOMScope, SuggestionExpert, SuggestionItem
-
+from .python import (
+    BUILTIN_ATTRS,
+    BUILTIN_CLASSES,
+    BUILTIN_FUNCTIONS,
+    BUILTIN_PROPERTIES,
+    KEYWORDS,
+    PythonSuggestionExpert,
+)
 
 __all__ = [
     'SuggestionBlock',

@@ -17,12 +17,9 @@ import json
 import os
 import pkgutil
 import sys
-import time
-from dataclasses import dataclass, field, asdict
-from typing import Optional
+from dataclasses import asdict, dataclass, field
 
 from modules.data import cache_path
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Data model
@@ -59,7 +56,7 @@ def _cache_file(lib_name: str) -> str:
 # Core public API
 # ──────────────────────────────────────────────────────────────────────────────
 
-def get_lib_dom(lib_name: str) -> Optional[LibraryDOM]:
+def get_lib_dom(lib_name: str) -> LibraryDOM | None:
     """Return cached DOM for ``lib_name``, or None if not cached."""
     path = _cache_file(lib_name)
     if not os.path.exists(path):
@@ -72,7 +69,7 @@ def get_lib_dom(lib_name: str) -> Optional[LibraryDOM]:
         return None
 
 
-def ensure_lib_cache(lib_name: str) -> Optional[LibraryDOM]:
+def ensure_lib_cache(lib_name: str) -> LibraryDOM | None:
     """Ensure a fresh cache entry exists for ``lib_name``.
 
     Scans the installed package and writes the DOM to the cache file.
@@ -93,7 +90,7 @@ def ensure_lib_cache(lib_name: str) -> Optional[LibraryDOM]:
     return dom
 
 
-def get_or_load_lib_dom(lib_name: str) -> Optional[LibraryDOM]:
+def get_or_load_lib_dom(lib_name: str) -> LibraryDOM | None:
     """Return cached DOM if available, otherwise scan and cache it."""
     dom = get_lib_dom(lib_name)
     if dom is not None:
@@ -105,7 +102,7 @@ def get_or_load_lib_dom(lib_name: str) -> Optional[LibraryDOM]:
 # Scanning helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _scan_library(lib_name: str) -> Optional[LibraryDOM]:
+def _scan_library(lib_name: str) -> LibraryDOM | None:
     """Attempt to scan ``lib_name`` and return its ``LibraryDOM``."""
 
     # 1. Try to import the module and inspect it

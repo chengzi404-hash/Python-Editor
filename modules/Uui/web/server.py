@@ -1,17 +1,15 @@
 """Built-in HTTP servers for Uui.web projects."""
-import os
-import sys
-from typing import Any, Callable, Optional, Tuple
+from typing import Any
 
 from .app import get_application
 from .exceptions import ImproperlyConfigured
 
 
 def make_server(host: str = '127.0.0.1', port: int = 8000,
-                settings: Optional[str] = None) -> Tuple[Any, Any]:
+                settings: str | None = None) -> tuple[Any, Any]:
     """Create a wsgiref-based threaded WSGI server."""
-    from wsgiref.simple_server import WSGIServer, WSGIRequestHandler
     from socketserver import ThreadingMixIn
+    from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
     class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
         daemon_threads = True
@@ -26,13 +24,13 @@ def make_server(host: str = '127.0.0.1', port: int = 8000,
 
 
 def runserver(host: str = '127.0.0.1', port: int = 8000,
-              settings: Optional[str] = None, quiet: bool = False) -> None:
+              settings: str | None = None, quiet: bool = False) -> None:
     """Start the dev server (wsgiref, threaded). Blocks until interrupted."""
     server, _ = make_server(host, port, settings)
     if not quiet:
         url = f'http://{host}:{port}/'
         print(f'  Uui.web dev server listening on {url}', flush=True)
-        print(f'  (use Ctrl+C to stop)', flush=True)
+        print('  (use Ctrl+C to stop)', flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -43,7 +41,7 @@ def runserver(host: str = '127.0.0.1', port: int = 8000,
 
 
 def serve(host: str = '0.0.0.0', port: int = 8000,
-          settings: Optional[str] = None, threads: int = 4,
+          settings: str | None = None, threads: int = 4,
           quiet: bool = False) -> None:
     """Start the production server (waitress)."""
     try:

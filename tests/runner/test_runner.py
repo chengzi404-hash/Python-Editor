@@ -1,7 +1,9 @@
-import pytest
-import sys
 import subprocess
-from modules.runner.runner import RunResult, stream_command, run_blocking
+import sys
+
+import pytest
+
+from modules.runner.runner import RunResult, run_blocking, stream_command
 
 
 class TestRunResult:

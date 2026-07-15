@@ -9,8 +9,9 @@ import os
 import subprocess
 import threading
 import tkinter as tk
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from . import theme
 from .frame import UFrame
@@ -39,27 +40,27 @@ class DebugSession:
 
     def __init__(self, workspace_root: str):
         self._workspace_root = workspace_root
-        self._process: Optional[subprocess.Popen] = None
-        self._thread: Optional[threading.Thread] = None
+        self._process: subprocess.Popen | None = None
+        self._thread: threading.Thread | None = None
         self._running = False
         self._paused = False
         self._stopped = False
 
-        self._variables: List[VariableInfo] = []
-        self._call_stack: List[DebugLocation] = []
-        self._breakpoints: Dict[str, List[int]] = {}  # file -> [lines]
+        self._variables: list[VariableInfo] = []
+        self._call_stack: list[DebugLocation] = []
+        self._breakpoints: dict[str, list[int]] = {}  # file -> [lines]
 
-        self._on_state_change: Optional[Callable[[str], None]] = None
-        self._on_variables_change: Optional[Callable[[List[VariableInfo]], None]] = None
-        self._on_stack_change: Optional[Callable[[List[DebugLocation]], None]] = None
-        self._on_output: Optional[Callable[[str, str], None]] = None
+        self._on_state_change: Callable[[str], None] | None = None
+        self._on_variables_change: Callable[[list[VariableInfo]], None] | None = None
+        self._on_stack_change: Callable[[list[DebugLocation]], None] | None = None
+        self._on_output: Callable[[str, str], None] | None = None
 
     def set_callbacks(
         self,
-        on_state_change: Optional[Callable[[str], None]] = None,
-        on_variables_change: Optional[Callable[[List[VariableInfo]], None]] = None,
-        on_stack_change: Optional[Callable[[List[DebugLocation]], None]] = None,
-        on_output: Optional[Callable[[str, str], None]] = None,
+        on_state_change: Callable[[str], None] | None = None,
+        on_variables_change: Callable[[list[VariableInfo]], None] | None = None,
+        on_stack_change: Callable[[list[DebugLocation]], None] | None = None,
+        on_output: Callable[[str, str], None] | None = None,
     ):
         self._on_state_change = on_state_change
         self._on_variables_change = on_variables_change
@@ -79,7 +80,7 @@ class DebugSession:
     def clear_breakpoints(self) -> None:
         self._breakpoints.clear()
 
-    def get_breakpoints(self) -> Dict[str, List[int]]:
+    def get_breakpoints(self) -> dict[str, list[int]]:
         return self._breakpoints.copy()
 
     def start(self, file: str, args: str = '') -> bool:
@@ -237,12 +238,12 @@ class DebugSession:
         if self._on_state_change:
             self._on_state_change(state)
 
-    def set_variables(self, variables: List[VariableInfo]) -> None:
+    def set_variables(self, variables: list[VariableInfo]) -> None:
         self._variables = variables
         if self._on_variables_change:
             self._on_variables_change(variables)
 
-    def set_call_stack(self, stack: List[DebugLocation]) -> None:
+    def set_call_stack(self, stack: list[DebugLocation]) -> None:
         self._call_stack = stack
         if self._on_stack_change:
             self._on_stack_change(stack)
@@ -256,9 +257,9 @@ class DebugCard(UFrame):
         parent,
         *,
         title: str = 'DEBUG',
-        workspace_root: Optional[str] = None,
-        on_breakpoint_click: Optional[Callable[[str, int], None]] = None,
-        on_debug_output: Optional[Callable[[str, str], None]] = None,
+        workspace_root: str | None = None,
+        on_breakpoint_click: Callable[[str, int], None] | None = None,
+        on_debug_output: Callable[[str, str], None] | None = None,
         **kwargs,
     ) -> None:
         kwargs.setdefault('variant', 'panel')
@@ -267,12 +268,12 @@ class DebugCard(UFrame):
         self._title = title
         self._workspace_root = workspace_root or ''
         self._on_breakpoint_click = on_breakpoint_click
-        self._on_debug_output: Optional[Callable[[str, str], None]] = on_debug_output
-        self._session: Optional[DebugSession] = None
+        self._on_debug_output: Callable[[str, str], None] | None = on_debug_output
+        self._session: DebugSession | None = None
 
-        self._variables: List[Dict[str, str]] = []
-        self._call_stack: List[Dict[str, str]] = []
-        self._breakpoints: List[Dict[str, Any]] = []
+        self._variables: list[dict[str, str]] = []
+        self._call_stack: list[dict[str, str]] = []
+        self._breakpoints: list[dict[str, Any]] = []
 
         self._build()
 
@@ -440,15 +441,15 @@ class DebugCard(UFrame):
         self._btn_step_into.config(state='normal')
         self._btn_stop.config(state='normal')
 
-    def set_variables(self, variables: List[Dict[str, str]]) -> None:
+    def set_variables(self, variables: list[dict[str, str]]) -> None:
         self._variables = variables
         self._variables_view.set_data(variables)
 
-    def set_call_stack(self, stack: List[Dict[str, str]]) -> None:
+    def set_call_stack(self, stack: list[dict[str, str]]) -> None:
         self._call_stack = stack
         self._call_stack_view.set_data(stack)
 
-    def set_breakpoints(self, breakpoints: List[Dict[str, Any]]) -> None:
+    def set_breakpoints(self, breakpoints: list[dict[str, Any]]) -> None:
         self._breakpoints = breakpoints
         data = []
         for bp in breakpoints:
@@ -535,11 +536,11 @@ class DebugCard(UFrame):
     def _on_session_state_change(self, state: str) -> None:
         self.after(0, lambda: self.set_debug_state(state))
 
-    def _on_variables_changed(self, variables: List[VariableInfo]) -> None:
+    def _on_variables_changed(self, variables: list[VariableInfo]) -> None:
         data = [{'Name': v.name, 'Value': v.value} for v in variables]
         self.after(0, lambda: self.set_variables(data))
 
-    def _on_stack_changed(self, stack: List[DebugLocation]) -> None:
+    def _on_stack_changed(self, stack: list[DebugLocation]) -> None:
         data = []
         for i, loc in enumerate(stack):
             data.append({
@@ -587,4 +588,4 @@ class DebugCard(UFrame):
         self._status_label.config(bg=theme.BG_PANEL)
 
 
-__all__ = ['DebugCard', 'DebugSession', 'DebugLocation', 'VariableInfo']
+__all__ = ['DebugCard', 'DebugLocation', 'DebugSession', 'VariableInfo']

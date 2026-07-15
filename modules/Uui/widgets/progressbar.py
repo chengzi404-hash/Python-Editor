@@ -1,11 +1,11 @@
 import tkinter as tk
-from typing import Optional
+
 from . import theme
 
 
 class UProgressBar(tk.Canvas):
     def __init__(self, parent, maximum: int = 100, value: float = 0,
-                 height: int = 6, color: Optional[str] = None, **kwargs):
+                 height: int = 6, color: str | None = None, **kwargs):
         self._explicit_color = color
         kwargs.setdefault('bg', theme.BG_INPUT)
         kwargs.setdefault('highlightthickness', 0)

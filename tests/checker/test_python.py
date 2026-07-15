@@ -1,6 +1,8 @@
-import pytest
 import os
-from modules.checker.python import Flake8Checker, PyrightChecker, CPythonChecker
+
+import pytest
+
+from modules.checker.python import CPythonChecker, Flake8Checker, PyrightChecker
 
 
 class TestFlake8Checker:

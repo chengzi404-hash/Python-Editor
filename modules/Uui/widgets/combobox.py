@@ -1,5 +1,5 @@
 import tkinter as tk
-from typing import Optional
+
 from . import theme
 
 
@@ -114,7 +114,7 @@ class UComboBox(tk.Frame):
 
         self._root_bind = top.bind('<Button-1>', self._on_root_click, add='+')
 
-    def _on_root_click(self, e: Optional[tk.Event] = None):
+    def _on_root_click(self, e: tk.Event | None = None):
         dd = self._dropdown
         if dd is None or e is None:
             return

@@ -1,10 +1,9 @@
-from .base import HighlighterExpert, HighlightBlock, HighlightToken
-from .dom_cache import get_or_load_lib_dom, LibraryDOM, cache_exists
-
 import json
 import os
 import re
 
+from .base import HighlightBlock, HighlighterExpert, HighlightToken
+from .dom_cache import LibraryDOM, cache_exists, get_or_load_lib_dom
 
 _KEYWORDS: set[str] = set()
 _KEYWORDS_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'keywords', 'python.json')

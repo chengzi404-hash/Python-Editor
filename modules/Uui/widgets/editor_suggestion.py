@@ -1,6 +1,7 @@
 import tkinter as tk
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Optional
 
 from . import theme
 
@@ -30,7 +31,7 @@ class UEditorSuggestion(tk.Toplevel):
     _PAD_X = 10
 
     def __init__(self, parent, items: Iterable[Any] = (),
-                 on_select: Optional[Callable[[CompletionItem], None]] = None,
+                 on_select: Callable[[CompletionItem], None] | None = None,
                  *, max_visible: int = 8, show_detail: bool = True,
                  show_description: bool = True, grab_focus: bool = False) -> None:
         top = parent.winfo_toplevel() if parent is not None else getattr(tk, '_default_root', None)
@@ -46,15 +47,15 @@ class UEditorSuggestion(tk.Toplevel):
         self._show_description = show_description
         self._grab_focus = grab_focus
 
-        self._items: List[CompletionItem] = []
-        self._row_widgets: List[tk.Frame] = []
-        self._row_widgets_map: Dict[
+        self._items: list[CompletionItem] = []
+        self._row_widgets: list[tk.Frame] = []
+        self._row_widgets_map: dict[
             tk.Frame,
-            Tuple[List[tk.Widget], Optional[tk.Label], Optional[tk.Label]],
+            tuple[list[tk.Widget], tk.Label | None, tk.Label | None],
         ] = {}
         self._selected_index = -1
         self._scroll_offset = 0
-        self._root_bind: Optional[str] = None
+        self._root_bind: str | None = None
 
         self._outer = tk.Frame(
             self, bg=theme.BG_PANEL,
@@ -89,9 +90,9 @@ class UEditorSuggestion(tk.Toplevel):
 
         self.set_items(items)
 
-    def show(self, items: Optional[Iterable[Any]] = None, *,
-             x: Optional[int] = None, y: Optional[int] = None,
-             attach_to: Optional[tk.Widget] = None,
+    def show(self, items: Iterable[Any] | None = None, *,
+             x: int | None = None, y: int | None = None,
+             attach_to: tk.Widget | None = None,
              index: str = 'insert') -> None:
         if items is not None:
             self.set_items(items)
@@ -140,7 +141,7 @@ class UEditorSuggestion(tk.Toplevel):
             pass
 
     def set_items(self, items: Iterable[Any]) -> None:
-        normalized: List[CompletionItem] = []
+        normalized: list[CompletionItem] = []
         for it in items:
             if isinstance(it, CompletionItem):
                 normalized.append(it)
@@ -179,7 +180,7 @@ class UEditorSuggestion(tk.Toplevel):
         self._ensure_selected_visible()
         self._refresh_selection()
 
-    def selected(self) -> Optional[CompletionItem]:
+    def selected(self) -> CompletionItem | None:
         if 0 <= self._selected_index < len(self._items):
             return self._items[self._selected_index]
         return None
@@ -257,8 +258,8 @@ class UEditorSuggestion(tk.Toplevel):
         )
         label.pack(side=tk.LEFT, padx=(self._PAD_X, 6), pady=3)
 
-        widgets: List[tk.Widget] = [row, label]
-        detail_label: Optional[tk.Label] = None
+        widgets: list[tk.Widget] = [row, label]
+        detail_label: tk.Label | None = None
 
         if self._show_detail and item.detail:
             detail_label = tk.Label(

@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from . import theme
 from .file_tree import UFileTree
@@ -22,7 +22,7 @@ class ExplorerCard(UFrame):
         parent,
         *,
         title: str = 'EXPLORER',
-        on_activate: Optional[Callable[[str], None]] = None,
+        on_activate: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
         kwargs.setdefault('variant', 'panel')

@@ -37,13 +37,13 @@
 from __future__ import annotations
 
 from .base import (
-    SettingSpec,
-    SettingValueType,
     Settings,
     SettingsChangeEvent,
     SettingsListener,
+    SettingSpec,
     SettingsSchema,
     SettingsScope,
+    SettingValueType,
 )
 from .global_settings import (
     GLOBAL_SCHEMA,
@@ -61,26 +61,25 @@ from .project_settings import (
 from .schema import SCHEMA_BY_SCOPE, get_schema
 from .storage import CURRENT_VERSION, JsonFileSettings
 
-
 __all__ = [
-    "SettingsManager",
-    "GlobalSettings",
-    "ProjectSettings",
-    "Settings",
-    "JsonFileSettings",
-    "SettingsSchema",
-    "SettingSpec",
-    "SettingValueType",
-    "SettingsScope",
-    "SettingsChangeEvent",
-    "SettingsListener",
+    "CURRENT_VERSION",
     "GLOBAL_SCHEMA",
-    "PROJECT_SCHEMA",
     "GLOBAL_SPECS",
+    "PROJECT_SCHEMA",
     "PROJECT_SPECS",
     "SCHEMA_BY_SCOPE",
-    "get_schema",
+    "GlobalSettings",
+    "JsonFileSettings",
+    "ProjectSettings",
+    "SettingSpec",
+    "SettingValueType",
+    "Settings",
+    "SettingsChangeEvent",
+    "SettingsListener",
+    "SettingsManager",
+    "SettingsSchema",
+    "SettingsScope",
     "default_global_path",
     "default_project_path",
-    "CURRENT_VERSION",
+    "get_schema",
 ]

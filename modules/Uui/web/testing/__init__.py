@@ -1,5 +1,4 @@
 """Uui.web testing utilities."""
-from .client import UTestClient, UResponse
+from .client import UResponse, UTestClient
 
-
-__all__ = ['UTestClient', 'UResponse']
+__all__ = ['UResponse', 'UTestClient']

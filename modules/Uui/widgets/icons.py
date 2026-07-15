@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import tkinter as tk
 
-
 # 图标尺寸
 ICON_SIZE = 20
 
@@ -71,4 +70,4 @@ def draw_icon(canvas: tk.Canvas, name: str, color: str) -> None:
         _DRAW_FUNCTIONS[name](canvas, color)
 
 
-__all__ = ['draw_icon', 'ICON_SIZE']
+__all__ = ['ICON_SIZE', 'draw_icon']

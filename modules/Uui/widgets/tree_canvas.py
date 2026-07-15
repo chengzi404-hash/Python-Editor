@@ -40,12 +40,12 @@ API 概览::
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 from . import theme
 from .frame import UFrame
 from .scrollbar import UScrollBar
-
 
 # 三角字符 — 用 ASCII 回退兼容所有字体; 视觉上比 ▼/▶ 更稳。
 _TRI_OPEN = "v"   # "已展开" 的占位
@@ -56,12 +56,12 @@ _TRI_BLANK = " "   # 叶子节点 (无子) 的占位
 class _Node:
     """树节点的纯数据层; 不持有任何 Tk 引用, 方便测试与重建."""
 
-    __slots__ = ("iid", "parent_iid", "children", "is_open", "data")
+    __slots__ = ("children", "data", "iid", "is_open", "parent_iid")
 
-    def __init__(self, iid: str, parent_iid: Optional[str], data: Any) -> None:
+    def __init__(self, iid: str, parent_iid: str | None, data: Any) -> None:
         self.iid = iid
         self.parent_iid = parent_iid
-        self.children: List[str] = []
+        self.children: list[str] = []
         self.is_open = False
         self.data = data
 
@@ -80,9 +80,9 @@ class TreeCanvas(UFrame):
         parent,
         *,
         row_text: Callable[[str], str],
-        on_select: Optional[Callable[[str], None]] = None,
-        on_activate: Optional[Callable[[str], None]] = None,
-        on_toggle: Optional[Callable[[str, bool], None]] = None,
+        on_select: Callable[[str], None] | None = None,
+        on_activate: Callable[[str], None] | None = None,
+        on_toggle: Callable[[str, bool], None] | None = None,
         row_height: int = 22,
         row_indent: int = 18,
         show_disclosure: bool = True,
@@ -101,15 +101,15 @@ class TreeCanvas(UFrame):
         self._show_disclosure = show_disclosure
 
         # 树模型 (纯数据, 不依赖 Tk)
-        self._nodes: Dict[str, _Node] = {}
-        self._root_iids: List[str] = []
-        self._selected_iid: Optional[str] = None
-        self._hover_iid: Optional[str] = None
+        self._nodes: dict[str, _Node] = {}
+        self._root_iids: list[str] = []
+        self._selected_iid: str | None = None
+        self._hover_iid: str | None = None
 
         # 渲染层
-        self._row_frames: Dict[str, tk.Frame] = {}  # iid -> 行 Frame
-        self._row_y: Dict[str, int] = {}            # iid -> canvas y
-        self._row_window_id: Dict[str, int] = {}    # iid -> canvas window item id
+        self._row_frames: dict[str, tk.Frame] = {}  # iid -> 行 Frame
+        self._row_y: dict[str, int] = {}            # iid -> canvas y
+        self._row_window_id: dict[str, int] = {}    # iid -> canvas window item id
         self._pending_width_sync = False            # 防抖: 多次 resize 只刷一次
 
         self._build_canvas()
@@ -155,7 +155,7 @@ class TreeCanvas(UFrame):
     def add_node(
         self,
         iid: str,
-        parent_iid: Optional[str],
+        parent_iid: str | None,
         *,
         is_open: bool = False,
         data: Any = None,
@@ -191,7 +191,7 @@ class TreeCanvas(UFrame):
         node = self._nodes.get(iid)
         if node is None:
             return
-        to_remove: List[str] = []
+        to_remove: list[str] = []
         self._collect_descendants(iid, to_remove)
         # 从根列表中清掉被删的根节点。
         for rid in to_remove:
@@ -264,7 +264,7 @@ class TreeCanvas(UFrame):
     # ------------------------------------------------------------------
 
     def set_selected(
-        self, iid: Optional[str], *, fire: bool = True, scroll: bool = True,
+        self, iid: str | None, *, fire: bool = True, scroll: bool = True,
     ) -> None:
         """程序式选中一个节点. 隐藏节点不可被选中 (保护 UX 一致性)."""
 
@@ -282,7 +282,7 @@ class TreeCanvas(UFrame):
             except Exception:
                 pass
 
-    def get_selected(self) -> Optional[str]:
+    def get_selected(self) -> str | None:
         return self._selected_iid
 
     def exists(self, iid: str) -> bool:
@@ -322,7 +322,7 @@ class TreeCanvas(UFrame):
                 (y + self._row_height - canvas_h) / total_h
             )
 
-    def identify_row(self, y: int) -> Optional[str]:
+    def identify_row(self, y: int) -> str | None:
         """把 canvas y 坐标反查到 iid; 不在行上则返回 ``None``."""
 
         for iid, row_y in self._row_y.items():
@@ -354,7 +354,7 @@ class TreeCanvas(UFrame):
             cur = self._nodes.get(cur.parent_iid)
         return depth
 
-    def _collect_descendants(self, iid: str, out: List[str]) -> None:
+    def _collect_descendants(self, iid: str, out: list[str]) -> None:
         node = self._nodes.get(iid)
         if node is None:
             return
@@ -380,7 +380,7 @@ class TreeCanvas(UFrame):
         self._canvas.delete("all")
 
         # DFS 收集可见 (iid, depth) 序列。
-        visible: List[Tuple[str, int]] = []
+        visible: list[tuple[str, int]] = []
 
         def walk(iid: str, depth: int) -> None:
             visible.append((iid, depth))
@@ -543,7 +543,7 @@ class TreeCanvas(UFrame):
         except tk.TclError:
             pass
 
-    def _apply_selection(self, iid: Optional[str]) -> None:
+    def _apply_selection(self, iid: str | None) -> None:
         """更新选中状态并重绘相关行; 不触发回调也不滚动."""
 
         self._selected_iid = iid

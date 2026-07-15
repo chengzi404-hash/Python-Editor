@@ -1,11 +1,12 @@
 """URL routing with regex-based path matching and path converters."""
-from typing import Any, Callable, Dict, List, Optional, Tuple
-from .exceptions import Http404, Http405, ImproperlyConfigured
+from collections.abc import Callable
+from typing import Any
 
+from .exceptions import Http404, ImproperlyConfigured
 
-PathConverter = Tuple[str, Callable[[str], Any]]
+PathConverter = tuple[str, Callable[[str], Any]]
 
-CONVERTERS: Dict[str, PathConverter] = {
+CONVERTERS: dict[str, PathConverter] = {
     'str': (r'[^/]+', str),
     'int': (r'[0-9]+', int),
     'slug': (r'[-a-zA-Z0-9_]+', str),
@@ -21,11 +22,11 @@ except ImportError:  # fall back to stdlib re
     import re as _regex_lib  # type: ignore
 
 
-def _compile_pattern(pattern: str) -> Tuple[Any, List[str], Dict[str, Callable[[str], Any]]]:
+def _compile_pattern(pattern: str) -> tuple[Any, list[str], dict[str, Callable[[str], Any]]]:
     """Translate Django-style ``<int:id>`` patterns into a regex."""
-    parts: List[str] = []
-    param_names: List[str] = []
-    converters: Dict[str, Callable[[str], Any]] = {}
+    parts: list[str] = []
+    param_names: list[str] = []
+    converters: dict[str, Callable[[str], Any]] = {}
     i = 0
     escape_set = r'.+*?^$()[]{}|\'\\'
     while i < len(pattern):
@@ -57,9 +58,9 @@ def _compile_pattern(pattern: str) -> Tuple[Any, List[str], Dict[str, Callable[[
 class Route:
     """A single URL pattern. Created by :func:`path` and :func:`include`."""
 
-    __slots__ = ('pattern', 'view', 'name', '_compiled', '_params', '_converters')
+    __slots__ = ('_compiled', '_converters', '_params', 'name', 'pattern', 'view')
 
-    def __init__(self, pattern: str, view: Callable, name: Optional[str] = None) -> None:
+    def __init__(self, pattern: str, view: Callable, name: str | None = None) -> None:
         self.pattern = pattern
         self.view = view
         self.name = name
@@ -70,13 +71,13 @@ class Route:
         else:
             self._compiled, self._params, self._converters = _compile_pattern(pattern)
 
-    def match(self, path: str) -> Optional[Dict[str, Any]]:
+    def match(self, path: str) -> dict[str, Any] | None:
         if self._compiled is None:
             return {} if path == '' else None
         m = self._compiled.match(path)
         if m is None:
             return None
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         for name, value in m.groupdict().items():
             if value is None:
                 continue
@@ -91,7 +92,7 @@ class Route:
         return f'<Route {self.pattern!r} -> {getattr(self.view, "__name__", self.view)!r}>'
 
 
-def path(pattern: str, view: Callable, name: Optional[str] = None):
+def path(pattern: str, view: Callable, name: str | None = None):
     """Register a URL pattern. ``view`` is either a callable or the result
     of :func:`include`. The returned object is a :class:`Route` (for a
     callable) or an :class:`Include` (for a sub-URLconf) with a ``_prefix``
@@ -105,14 +106,14 @@ def path(pattern: str, view: Callable, name: Optional[str] = None):
     return Route(pattern, view, name)
 
 
-def include(module: str, namespace: Optional[str] = None) -> 'Include':
+def include(module: str, namespace: str | None = None) -> 'Include':
     """Mount a sub-URLconf. ``module`` is a dotted path to a module exposing
     a top-level ``urlpatterns`` (and optionally ``app_name``)."""
     return Include(module, namespace)
 
 
 class Include:
-    def __init__(self, module: str, namespace: Optional[str] = None) -> None:
+    def __init__(self, module: str, namespace: str | None = None) -> None:
         self.module = module
         self.namespace = namespace
         self._prefix: str = ''
@@ -122,13 +123,13 @@ class Include:
 class URLRouter:
     """Compiles a list of routes and sub-includes into a single resolver."""
 
-    def __init__(self, routes: List[Any], prefix: str = '', namespace: Optional[str] = None) -> None:
+    def __init__(self, routes: list[Any], prefix: str = '', namespace: str | None = None) -> None:
         self.prefix = prefix.rstrip('/')
         self.namespace = namespace
-        self._exact: Dict[str, List[Route]] = {}
-        self._exact_single: Dict[str, Route] = {}
-        self._regex: List[Route] = []
-        self._include_routes: List[Tuple[str, 'URLRouter']] = []
+        self._exact: dict[str, list[Route]] = {}
+        self._exact_single: dict[str, Route] = {}
+        self._regex: list[Route] = []
+        self._include_routes: list[tuple[str, URLRouter]] = []
         for r in routes:
             self._add(r)
 
@@ -152,7 +153,7 @@ class URLRouter:
         else:
             self._regex.append(r)
 
-    def resolve(self, path: str) -> Tuple[Callable, Dict[str, Any], Dict[str, Any]]:
+    def resolve(self, path: str) -> tuple[Callable, dict[str, Any], dict[str, Any]]:
         """Return (view, kwargs, namespace_info) for the given path or raise Http404."""
         if not path.startswith('/'):
             path = '/' + path
@@ -195,10 +196,10 @@ class URLRouter:
 
 
 
-_INCLUDE_CACHE: Dict[str, 'URLRouter'] = {}
+_INCLUDE_CACHE: dict[str, 'URLRouter'] = {}
 
 
-def _load_include(include: Include, *, prefix: str, namespace: Optional[str]) -> 'URLRouter':
+def _load_include(include: Include, *, prefix: str, namespace: str | None) -> 'URLRouter':
     key = f'{include.module}|{prefix}|{namespace or ""}'
     if key in _INCLUDE_CACHE:
         return _INCLUDE_CACHE[key]

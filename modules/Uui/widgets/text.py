@@ -1,8 +1,9 @@
 import tkinter as tk
-from typing import Literal, Optional
+from typing import Literal
+
 from . import theme
-from .scrollbar import UScrollBar
 from .line_number import LineNumberCanvas
+from .scrollbar import UScrollBar
 
 
 class UText(tk.Frame):
@@ -13,7 +14,7 @@ class UText(tk.Frame):
         super().__init__(parent, bg=bg, highlightthickness=0, bd=0, **kwargs)
 
         self._show_line_numbers = show_line_numbers
-        self._line_numbers: Optional[LineNumberCanvas] = None
+        self._line_numbers: LineNumberCanvas | None = None
 
         self._text = tk.Text(
             self, width=width, height=height,

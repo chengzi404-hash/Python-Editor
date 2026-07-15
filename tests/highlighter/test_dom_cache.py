@@ -1,4 +1,5 @@
 import pytest
+
 from modules.highlighter.dom_cache import LibraryDOM, cache_exists, get_lib_dom
 
 

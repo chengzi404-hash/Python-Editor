@@ -23,13 +23,12 @@ from __future__ import annotations
 
 import os
 import tkinter as tk
-from typing import Callable, Dict, Iterable, Optional
+from collections.abc import Callable, Iterable
 
 from . import theme
 from .frame import UFrame
 from .label import ULabel
 from .tree_canvas import TreeCanvas
-
 
 # 这些目录在任何项目里都不该出现在文件树中,显式隐藏掉能避免节点爆炸。
 _DEFAULT_IGNORE_DIRS = frozenset({
@@ -47,7 +46,7 @@ def _path_to_iid(path: str) -> str:
     return _IID_PREFIX + os.path.abspath(path)
 
 
-def _iid_to_path(iid: str) -> Optional[str]:
+def _iid_to_path(iid: str) -> str | None:
     if not iid.startswith(_IID_PREFIX):
         return None
     return iid[len(_IID_PREFIX):]
@@ -61,9 +60,9 @@ class UFileTree(UFrame):
         parent,
         *,
         title: str = "Project",
-        ignore_dirs: Optional[Iterable[str]] = None,
+        ignore_dirs: Iterable[str] | None = None,
         width: int = 240,
-        on_activate: Optional[Callable[[str], None]] = None,
+        on_activate: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
         # 自身作为外层 panel,与 output_panel 同构 (``variant='panel'``)。
@@ -76,9 +75,9 @@ class UFileTree(UFrame):
             set(ignore_dirs) if ignore_dirs is not None
             else set(_DEFAULT_IGNORE_DIRS)
         )
-        self._root_path: Optional[str] = None
+        self._root_path: str | None = None
         # iid -> 绝对路径 (TreeCanvas 不关心业务, 我们自己维护反查表)。
-        self._iid_to_path: Dict[str, str] = {}
+        self._iid_to_path: dict[str, str] = {}
 
         self._build()
 
@@ -119,7 +118,7 @@ class UFileTree(UFrame):
     # ------------------------------------------------------------------
 
     def set_on_activate(
-        self, callback: Optional[Callable[[str], None]],
+        self, callback: Callable[[str], None] | None,
     ) -> None:
         self._on_activate = callback
 
@@ -127,7 +126,7 @@ class UFileTree(UFrame):
         self._title_text = text
         self._title_label.config(text=f"  {text}")
 
-    def set_root(self, path: Optional[str]) -> None:
+    def set_root(self, path: str | None) -> None:
         """设置根目录, ``None`` 表示清空树."""
 
         self._root_path = os.path.abspath(path) if path else None
@@ -143,7 +142,7 @@ class UFileTree(UFrame):
         """外部触发重建(例如刚 attach 了项目)."""
         self._rebuild()
 
-    def selected_path(self) -> Optional[str]:
+    def selected_path(self) -> str | None:
         iid = self._tree.get_selected()
         if iid is None:
             return None

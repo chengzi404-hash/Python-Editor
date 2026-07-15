@@ -1,5 +1,6 @@
 import pytest
-from modules.highlighter.base import HighlightToken, HighlightBlock, HighlighterExpert
+
+from modules.highlighter.base import HighlightBlock, HighlighterExpert, HighlightToken
 
 
 class MockHighlighter(HighlighterExpert):

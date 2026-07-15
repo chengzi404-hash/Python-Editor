@@ -1,7 +1,7 @@
-from modules.env_manager.manager import PythonEnvironment, EnvironmentManager, get_env_manager
+from modules.env_manager.manager import EnvironmentManager, PythonEnvironment, get_env_manager
 
 __all__ = [
-    "PythonEnvironment",
     "EnvironmentManager",
+    "PythonEnvironment",
     "get_env_manager",
 ]

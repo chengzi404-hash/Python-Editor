@@ -1,11 +1,11 @@
 import tkinter as tk
-from typing import Optional
+
 from . import theme
 
 
 class UFrame(tk.Frame):
     def __init__(self, parent, variant: str = 'panel',
-                 bg_key: Optional[str] = None, **kwargs):
+                 bg_key: str | None = None, **kwargs):
         self._variant = variant
         self._bg_key = bg_key
         self._explicit_bg = kwargs.pop('bg', None)

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Optional
 
 from . import theme
 from .button import UButton
-from .label import ULabel
 from .frame import UFrame
+from .label import ULabel
 
 
 class _UDialogBase(tk.Toplevel):
@@ -46,7 +45,7 @@ class _UDialogBase(tk.Toplevel):
 
 
 def askstring(parent, title: str, prompt: str,
-              initialvalue: str = '', **kwargs) -> Optional[str]:
+              initialvalue: str = '', **kwargs) -> str | None:
     import tkinter.simpledialog as sd
     return sd.askstring(title, prompt, initialvalue=initialvalue,
                         parent=parent, **kwargs)
@@ -136,10 +135,10 @@ def askyesno(title: str, message: str, parent=None, **kwargs) -> bool:
 
 
 def askstring_custom(parent, title: str, prompt: str,
-                     initialvalue: str = '') -> Optional[str]:
+                     initialvalue: str = '') -> str | None:
     from .entry import UEntry
 
-    result: Optional[str] = None
+    result: str | None = None
 
     dlg = _UDialogBase(parent, title=title, width=420, height=180)
     ULabel(dlg.body, text=prompt, variant='secondary',

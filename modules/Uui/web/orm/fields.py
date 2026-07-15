@@ -1,6 +1,6 @@
 """ORM field types."""
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any
 
 
 class Field:
@@ -19,8 +19,8 @@ class Field:
                  unique: bool = False,
                  default: Any = None,
                  primary_key: bool = False,
-                 db_column: Optional[str] = None,
-                 verbose_name: Optional[str] = None) -> None:
+                 db_column: str | None = None,
+                 verbose_name: str | None = None) -> None:
         self.null = null
         self.nullable = null
         self.unique = unique
@@ -179,7 +179,7 @@ class ForeignKey(Field):
         self.to = to if not isinstance(to, str) else to
         self.on_delete = on_delete
         super().__init__(**kwargs)
-        self._related_name: Optional[str] = None
+        self._related_name: str | None = None
         self.is_relation = True
 
     def contribute_to_class(self, cls, name: str) -> None:

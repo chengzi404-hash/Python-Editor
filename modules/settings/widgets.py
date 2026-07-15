@@ -13,23 +13,26 @@
 from __future__ import annotations
 
 import tkinter as tk
+from collections.abc import Callable
 from tkinter import filedialog, messagebox
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
+from modules.i18n import t
 
 from .base import (
     Settings,
     SettingsChangeEvent,
     SettingsListener,
-    SettingsScope,
     SettingSpec,
+    SettingsScope,
     SettingValueType,
 )
 from .manager import SettingsManager
-from modules.i18n import t
 
 if TYPE_CHECKING:
     # 类型检查器看到的类型 - 用于静态分析
     from modules.Uui.widgets import (
+        NavSelection,
         UButton,
         UCheckButton,
         UComboBox,
@@ -37,7 +40,6 @@ if TYPE_CHECKING:
         UFrame,
         ULabel,
         USettingsNavBar,
-        NavSelection,
         theme,
     )
 else:
@@ -61,7 +63,6 @@ try:
         UFrame,
         ULabel,
         USettingsNavBar,
-        NavSelection,
         theme,
     )
     _UUI_AVAILABLE = True
@@ -101,9 +102,9 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         parent,
         settings: Settings,
         *,
-        on_change: Optional[Callable[[str, Any], None]] = None,
-        show_only_keys: Optional[List[str]] = None,
-        filter_group_keys: Optional[List[str]] = None,
+        on_change: Callable[[str, Any], None] | None = None,
+        show_only_keys: list[str] | None = None,
+        filter_group_keys: list[str] | None = None,
         **kwargs,
     ) -> None:
         if not _UUI_AVAILABLE:
@@ -114,10 +115,10 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         super().__init__(parent, variant='base', **kwargs)
         self._settings = settings
         self._on_change = on_change
-        self._working: Dict[str, Any] = dict(settings.defined())
-        self._widgets: Dict[str, Any] = {}
-        self._vars: Dict[str, tk.Variable] = {}
-        self._listener: Optional[SettingsListener] = None
+        self._working: dict[str, Any] = dict(settings.defined())
+        self._widgets: dict[str, Any] = {}
+        self._vars: dict[str, tk.Variable] = {}
+        self._listener: SettingsListener | None = None
 
         specs = list(settings.schema)
         if show_only_keys is not None:
@@ -127,15 +128,15 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
             groups = set(filter_group_keys)
             specs = [s for s in specs if _group_key(s) in groups]
 
-        self._specs: List[SettingSpec] = specs
+        self._specs: list[SettingSpec] = specs
         self._build()
         self._listener = self._on_settings_event
         settings.add_listener(self._listener)
 
 
     def _build(self) -> None:
-        grouped: Dict[str, List[SettingSpec]] = {}
-        order: List[str] = []
+        grouped: dict[str, list[SettingSpec]] = {}
+        order: list[str] = []
         for spec in self._specs:
             g = _group_key(spec)
             if g not in grouped:
@@ -295,7 +296,7 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         self._working = dict(self._settings.defined())
         self._refresh_widgets()
 
-    def last_error(self) -> Optional[Exception]:
+    def last_error(self) -> Exception | None:
         return getattr(self, "_last_error", None)
 
     def _refresh_widgets(self) -> None:
@@ -363,9 +364,9 @@ class UProjectSettingsWindow:
         manager: SettingsManager,
         *,
         title: str = "Settings",
-        parent: Optional[tk.Misc] = None,
+        parent: tk.Misc | None = None,
         geometry: str = "640x520",
-        on_change: Optional[Callable[[str, Any], None]] = None,
+        on_change: Callable[[str, Any], None] | None = None,
     ) -> None:
         if not _UUI_AVAILABLE:
             raise RuntimeError(
@@ -432,7 +433,7 @@ class UProjectSettingsWindow:
         ).pack(side=tk.RIGHT, padx=4, pady=6)
 
         self._current_scope: SettingsScope = SettingsScope.GLOBAL
-        self._panel: Optional[USettingPanel] = None
+        self._panel: USettingPanel | None = None
         # 先把树按当前 manager 状态建好; set_roots 会自动选中第一片
         # 叶子并触发 on_select, 顺势完成首屏的右侧面板渲染。
         self._load_nav()
@@ -539,7 +540,7 @@ class UProjectSettingsWindow:
         if settings is None:
             return
 
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         if self._on_change is not None:
             kwargs['on_change'] = self._on_change
 
@@ -619,4 +620,4 @@ class UProjectSettingsWindow:
         return self._root
 
 
-__all__ = ["USettingPanel", "UProjectSettingsWindow"]
+__all__ = ["UProjectSettingsWindow", "USettingPanel"]

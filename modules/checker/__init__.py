@@ -1,12 +1,11 @@
-from .python import Flake8Checker, PyrightChecker, CPythonChecker
-from .base import OutputRow, Output, Checker
-
+from .base import Checker, Output, OutputRow
+from .python import CPythonChecker, Flake8Checker, PyrightChecker
 
 __all__ = [
-    'OutputRow',
-    'Output',
+    'CPythonChecker',
     'Checker',
     'Flake8Checker',
+    'Output',
+    'OutputRow',
     'PyrightChecker',
-    'CPythonChecker',
 ]

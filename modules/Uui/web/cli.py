@@ -2,14 +2,11 @@
 import argparse
 import importlib
 import json
-import os
 import sys
-import textwrap
 from pathlib import Path
 
-from .server import runserver, serve as prod_serve
 from .app import get_application
-
+from .server import runserver, serve as prod_serve
 
 SCAFFOLD_TEMPLATES = 'D:/Code/Uui/web/_scaffold'
 
@@ -375,11 +372,11 @@ def cmd_new(args: argparse.Namespace) -> int:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(body.format(project=name), encoding='utf-8')
     print(f'  + created {target}/')
-    print(f'  Next:')
+    print('  Next:')
     print(f'    cd {name}')
-    print(f'    python manage.py migrate')
-    print(f'    python manage.py createsuperuser')
-    print(f'    python manage.py runserver')
+    print('    python manage.py migrate')
+    print('    python manage.py createsuperuser')
+    print('    python manage.py runserver')
     return 0
 
 
@@ -469,6 +466,7 @@ def cmd_test(args: argparse.Namespace) -> int:
 def cmd_collectstatic(args: argparse.Namespace) -> int:
     """Copy all app static files into ``STATIC_ROOT``."""
     import shutil
+
     from .app import get_application
     app = get_application(args.settings)
     settings = app.settings
@@ -506,13 +504,13 @@ def cmd_bench(args: argparse.Namespace) -> int:
     requests-per-second. ``--target flask`` also runs the same workload
     against Flask and prints a ratio (informational only — not enforced).
     """
-    import time
     import statistics
     import threading
+    import time
     from socketserver import ThreadingMixIn
-    from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server
+    from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
 
-    from .router import URLRouter, Route
+    from .router import Route, URLRouter
 
     def hello(request):
         from . import response
@@ -529,7 +527,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
         daemon_threads = True
 
     class SilentHandler(WSGIRequestHandler):
-        def log_message(self, format, *args):  # noqa: A002
+        def log_message(self, format, *args):
             pass
 
     def view_dispatch(environ, start_response):
@@ -633,9 +631,9 @@ def _bench_flask(N: int) -> int:
     except ImportError:
         print('  ! flask not installed; pip install flask to compare')
         return 0
-    import time
     import statistics
     import threading
+    import time
     from wsgiref.simple_server import make_server as _make
 
     app = Flask(__name__)
@@ -706,7 +704,6 @@ def cmd_routes(args: argparse.Namespace) -> int:
 def _load_apps(settings) -> None:
     """Import every module in ``settings.INSTALLED_APPS`` so its models
     are registered with the metaclass."""
-    import importlib
     for name in (getattr(settings, 'INSTALLED_APPS', []) or []):
         try:
             importlib.import_module(name)
@@ -715,10 +712,9 @@ def _load_apps(settings) -> None:
 
 
 def cmd_migrate(args: argparse.Namespace) -> int:
-    from .orm import configure
+    from .orm import Model, configure
     from .orm.migration import MigrationEngine, generate_migration
     from .orm.models import _models
-    from .orm import Model
     app = get_application(args.settings)
     configure(app.settings)
     _load_apps(app.settings)
@@ -788,9 +784,10 @@ def cmd_makemigrations(args: argparse.Namespace) -> int:
 
 def cmd_createsuperuser(args: argparse.Namespace) -> int:
     """Create a superuser interactively (or from --username/--password)."""
-    from .orm import configure
-    from .auth import User
     from getpass import getpass
+
+    from .auth import User
+    from .orm import configure
 
     app = get_application(args.settings)
     configure(app.settings)

@@ -15,24 +15,36 @@ Django-style declarative models:
     Post.objects.filter(published=True).order_by('-id').all()
     Post.objects.create(title='Hello', body='World')
 """
-from . import connection, fields, query
-from .models import Model, _resolve_model_string, _models
-from .fields import (
-    Field, AutoField,
-    CharField, TextField,
-    IntegerField, BigIntegerField, SmallIntegerField,
-    FloatField, BooleanField,
-    DateField, DateTimeField,
-    ForeignKey,
-    CASCADE, SET_NULL, PROTECT,
+from . import (
+    backend,
+    connection,
+    fields,
+    query,
 )
-from .query import QuerySet
-from . import backend  # noqa: F401  (register backend subclasses)
-from .backend.sqlite import SqliteBackend
 from .backend.mysql import MysqlBackend
-from .backend.postgresql import PostgresqlBackend
 from .backend.oracle import OracleBackend
+from .backend.postgresql import PostgresqlBackend
+from .backend.sqlite import SqliteBackend
+from .fields import (
+    CASCADE,
+    PROTECT,
+    SET_NULL,
+    AutoField,
+    BigIntegerField,
+    BooleanField,
+    CharField,
+    DateField,
+    DateTimeField,
+    Field,
+    FloatField,
+    ForeignKey,
+    IntegerField,
+    SmallIntegerField,
+    TextField,
+)
 from .migration import MigrationEngine, generate_migration, run_migrations
+from .models import Model, _models, _resolve_model_string
+from .query import QuerySet
 
 
 def configure(settings) -> None:
@@ -41,18 +53,32 @@ def configure(settings) -> None:
 
 
 __all__ = [
-    'Model', 'QuerySet',
-    'Field', 'AutoField',
-    'CharField', 'TextField',
-    'IntegerField', 'BigIntegerField', 'SmallIntegerField',
-    'FloatField', 'BooleanField',
-    'DateField', 'DateTimeField',
+    'CASCADE',
+    'PROTECT',
+    'SET_NULL',
+    'AutoField',
+    'BigIntegerField',
+    'BooleanField',
+    'CharField',
+    'DateField',
+    'DateTimeField',
+    'Field',
+    'FloatField',
     'ForeignKey',
-    'CASCADE', 'SET_NULL', 'PROTECT',
+    'IntegerField',
+    'MigrationEngine',
+    'Model',
+    'MysqlBackend',
+    'OracleBackend',
+    'PostgresqlBackend',
+    'QuerySet',
+    'SmallIntegerField',
+    'SqliteBackend',
+    'TextField',
     'configure',
     'connection',
     'fields',
+    'generate_migration',
     'query',
-    'MigrationEngine', 'generate_migration', 'run_migrations',
-    'SqliteBackend', 'MysqlBackend', 'PostgresqlBackend', 'OracleBackend',
+    'run_migrations',
 ]

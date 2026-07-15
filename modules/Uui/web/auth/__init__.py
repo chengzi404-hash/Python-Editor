@@ -5,15 +5,24 @@ Quickstart::
     from Uui.web.auth import User, authenticate, login_required
     from Uui.web.auth.session import SessionMiddleware  # in MIDDLEWARE
 """
-from .password import make_password, check_password, needs_rehash
-from .users import User, AnonymousUser, get_anonymous_user, authenticate, get_user_by_id
 from .decorators import login_required, permission_required, staff_member_required
-from .session import Session, SessionStore, SessionMiddleware
-
+from .password import check_password, make_password, needs_rehash
+from .session import Session, SessionMiddleware, SessionStore
+from .users import AnonymousUser, User, authenticate, get_anonymous_user, get_user_by_id
 
 __all__ = [
-    'make_password', 'check_password', 'needs_rehash',
-    'User', 'AnonymousUser', 'get_anonymous_user', 'authenticate', 'get_user_by_id',
-    'login_required', 'permission_required', 'staff_member_required',
-    'Session', 'SessionStore', 'SessionMiddleware',
+    'AnonymousUser',
+    'Session',
+    'SessionMiddleware',
+    'SessionStore',
+    'User',
+    'authenticate',
+    'check_password',
+    'get_anonymous_user',
+    'get_user_by_id',
+    'login_required',
+    'make_password',
+    'needs_rehash',
+    'permission_required',
+    'staff_member_required',
 ]

@@ -22,12 +22,10 @@ Operations supported in v1:
     * rename_table
 """
 import json
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from . import connection as _conn
-from .fields import Field
 from .models import Model, _models
 
 
@@ -38,9 +36,9 @@ class MigrationEngine:
         self.apps_dir = apps_dir
 
 
-    def list_migrations(self, app: Optional[str] = None) -> List[Tuple[str, str, Path]]:
+    def list_migrations(self, app: str | None = None) -> list[tuple[str, str, Path]]:
         """Return ``(app, migration_id, path)`` tuples sorted by id."""
-        out: List[Tuple[str, str, Path]] = []
+        out: list[tuple[str, str, Path]] = []
         for app_dir in self._app_dirs():
             if app and app_dir.name != app:
                 continue
@@ -54,7 +52,7 @@ class MigrationEngine:
         out.sort(key=lambda x: (x[0], x[1]))
         return out
 
-    def applied_migrations(self) -> List[str]:
+    def applied_migrations(self) -> list[str]:
         backend = _conn.get_backend()
         self._ensure_table(backend)
         rows = backend.fetchall(
@@ -62,18 +60,18 @@ class MigrationEngine:
         )
         return [f'{r[0]}.{r[1]}' for r in rows]
 
-    def show_migrations(self, app: Optional[str] = None) -> None:
+    def show_migrations(self, app: str | None = None) -> None:
         applied = set(self.applied_migrations())
         for a, mid, _ in self.list_migrations(app):
             marker = 'X' if f'{a}.{mid}' in applied else ' '
             print(f'  [{marker}] {a}.{mid}')
 
 
-    def run(self, app: Optional[str] = None) -> List[str]:
+    def run(self, app: str | None = None) -> list[str]:
         backend = _conn.get_backend()
         self._ensure_table(backend)
         applied = set(self.applied_migrations())
-        new: List[str] = []
+        new: list[str] = []
         for a, mid, path in self.list_migrations(app):
             key = f'{a}.{mid}'
             if key in applied:
@@ -83,9 +81,7 @@ class MigrationEngine:
             for op in data.get('operations', []):
                 self._apply_op(backend, op)
             backend.execute(
-                'INSERT INTO uui_migrations (app, id, applied_at) VALUES ({}, {}, {})'.format(
-                    backend.placeholder(1), backend.placeholder(2), backend.placeholder(3)
-                ),
+                f'INSERT INTO uui_migrations (app, id, applied_at) VALUES ({backend.placeholder(1)}, {backend.placeholder(2)}, {backend.placeholder(3)})',
                 (a, mid, _now()),
             )
             new.append(key)
@@ -95,13 +91,13 @@ class MigrationEngine:
     def _ensure_table(self, backend) -> None:
         backend.ensure_migrations_table()
 
-    def _app_dirs(self) -> List[Path]:
+    def _app_dirs(self) -> list[Path]:
         root = Path(self.apps_dir)
         if not root.is_dir():
             return []
         return [p for p in root.iterdir() if p.is_dir() and (p / '__init__.py').exists()]
 
-    def _apply_op(self, backend, op: Dict[str, Any]) -> None:
+    def _apply_op(self, backend, op: dict[str, Any]) -> None:
         kind = op.get('op')
         if kind == 'create_table':
             cols_sql = self._columns_sql(backend, op['columns'])
@@ -125,10 +121,10 @@ class MigrationEngine:
         else:
             raise ValueError(f'Unknown migration operation: {kind!r}')
 
-    def _columns_sql(self, backend, columns: List[Dict[str, Any]]) -> str:
+    def _columns_sql(self, backend, columns: list[dict[str, Any]]) -> str:
         return ', '.join(self._column_sql(backend, c) for c in columns)
 
-    def _column_sql(self, backend, col: Dict[str, Any]) -> str:
+    def _column_sql(self, backend, col: dict[str, Any]) -> str:
         col_type = backend.sql_type(col['type'])
         if col.get('primary_key') and col.get('auto'):
             return backend.auto_increment_sql(col['name'], col_type)
@@ -144,7 +140,7 @@ class MigrationEngine:
         return ' '.join(parts)
 
 
-def generate_migration(app: str, name: str = 'initial') -> Dict[str, Any]:
+def generate_migration(app: str, name: str = 'initial') -> dict[str, Any]:
     """Generate a migration dict from the current state of registered models
     whose ``Meta.app`` matches ``app``. The matching models are looked up via
     the ORM registry — no project file is required.
@@ -155,8 +151,8 @@ def generate_migration(app: str, name: str = 'initial') -> Dict[str, Any]:
     except ImportError:
         pass  # built-in app (e.g. Uui.web.auth) — OK, models are already registered
 
-    operations: List[Dict[str, Any]] = []
-    seen: List[type] = []
+    operations: list[dict[str, Any]] = []
+    seen: list[type] = []
     for mdl in _models.values():
         if not isinstance(mdl, type) or not issubclass(mdl, Model) or mdl is Model:
             continue
@@ -192,7 +188,7 @@ def generate_migration(app: str, name: str = 'initial') -> Dict[str, Any]:
     }
 
 
-def run_migrations(apps_dir: str = 'apps', app: Optional[str] = None) -> List[str]:
+def run_migrations(apps_dir: str = 'apps', app: str | None = None) -> list[str]:
     """Convenience wrapper to run migrations against the default database."""
     return MigrationEngine(apps_dir).run(app)
 

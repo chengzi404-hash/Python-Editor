@@ -6,28 +6,24 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import (
     Any,
-    Callable,
-    List,
-    Optional,
     Protocol,
-    Union,
     runtime_checkable,
 )
 
 from .hooks import HookEvents  # re-export
 
-
 __all__ = [
     "HookEvents",
-    "PluginManifest",
-    "PluginContext",
-    "PluginCommand",
     "LanguageContribution",
-    "PluginLoadError",
+    "PluginCommand",
+    "PluginContext",
     "PluginHostAPI",
+    "PluginLoadError",
+    "PluginManifest",
 ]
 
 
@@ -65,7 +61,7 @@ class PluginCommand:
     label: str
     callback: CommandCallback
     menu: str = "插件"
-    shortcut: Optional[str] = None
+    shortcut: str | None = None
 
 
 @dataclass(frozen=True)
@@ -75,7 +71,7 @@ class LanguageContribution:
     highlighter_factory: Callable[[], Any]
     suggestion_factory: Callable[[], Any]
     sample: str = ""
-    runner_factory: Optional[Callable[[], Any]] = None
+    runner_factory: Callable[[], Any] | None = None
     description: str = ""
 
 
@@ -94,10 +90,10 @@ class PluginLoadError(RuntimeError):
 class PluginHostAPI(Protocol):
     """由 :class:`PluginManager` 实现的内部协议, 用于测试时 mock。"""
 
-    def register_hook(self, sub: "_HookSubscription") -> None: ...
-    def register_command(self, cmd: "PluginCommand") -> None: ...
+    def register_hook(self, sub: _HookSubscription) -> None: ...
+    def register_command(self, cmd: PluginCommand) -> None: ...
     def register_language(
-        self, plugin_id: str, contrib: "LanguageContribution",
+        self, plugin_id: str, contrib: LanguageContribution,
     ) -> None: ...
     def append_output(self, text: str) -> None: ...
     def setting(self, key: str, default: Any = None) -> Any: ...
@@ -117,10 +113,10 @@ class PluginContext:
         self._plugin_id = plugin_id
         self._plugin_name = plugin_name
         self._host = host
-        self._hooks: List[_HookSubscription] = []
-        self._commands: List[PluginCommand] = []
-        self._languages: List[LanguageContribution] = []
-        self._unregister_callbacks: List[Callable[[], None]] = []
+        self._hooks: list[_HookSubscription] = []
+        self._commands: list[PluginCommand] = []
+        self._languages: list[LanguageContribution] = []
+        self._unregister_callbacks: list[Callable[[], None]] = []
 
     @property
     def plugin_id(self) -> str:
@@ -133,8 +129,8 @@ class PluginContext:
     def on(
         self,
         hook: str,
-        callback: Optional[HookHandler] = None,
-    ) -> Union["_HookSubscription", Callable[[HookHandler], "_HookSubscription"]]:
+        callback: HookHandler | None = None,
+    ) -> _HookSubscription | Callable[[HookHandler], _HookSubscription]:
         """监听钩子事件。
 
         两种用法:
@@ -165,7 +161,7 @@ class PluginContext:
         label: str,
         callback: CommandCallback,
         menu: str = "插件",
-        shortcut: Optional[str] = None,
+        shortcut: str | None = None,
     ) -> PluginCommand:
         cmd = PluginCommand(
             plugin_id=self._plugin_id,

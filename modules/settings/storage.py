@@ -16,7 +16,7 @@ import json
 import os
 import tempfile
 import threading
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .base import (
     Settings,
@@ -24,7 +24,6 @@ from .base import (
     SettingsSchema,
     SettingsScope,
 )
-
 
 CURRENT_VERSION = 1
 
@@ -40,16 +39,16 @@ class JsonFileSettings(Settings):
         schema: SettingsSchema,
         *,
         scope: SettingsScope,
-        path: Optional[str] = None,
+        path: str | None = None,
         auto_load: bool = True,
     ) -> None:
         super().__init__(schema, scope=scope)
         self._lock = threading.RLock()
-        self._path: Optional[str] = path
-        self._values: Dict[str, Any] = {}
+        self._path: str | None = path
+        self._values: dict[str, Any] = {}
         # 旁路存储: 插件专属键 (plugins.<id>.*) 不走 schema 校验,
         # 因为插件 id 是动态的、schema 注册时还未知。
-        self._extras: Dict[str, Any] = {}
+        self._extras: dict[str, Any] = {}
 
         if self._path is not None and auto_load:
             try:
@@ -157,24 +156,24 @@ class JsonFileSettings(Settings):
         with self._lock:
             return key in self._values or key in self._extras
 
-    def all(self) -> Dict[str, Any]:
+    def all(self) -> dict[str, Any]:
         """所有键的当前值，缺失字段填充默认值。"""
 
         with self._lock:
-            result: Dict[str, Any] = {}
+            result: dict[str, Any] = {}
             for spec in self._schema:
                 result[spec.key] = self._values.get(spec.key, spec.default)
             for k, v in self._extras.items():
                 result[k] = v
             return result
 
-    def defined(self) -> Dict[str, Any]:
+    def defined(self) -> dict[str, Any]:
         with self._lock:
             merged = dict(self._values)
             merged.update(self._extras)
             return merged
 
-    def reset(self, key: Optional[str] = None) -> None:
+    def reset(self, key: str | None = None) -> None:
         with self._lock:
             if key is None:
                 if not self._values and not self._extras:
@@ -252,7 +251,7 @@ class JsonFileSettings(Settings):
             return
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 raw = json.load(f)
         except (OSError, json.JSONDecodeError):
             return
@@ -264,8 +263,8 @@ class JsonFileSettings(Settings):
         if not isinstance(raw_values, dict):
             return
 
-        new_values: Dict[str, Any] = {}
-        new_extras: Dict[str, Any] = {}
+        new_values: dict[str, Any] = {}
+        new_extras: dict[str, Any] = {}
         for key, value in raw_values.items():
             if self._is_plugin_key(key):
                 new_extras[key] = value
@@ -283,4 +282,4 @@ class JsonFileSettings(Settings):
             self._extras = new_extras
 
 
-__all__ = ["JsonFileSettings", "CURRENT_VERSION"]
+__all__ = ["CURRENT_VERSION", "JsonFileSettings"]

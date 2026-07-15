@@ -1,9 +1,8 @@
-from .base import OutputRow, Output, Checker
-
 import ast
 import subprocess
 import sys
 
+from .base import Checker, Output, OutputRow
 
 FLAKE8_NOT_FOUND = 'flake8 is not installed, using basic syntax check only'
 
@@ -63,12 +62,12 @@ class Flake8Checker(Checker):
     @staticmethod
     def _syntax_check(file: str, output: Output) -> None:
         try:
-            with open(file, 'r', encoding='utf-8') as f:
+            with open(file, encoding='utf-8') as f:
                 source = f.read()
         except FileNotFoundError:
             output.row.append(OutputRow(message=f'file not found: {file}', level='error'))
             return
-        except IOError as e:
+        except OSError as e:
             output.row.append(OutputRow(message=f'cannot read file: {e}', level='error'))
             return
 
@@ -153,7 +152,7 @@ class PyrightChecker(Checker):
             pass
 
         return True
-    
+
 CPYTHON_CHECK_FAILED = 'python execution check failed'
 
 
@@ -165,12 +164,12 @@ class CPythonChecker(Checker):
         output = Output(file=file, row=[])
 
         try:
-            with open(file, 'r', encoding='utf-8') as f:
+            with open(file, encoding='utf-8') as f:
                 source = f.read()
         except FileNotFoundError:
             output.row.append(OutputRow(message=f'file not found: {file}', level='error'))
             return output
-        except IOError as e:
+        except OSError as e:
             output.row.append(OutputRow(message=f'cannot read file: {e}', level='error'))
             return output
 

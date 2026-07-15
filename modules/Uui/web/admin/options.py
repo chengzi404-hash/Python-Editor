@@ -1,5 +1,5 @@
 """ModelAdmin — describes how a model is presented in the admin UI."""
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class ModelAdmin:
@@ -9,15 +9,15 @@ class ModelAdmin:
     ``list_per_page`` etc. to customise the change list page.
     """
 
-    list_display: List[str] = ['__str__']
-    list_filter: List[str] = []
-    search_fields: List[str] = []
+    list_display: list[str] = ['__str__']
+    list_filter: list[str] = []
+    search_fields: list[str] = []
     list_per_page: int = 25
-    ordering: List[str] = []
-    fields: Optional[List[str]] = None  # None = all fields
-    exclude: List[str] = []
-    readonly_fields: List[str] = []
-    date_hierarchy: Optional[str] = None
+    ordering: list[str] = []
+    fields: list[str] | None = None  # None = all fields
+    exclude: list[str] = []
+    readonly_fields: list[str] = []
+    date_hierarchy: str | None = None
     list_select_related: bool = False
     save_on_top: bool = False
 
@@ -30,10 +30,10 @@ class ModelAdmin:
         self.verbose_name = getattr(model, 'verbose_name', model.__name__)
         self.verbose_name_plural = getattr(model, 'verbose_name_plural', self.verbose_name + 's')
 
-    def get_list_display(self, request) -> List[str]:
+    def get_list_display(self, request) -> list[str]:
         return list(self.list_display)
 
-    def get_fields(self, request, obj=None) -> List[str]:
+    def get_fields(self, request, obj=None) -> list[str]:
         if self.fields is not None:
             return [f for f in self.fields if f not in self.exclude]
         out = []
@@ -47,10 +47,10 @@ class ModelAdmin:
             out.append(fname)
         return out
 
-    def get_search_fields(self, request) -> List[str]:
+    def get_search_fields(self, request) -> list[str]:
         return list(self.search_fields)
 
-    def get_ordering(self, request) -> List[str]:
+    def get_ordering(self, request) -> list[str]:
         return list(self.ordering) or [self.opts.get('pk', 'id')]
 
     def get_list_per_page(self, request) -> int:

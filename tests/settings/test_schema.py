@@ -1,9 +1,15 @@
-import pytest
-import tempfile
 import os
+import tempfile
+
+import pytest
+
 from modules.settings.base import (
-    SettingsScope, SettingValueType, SettingSpec, SettingsSchema,
-    SettingsChangeEvent, Settings
+    Settings,
+    SettingsChangeEvent,
+    SettingSpec,
+    SettingsSchema,
+    SettingsScope,
+    SettingValueType,
 )
 
 

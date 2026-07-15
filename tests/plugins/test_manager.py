@@ -1,9 +1,11 @@
-import pytest
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
-from modules.plugins.manager import PluginManager, DiscoveredPlugin
+
+import pytest
+
 from modules.plugins.api import PluginManifest, _HookSubscription
+from modules.plugins.manager import DiscoveredPlugin, PluginManager
 
 
 class TestPluginManager:

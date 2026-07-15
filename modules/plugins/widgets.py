@@ -10,15 +10,13 @@
 
 from __future__ import annotations
 
-import os
 import tkinter as tk
 from tkinter import messagebox
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import Any
 
 try:
     from modules.Uui.widgets import (
         UButton,
-        UCheckButton,
         UFrame,
         ULabel,
         UText,
@@ -28,10 +26,9 @@ try:
 except Exception:  # pragma: no cover
     _UUI_AVAILABLE = False
 
-from .hooks import HOOK_SPECS
-
 from modules.i18n import t
 
+from .hooks import HOOK_SPECS
 
 __all__ = ["UPluginManagerWindow"]
 
@@ -45,7 +42,7 @@ class UPluginManagerWindow:
     def __init__(self, editor: Any, manager: Any) -> None:
         self._editor = editor
         self._manager = manager
-        self._tk_vars: Dict[str, tk.BooleanVar] = {}
+        self._tk_vars: dict[str, tk.BooleanVar] = {}
 
         self._win = tk.Toplevel(editor.window)
         self._win.title(t('plugin.manager.title'))
@@ -166,7 +163,7 @@ class UPluginManagerWindow:
         warn = t('plugin.manager.warning')
         from_label = t('plugin.manager.from_label')
 
-        loaded_lines: List[str] = []
+        loaded_lines: list[str] = []
         self._tk_vars = {}
         for i, rec in enumerate(loaded, 1):
             mark = on_mark if rec.enabled else off_mark
@@ -182,7 +179,7 @@ class UPluginManagerWindow:
         self._loaded_text._text.insert('1.0', ''.join(loaded_lines))
         self._loaded_text._text.config(state='disabled')
 
-        discovered_lines: List[str] = []
+        discovered_lines: list[str] = []
         no_desc = t('plugin.manager.no_desc')
         for i, d in enumerate(discovered, 1):
             desc = d.manifest.description or no_desc
@@ -198,7 +195,7 @@ class UPluginManagerWindow:
         self._discovered_text._text.insert('1.0', ''.join(discovered_lines))
         self._discovered_text._text.config(state='disabled')
 
-    def _selected_loaded_index(self) -> Optional[int]:
+    def _selected_loaded_index(self) -> int | None:
         """从已加载列表里读取当前选中行对应的索引 (1-based)。"""
 
         try:
@@ -214,7 +211,7 @@ class UPluginManagerWindow:
             return (line - 1) // 2
         return None
 
-    def _selected_discovered_index(self) -> Optional[int]:
+    def _selected_discovered_index(self) -> int | None:
         try:
             sel = self._discovered_text._text.tag_ranges('sel')
             if not sel:

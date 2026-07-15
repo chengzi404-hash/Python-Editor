@@ -15,12 +15,10 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Optional
 
 from .base import SettingsScope
-from .schema import GLOBAL_SCHEMA, GLOBAL_SPECS, get_schema
+from .schema import GLOBAL_SCHEMA, GLOBAL_SPECS
 from .storage import JsonFileSettings
-
 
 _APP_NAME = "PythonEditor"
 _FILE_NAME = "settings.json"
@@ -60,7 +58,7 @@ class GlobalSettings(JsonFileSettings):
 
     def __init__(
         self,
-        path: Optional[str] = None,
+        path: str | None = None,
         *,
         auto_load: bool = True,
     ) -> None:
@@ -76,4 +74,4 @@ class GlobalSettings(JsonFileSettings):
         return default_global_path()
 
 
-__all__ = ["GlobalSettings", "default_global_path", "GLOBAL_SPECS", "GLOBAL_SCHEMA"]
+__all__ = ["GLOBAL_SCHEMA", "GLOBAL_SPECS", "GlobalSettings", "default_global_path"]

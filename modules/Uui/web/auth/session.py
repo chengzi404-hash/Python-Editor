@@ -1,10 +1,9 @@
 """Session backends. The default stores sessions in the database."""
 import datetime as _dt
 import secrets
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..orm import Model, fields
-from ..orm import connection as _conn
 
 
 class Session(Model):  # type: ignore[misc]
@@ -26,18 +25,18 @@ class SessionStore:
     request completion by the middleware. ``flush()`` discards the session.
     """
 
-    def __init__(self, session_key: Optional[str] = None,
+    def __init__(self, session_key: str | None = None,
                  age_seconds: int = 60 * 60 * 24 * 14) -> None:
         self._key = session_key
         self._loaded = session_key is None
-        self._data: Dict[str, Any] = {}
+        self._data: dict[str, Any] = {}
         self._age = age_seconds
         self._modified = False
         if session_key:
             self._load()
 
     @property
-    def session_key(self) -> Optional[str]:
+    def session_key(self) -> str | None:
         return self._key
 
     def _load(self) -> None:
@@ -127,12 +126,12 @@ class SessionStore:
 
 
 
-def _serialize(data: Dict[str, Any]) -> str:
+def _serialize(data: dict[str, Any]) -> str:
     import json
     return json.dumps(data, default=_json_default, ensure_ascii=False)
 
 
-def _unserialize(text: str) -> Dict[str, Any]:
+def _unserialize(text: str) -> dict[str, Any]:
     import json
     try:
         return json.loads(text)
@@ -180,8 +179,8 @@ class SessionMiddleware:
         return self.inner(environ, _start)
 
 
-def _parse_cookies(cookie_header: str) -> Dict[str, str]:
-    cookies: Dict[str, str] = {}
+def _parse_cookies(cookie_header: str) -> dict[str, str]:
+    cookies: dict[str, str] = {}
     if not cookie_header:
         return cookies
     for chunk in cookie_header.split(';'):

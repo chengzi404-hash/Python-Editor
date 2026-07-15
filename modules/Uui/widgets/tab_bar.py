@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import tkinter as tk
 import tkinter.font as tkfont
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional
 
 from . import theme
 
@@ -50,10 +50,10 @@ class TabBar(tk.Frame):
         self._on_context_menu = on_context_menu
 
         self._scroll_offset = 0
-        self._tabs: Dict[str, Tab] = {}
+        self._tabs: dict[str, Tab] = {}
         # 布局信息：tab_id -> {x1, x2, width, label_text}
-        self._layout: Dict[str, dict] = {}
-        self._active_id: Optional[str] = None
+        self._layout: dict[str, dict] = {}
+        self._active_id: str | None = None
 
         self._canvas = tk.Canvas(
             self,
@@ -85,7 +85,7 @@ class TabBar(tk.Frame):
     # 公共 API
     # ------------------------------------------------------------------
 
-    def set_tabs(self, tabs: List[Tab], active_id: Optional[str]) -> None:
+    def set_tabs(self, tabs: list[Tab], active_id: str | None) -> None:
         """设置所有标签并指定活动标签。"""
         self._tabs = {t.id: t for t in tabs}
         self._active_id = active_id
@@ -235,7 +235,7 @@ class TabBar(tk.Frame):
         self._scroll_offset += 80
         self._redraw()
 
-    def _hit_test(self, x: float) -> Optional[str]:
+    def _hit_test(self, x: float) -> str | None:
         """返回指定 x 坐标处命中的标签 id。"""
         for tab_id, info in self._layout.items():
             if info['x1'] <= x <= info['x2']:

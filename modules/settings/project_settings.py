@@ -8,12 +8,10 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from .base import SettingsScope
 from .schema import PROJECT_SCHEMA, PROJECT_SPECS
 from .storage import JsonFileSettings
-
 
 _HIDDEN_DIR = ".pyeditor"
 _FILE_NAME = "settings.json"
@@ -39,7 +37,7 @@ class ProjectSettings(JsonFileSettings):
     def __init__(
         self,
         root: str,
-        path: Optional[str] = None,
+        path: str | None = None,
         *,
         auto_load: bool = True,
     ) -> None:
@@ -83,8 +81,8 @@ class ProjectSettings(JsonFileSettings):
 
 
 __all__ = [
+    "PROJECT_SCHEMA",
+    "PROJECT_SPECS",
     "ProjectSettings",
     "default_project_path",
-    "PROJECT_SPECS",
-    "PROJECT_SCHEMA",
 ]

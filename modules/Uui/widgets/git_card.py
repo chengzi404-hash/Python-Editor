@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import subprocess
 import tkinter as tk
-from typing import Callable, List, Optional, Tuple
+from collections.abc import Callable
 
 from . import theme
 from .button import UButton
@@ -24,7 +24,6 @@ from .frame import UFrame
 from .label import ULabel
 from .list_view import UListView
 from .message_box import showerror, showinfo
-
 
 # 视觉常量
 _TITLE_HEIGHT = 28
@@ -53,9 +52,9 @@ class GitCard(UFrame):
         parent,
         *,
         title: str = 'SOURCE CONTROL',
-        workspace_root: Optional[str] = None,
-        on_file_click: Optional[Callable[[str, str], None]] = None,
-        on_refresh: Optional[Callable[[], None]] = None,
+        workspace_root: str | None = None,
+        on_file_click: Callable[[str, str], None] | None = None,
+        on_refresh: Callable[[], None] | None = None,
         **kwargs,
     ) -> None:
         kwargs.setdefault('variant', 'panel')
@@ -72,8 +71,8 @@ class GitCard(UFrame):
         self._behind = 0
         self._last_commit_subject = ''
 
-        self._staged: List[dict] = []
-        self._unstaged: List[dict] = []
+        self._staged: list[dict] = []
+        self._unstaged: list[dict] = []
 
         # 提交编辑器状态
         self._msg_placeholder = 'Message  (Ctrl+Enter to commit)'
@@ -493,7 +492,7 @@ class GitCard(UFrame):
 
         self._refresh_views()
 
-    def _compute_tracking(self, ws: str) -> Tuple[int, int]:
+    def _compute_tracking(self, ws: str) -> tuple[int, int]:
         try:
             r = subprocess.run(
                 ['git', 'rev-list', '--left-right', '--count', 'HEAD...@{u}'],
@@ -507,8 +506,8 @@ class GitCard(UFrame):
             return 0, 0
 
     def _parse_git_status(self, output: str) -> None:
-        staged: List[dict] = []
-        unstaged: List[dict] = []
+        staged: list[dict] = []
+        unstaged: list[dict] = []
         for line in output.splitlines():
             if len(line) < 3:
                 continue
@@ -519,9 +518,7 @@ class GitCard(UFrame):
 
             if status[0] in 'MADRC':
                 staged.append(entry)
-            if status[1] in 'MAD':
-                unstaged.append(entry)
-            elif status[0] in '??':
+            if status[1] in 'MAD' or status[0] in '??':
                 unstaged.append(entry)
 
         self._staged = staged

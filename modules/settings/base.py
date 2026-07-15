@@ -17,11 +17,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union
-
-
+from typing import Any
 
 
 class SettingsScope(str, Enum):
@@ -72,9 +71,9 @@ class SettingSpec:
     default: Any
     label: str = ""
     description: str = ""
-    choices: Tuple[Any, ...] = ()
-    min: Optional[float] = None
-    max: Optional[float] = None
+    choices: tuple[Any, ...] = ()
+    min: float | None = None
+    max: float | None = None
     scope: SettingsScope = SettingsScope.GLOBAL
 
 
@@ -189,10 +188,10 @@ class SettingsSchema:
         assert spec is not None
     """
 
-    specs: Tuple[SettingSpec, ...] = ()
+    specs: tuple[SettingSpec, ...] = ()
 
     def __post_init__(self) -> None:
-        seen: Dict[str, None] = {}
+        seen: dict[str, None] = {}
         for spec in self.specs:
             if not spec.key:
                 raise ValueError("SettingSpec.key must be non-empty")
@@ -201,10 +200,10 @@ class SettingsSchema:
             seen[spec.key] = None
 
 
-    def keys(self) -> List[str]:
+    def keys(self) -> list[str]:
         return [s.key for s in self.specs]
 
-    def get(self, key: str) -> Optional[SettingSpec]:
+    def get(self, key: str) -> SettingSpec | None:
         for spec in self.specs:
             if spec.key == key:
                 return spec
@@ -220,7 +219,7 @@ class SettingsSchema:
         return len(self.specs)
 
 
-    def defaults(self) -> Dict[str, Any]:
+    def defaults(self) -> dict[str, Any]:
         return {spec.key: spec.default for spec in self.specs}
 
 
@@ -237,7 +236,7 @@ class SettingsChangeEvent:
     """
 
     scope: SettingsScope
-    key: Optional[str]
+    key: str | None
     old: Any
     new: Any
 
@@ -263,7 +262,7 @@ class Settings(ABC):
         super().__init__()
         self._schema = schema
         self._scope = scope
-        self._listeners: List[SettingsListener] = []
+        self._listeners: list[SettingsListener] = []
 
 
     @property
@@ -315,15 +314,15 @@ class Settings(ABC):
         """返回该键是否被显式赋值过。"""
 
     @abstractmethod
-    def all(self) -> Dict[str, Any]:
+    def all(self) -> dict[str, Any]:
         """返回 *所有* 键的当前值（包括默认值的填充快照）。"""
 
     @abstractmethod
-    def defined(self) -> Dict[str, Any]:
+    def defined(self) -> dict[str, Any]:
         """仅返回被显式赋值过的键值对。"""
 
     @abstractmethod
-    def reset(self, key: Optional[str] = None) -> None:
+    def reset(self, key: str | None = None) -> None:
         """重置一个键或全部键。``key=None`` 表示清空所有自定义值。"""
 
     @abstractmethod
@@ -335,18 +334,18 @@ class Settings(ABC):
         """从底层存储重新载入（覆盖当前内存状态）。"""
 
 
-    def spec(self, key: str) -> Optional[SettingSpec]:
+    def spec(self, key: str) -> SettingSpec | None:
         """返回键对应的 :class:`SettingSpec`，未注册则返回 ``None``。"""
 
         return self._schema.get(key)
 
 
 __all__ = [
-    "SettingsScope",
-    "SettingValueType",
     "SettingSpec",
-    "SettingsSchema",
+    "SettingValueType",
+    "Settings",
     "SettingsChangeEvent",
     "SettingsListener",
-    "Settings",
+    "SettingsSchema",
+    "SettingsScope",
 ]

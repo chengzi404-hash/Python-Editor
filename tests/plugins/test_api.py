@@ -1,7 +1,13 @@
 import pytest
+
 from modules.plugins.api import (
-    PluginManifest, PluginCommand, PluginContext, PluginLoadError,
-    LanguageContribution, HookEvents, _HookSubscription
+    HookEvents,
+    LanguageContribution,
+    PluginCommand,
+    PluginContext,
+    PluginLoadError,
+    PluginManifest,
+    _HookSubscription,
 )
 
 

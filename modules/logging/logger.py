@@ -9,7 +9,6 @@ import os
 import sys
 import threading
 from enum import IntEnum
-from typing import Optional
 
 
 class LogLevel(IntEnum):
@@ -110,8 +109,8 @@ class Logger:
                 datefmt="%H:%M:%S",
             )
         )
-        self._file_handler: Optional[logging.handlers.RotatingFileHandler] = None
-        self._console_handler: Optional[logging.StreamHandler] = None
+        self._file_handler: logging.handlers.RotatingFileHandler | None = None
+        self._console_handler: logging.StreamHandler | None = None
         self._lock = threading.Lock()
         self._configure_handlers()
 

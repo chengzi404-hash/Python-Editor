@@ -17,19 +17,20 @@ Usage::
         r = c.get('/dashboard/')
         assert r.status_code == 200
 """
-from http.cookies import SimpleCookie
 import json as _json
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from collections.abc import Mapping
+from http.cookies import SimpleCookie
+from typing import Any
 from urllib.parse import urlencode
 
-from ..app import UWSGIApp, get_application
+from ..app import get_application
 
 
 class UResponse:
     """Lightweight response wrapper returned by :class:`UTestClient`."""
 
-    def __init__(self, status_code: int, headers: List[Tuple[str, str]], body: bytes,
-                 context: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, status_code: int, headers: list[tuple[str, str]], body: bytes,
+                 context: dict[str, Any] | None = None) -> None:
         self.status_code = status_code
         self.headers = dict(headers)
         self.body = body
@@ -51,20 +52,20 @@ class UTestClient:
     state carries over.
     """
 
-    def __init__(self, wsgi_app: Optional[Any] = None,
-                 settings: Optional[str] = None) -> None:
+    def __init__(self, wsgi_app: Any | None = None,
+                 settings: str | None = None) -> None:
         if wsgi_app is None:
             app = get_application(settings)
             wsgi_app = app.wsgi()
         self.wsgi_app = wsgi_app
-        self.cookies: Dict[str, str] = {}
-        self.defaults: Dict[str, str] = {}
+        self.cookies: dict[str, str] = {}
+        self.defaults: dict[str, str] = {}
 
 
     def get(self, path: str, **kwargs) -> 'UResponse':
         return self._request('GET', path, **kwargs)
 
-    def post(self, path: str, data: Optional[Any] = None, json: Optional[Any] = None,
+    def post(self, path: str, data: Any | None = None, json: Any | None = None,
              **kwargs) -> 'UResponse':
         if json is not None:
             kwargs['data'] = _json.dumps(json)
@@ -109,13 +110,13 @@ class UTestClient:
 
 
     def _request(self, method: str, path: str, *,
-                 data: Optional[Any] = None,
-                 params: Optional[Mapping[str, str]] = None,
-                 headers: Optional[Mapping[str, str]] = None,
-                 content_type: Optional[str] = None) -> 'UResponse':
+                 data: Any | None = None,
+                 params: Mapping[str, str] | None = None,
+                 headers: Mapping[str, str] | None = None,
+                 content_type: str | None = None) -> 'UResponse':
         environ = self._build_environ(method, path, data=data, params=params,
                                        headers=headers, content_type=content_type)
-        captured: Dict[str, Any] = {'status': None, 'headers': [], 'body': []}
+        captured: dict[str, Any] = {'status': None, 'headers': [], 'body': []}
         def start_response(status, response_headers, exc_info=None):
             captured['status'] = status
             captured['headers'] = list(response_headers)
@@ -142,9 +143,9 @@ class UTestClient:
         return response
 
     def _build_environ(self, method: str, path: str, *,
-                       data: Any, params: Optional[Mapping[str, str]],
-                       headers: Optional[Mapping[str, str]],
-                       content_type: Optional[str]) -> Dict[str, Any]:
+                       data: Any, params: Mapping[str, str] | None,
+                       headers: Mapping[str, str] | None,
+                       content_type: str | None) -> dict[str, Any]:
         if '?' in path:
             base, _, qs = path.partition('?')
         else:
@@ -165,7 +166,7 @@ class UTestClient:
         else:
             body_bytes = str(data).encode('utf-8')
 
-        environ: Dict[str, Any] = {
+        environ: dict[str, Any] = {
             'REQUEST_METHOD': method.upper(),
             'SCRIPT_NAME': '',
             'PATH_INFO': base,
@@ -195,7 +196,7 @@ class UTestClient:
                     environ[f'HTTP_{key}'] = v
         return environ
 
-    def _harvest_cookies(self, headers: List[Tuple[str, str]]) -> None:
+    def _harvest_cookies(self, headers: list[tuple[str, str]]) -> None:
         for k, v in headers:
             if k.lower() == 'set-cookie':
                 cookie = SimpleCookie()
@@ -210,8 +211,8 @@ class UTestClient:
                         self.cookies[name] = morsel.value
 
     @staticmethod
-    def _flatten(d: Mapping[str, Any], prefix: str = '') -> List[Tuple[str, str]]:
-        items: List[Tuple[str, str]] = []
+    def _flatten(d: Mapping[str, Any], prefix: str = '') -> list[tuple[str, str]]:
+        items: list[tuple[str, str]] = []
         for k, v in d.items():
             key = f'{prefix}{k}' if not prefix else f'{prefix}[{k}]'
             if isinstance(v, Mapping):

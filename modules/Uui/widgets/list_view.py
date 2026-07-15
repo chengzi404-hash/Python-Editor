@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 from . import theme
 from .scrollbar import UScrollBar
 
 
 class UListView(tk.Frame):
-    def __init__(self, parent, columns: Optional[List[str]] = None,
-                 column_widths: Optional[Dict[str, int]] = None,
-                 on_select: Optional[Callable[[int, Dict[str, str]], None]] = None,
+    def __init__(self, parent, columns: list[str] | None = None,
+                 column_widths: dict[str, int] | None = None,
+                 on_select: Callable[[int, dict[str, str]], None] | None = None,
                  show_header: bool = True, **kwargs):
         bg = kwargs.pop('bg', theme.BG_PANEL)
         super().__init__(parent, bg=bg, highlightthickness=0, bd=0, **kwargs)
@@ -19,17 +20,17 @@ class UListView(tk.Frame):
         self._column_widths = column_widths or {}
         self._on_select_cb = on_select
         self._show_header = show_header
-        self._data: List[Dict[str, str]] = []
-        self._items: List[Dict[str, Any]] = []
-        self._selected_index: Optional[int] = None
+        self._data: list[dict[str, str]] = []
+        self._items: list[dict[str, Any]] = []
+        self._selected_index: int | None = None
 
         outer = tk.Frame(self, bg=theme.BG_PANEL)
         outer.pack(fill=tk.BOTH, expand=True)
 
         # ── header ──
         self._header_frame = tk.Frame(outer, bg=theme.BG_TITLE, height=28)
-        self._header_labels: List[tk.Label] = []
-        self._header_spacer: Optional[tk.Frame] = None
+        self._header_labels: list[tk.Label] = []
+        self._header_spacer: tk.Frame | None = None
 
         if show_header:
             self._header_frame.pack(fill=tk.X)
@@ -86,7 +87,7 @@ class UListView(tk.Frame):
         except tk.TclError:
             pass
 
-    def set_data(self, data: List[Dict[str, str]]):
+    def set_data(self, data: list[dict[str, str]]):
         self._data = data
         self._selected_index = None
         self._rebuild()
@@ -96,10 +97,10 @@ class UListView(tk.Frame):
         self._selected_index = None
         self._rebuild()
 
-    def selected_index(self) -> Optional[int]:
+    def selected_index(self) -> int | None:
         return self._selected_index
 
-    def selected_value(self) -> Optional[Dict[str, str]]:
+    def selected_value(self) -> dict[str, str] | None:
         if self._selected_index is not None and 0 <= self._selected_index < len(self._data):
             return self._data[self._selected_index]
         return None

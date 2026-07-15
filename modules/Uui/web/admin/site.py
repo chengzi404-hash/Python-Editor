@@ -1,5 +1,5 @@
 """Admin site singleton — the entry point for registering models."""
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .options import ModelAdmin
 
@@ -17,10 +17,10 @@ class AdminSite:
 
     def __init__(self, name: str = 'admin') -> None:
         self.name = name
-        self._registry: Dict[type, ModelAdmin] = {}
-        self._actions: Dict[str, Any] = {}
+        self._registry: dict[type, ModelAdmin] = {}
+        self._actions: dict[str, Any] = {}
 
-    def register(self, model: type, admin_class: Optional[type] = None) -> None:
+    def register(self, model: type, admin_class: type | None = None) -> None:
         admin_class = admin_class or ModelAdmin
         if model in self._registry:
             raise AlreadyRegistered(f'{model.__name__} is already registered')
@@ -37,17 +37,17 @@ class AdminSite:
     def is_registered(self, model: type) -> bool:
         return model in self._registry
 
-    def get_admin_for(self, model: type) -> Optional[ModelAdmin]:
+    def get_admin_for(self, model: type) -> ModelAdmin | None:
         return self._registry.get(model)
 
     @property
-    def registered_models(self) -> List[type]:
+    def registered_models(self) -> list[type]:
         return list(self._registry.keys())
 
-    def get_urls(self) -> List[Any]:
+    def get_urls(self) -> list[Any]:
         from ..router import path
         from . import views
-        urlpatterns: List[Any] = [
+        urlpatterns: list[Any] = [
             path('', views.index, name='index'),
             path('logout/', views.logout_view, name='logout'),
         ]
@@ -64,7 +64,7 @@ class AdminSite:
     def urls(self):
         """Return a 2-tuple ``(urlpatterns, app_name)`` for include()."""
         from ..router import Include
-        return Include(f'Uui.web.admin.urls_module', namespace=self.name)
+        return Include('Uui.web.admin.urls_module', namespace=self.name)
 
     def has_permission(self, request) -> bool:
         user = getattr(request, 'user', None)

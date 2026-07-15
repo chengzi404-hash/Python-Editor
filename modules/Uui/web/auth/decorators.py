@@ -1,10 +1,8 @@
 """Decorators for protecting views with login / permission checks."""
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
 
-from ..exceptions import ImproperlyConfigured
 from ..response import redirect
-from .users import get_anonymous_user
 
 
 def login_required(view_func: Callable) -> Callable:

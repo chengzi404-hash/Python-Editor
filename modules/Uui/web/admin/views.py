@@ -1,9 +1,9 @@
 """Admin views: index, app_index, change_list, add_form, change_form, delete."""
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .. import response
-from ..exceptions import Http403, Http404
 from ..auth.decorators import staff_member_required
+from ..exceptions import Http403, Http404
 from .site import site as default_site
 
 
@@ -17,12 +17,12 @@ def _require_staff(request) -> None:
         raise Http403('Admin access requires an active staff account.')
 
 
-def _split_path(path: str) -> List[str]:
+def _split_path(path: str) -> list[str]:
     parts = [p for p in path.split('/') if p]
     return parts
 
 
-def _find_admin(request, parts: List[str]):
+def _find_admin(request, parts: list[str]):
     s = _site(request)
     if not parts:
         return None, None, None
@@ -39,7 +39,7 @@ def _find_admin(request, parts: List[str]):
 @staff_member_required
 def index(request):
     s = _site(request)
-    apps: Dict[str, List[Dict[str, Any]]] = {}
+    apps: dict[str, list[dict[str, Any]]] = {}
     for model, admin in s._registry.items():
         apps.setdefault(admin.app_label, []).append({
             'name': admin.verbose_name_plural,
@@ -202,8 +202,8 @@ def delete_view(request, app_label: str, model_name: str, pk: int):
 
 def _save_form(request, admin, obj):
     fields = admin.get_fields(request, obj)
-    errors: List[str] = []
-    form_data: Dict[str, Any] = {}
+    errors: list[str] = []
+    form_data: dict[str, Any] = {}
     for fname in fields:
         raw = request.POST.get(fname, '')
         if isinstance(raw, list):

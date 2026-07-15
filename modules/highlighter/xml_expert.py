@@ -1,6 +1,6 @@
-from .base import HighlighterExpert, HighlightBlock, HighlightToken
 import re
 
+from .base import HighlightBlock, HighlighterExpert, HighlightToken
 
 _XML_TOKEN_RE = re.compile(
     r'(?P<comment><!--.*?-->)'

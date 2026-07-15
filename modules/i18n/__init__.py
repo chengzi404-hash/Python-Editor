@@ -26,6 +26,7 @@
 
 from __future__ import annotations
 
+from . import marketplace as language_marketplace
 from .translator import (
     AVAILABLE_LANGUAGES,
     I18nListener,
@@ -33,13 +34,12 @@ from .translator import (
     get_translator,
     t,
 )
-from . import marketplace as language_marketplace
 
 __all__ = [
     "AVAILABLE_LANGUAGES",
     "I18nListener",
     "Translator",
     "get_translator",
-    "t",
     "language_marketplace",
+    "t",
 ]

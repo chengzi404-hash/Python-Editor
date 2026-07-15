@@ -1,11 +1,11 @@
 import tkinter as tk
-from typing import Optional
+
 from . import theme
 
 
 class USlider(tk.Canvas):
     def __init__(self, parent, from_: float = 0, to: float = 100,
-                 value: Optional[float] = None, orient: str = 'horizontal',
+                 value: float | None = None, orient: str = 'horizontal',
                  command=None, show_value: bool = False, **kwargs):
         kwargs.setdefault('bg', theme.BG_BASE)
         kwargs.setdefault('highlightthickness', 0)

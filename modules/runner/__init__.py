@@ -9,5 +9,4 @@
 
 from .runner import RunResult, run_blocking, stream_command
 
-
-__all__ = ["RunResult", "stream_command", "run_blocking"]
+__all__ = ["RunResult", "run_blocking", "stream_command"]

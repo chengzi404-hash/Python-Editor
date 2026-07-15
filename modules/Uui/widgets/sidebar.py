@@ -8,11 +8,11 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 from . import theme
 from .frame import UFrame
-from .icons import draw_icon, ICON_SIZE
+from .icons import ICON_SIZE, draw_icon
 
 
 class ActivityBarItem(tk.Frame):
@@ -24,7 +24,7 @@ class ActivityBarItem(tk.Frame):
         icon_name: str,
         card_id: str,
         is_active: bool = False,
-        command: Optional[Callable[[str], None]] = None,
+        command: Callable[[str], None] | None = None,
         **kwargs,
     ):
         super().__init__(parent, width=36, height=36,
@@ -89,15 +89,15 @@ class ActivityBar(tk.Frame):
     def __init__(
         self,
         parent,
-        items: List[Tuple[str, str, str]],
+        items: list[tuple[str, str, str]],
         on_select: Callable[[str], None],
         **kwargs,
     ) -> None:
         super().__init__(parent, width=36, bg=theme.BG_BASE,
                          highlightthickness=0, takefocus=False, **kwargs)
-        self._items: Dict[str, ActivityBarItem] = {}
+        self._items: dict[str, ActivityBarItem] = {}
         self._on_select = on_select
-        self._active_id: Optional[str] = None
+        self._active_id: str | None = None
 
         self.pack_propagate(False)
 
@@ -143,9 +143,9 @@ class SideBar(UFrame):
         self,
         parent,
         *,
-        items: Optional[List[Tuple[str, str, str]]] = None,
-        on_select: Optional[Callable[[str], None]] = None,
-        cards: Optional[Dict[str, tk.Widget]] = None,
+        items: list[tuple[str, str, str]] | None = None,
+        on_select: Callable[[str], None] | None = None,
+        cards: dict[str, tk.Widget] | None = None,
         **kwargs,
     ) -> None:
         kwargs.setdefault('variant', 'panel')
@@ -153,8 +153,8 @@ class SideBar(UFrame):
 
         self._items = items or []
         self._on_select = on_select
-        self._cards: Dict[str, tk.Widget] = cards or {}
-        self._active_card_id: Optional[str] = None
+        self._cards: dict[str, tk.Widget] = cards or {}
+        self._active_card_id: str | None = None
 
         self._build()
 

@@ -1,9 +1,8 @@
 """Database backend registry."""
 from .base import Backend
-from .sqlite import SqliteBackend
 from .mysql import MysqlBackend
-from .postgresql import PostgresqlBackend
 from .oracle import OracleBackend
+from .postgresql import PostgresqlBackend
+from .sqlite import SqliteBackend
 
-
-__all__ = ['Backend', 'SqliteBackend', 'MysqlBackend', 'PostgresqlBackend', 'OracleBackend']
+__all__ = ['Backend', 'MysqlBackend', 'OracleBackend', 'PostgresqlBackend', 'SqliteBackend']

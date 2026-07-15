@@ -6,8 +6,8 @@ import shutil
 import subprocess
 import sys
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
 
 
 @dataclass
@@ -17,7 +17,7 @@ class PythonEnvironment:
     version: str = ''
     env_type: str = 'venv'  # 'venv' | 'conda' | 'system' | 'custom'
     prefix: str = ''
-    packages: Dict[str, str] = field(default_factory=dict)
+    packages: dict[str, str] = field(default_factory=dict)
 
     @property
     def display_name(self) -> str:
@@ -42,7 +42,7 @@ def _probe_python(path: str) -> str:
     return m.group(0) if m else ''
 
 
-def _list_packages(python_path: str) -> Dict[str, str]:
+def _list_packages(python_path: str) -> dict[str, str]:
     try:
         r = subprocess.run(
             [python_path, '-m', 'pip', 'list', '--format=json'],
@@ -60,9 +60,9 @@ def _list_packages(python_path: str) -> Dict[str, str]:
 class EnvironmentManager:
     def __init__(self) -> None:
         self._lock = threading.RLock()
-        self._environments: Dict[str, PythonEnvironment] = {}
-        self._current: Optional[str] = None
-        self._listeners: List[Callable[[str], None]] = []
+        self._environments: dict[str, PythonEnvironment] = {}
+        self._current: str | None = None
+        self._listeners: list[Callable[[str], None]] = []
         self._scan_done: bool = False
 
     # ── listener ──────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ class EnvironmentManager:
 
     # ── scan / detect ─────────────────────────────────────────────────
 
-    def scan(self) -> Dict[str, PythonEnvironment]:
+    def scan(self) -> dict[str, PythonEnvironment]:
         with self._lock:
             self._environments = {}
             self._scan_done = True
@@ -217,11 +217,11 @@ class EnvironmentManager:
     # ── current environment ───────────────────────────────────────────
 
     @property
-    def current_name(self) -> Optional[str]:
+    def current_name(self) -> str | None:
         with self._lock:
             return self._current
 
-    def get_current(self) -> Optional[PythonEnvironment]:
+    def get_current(self) -> PythonEnvironment | None:
         with self._lock:
             if self._current is None:
                 return None
@@ -242,7 +242,7 @@ class EnvironmentManager:
 
     # ── package management ────────────────────────────────────────────
 
-    def get_packages(self, name: Optional[str] = None) -> Dict[str, str]:
+    def get_packages(self, name: str | None = None) -> dict[str, str]:
         env = self._get_env(name)
         if not env:
             return {}
@@ -250,7 +250,7 @@ class EnvironmentManager:
         env.packages = packages
         return packages
 
-    def install_package(self, package: str, name: Optional[str] = None,
+    def install_package(self, package: str, name: str | None = None,
                         mirror: str = '') -> str:
         env = self._get_env(name)
         if not env:
@@ -271,7 +271,7 @@ class EnvironmentManager:
         except Exception as e:
             return str(e)
 
-    def uninstall_package(self, package: str, name: Optional[str] = None) -> str:
+    def uninstall_package(self, package: str, name: str | None = None) -> str:
         env = self._get_env(name)
         if not env:
             return 'Environment not found'
@@ -291,7 +291,7 @@ class EnvironmentManager:
 
     # ── search packages ─────────────────────────────────────────────
 
-    def search_packages_on_pypi(self, query: str) -> List[Dict[str, str]]:
+    def search_packages_on_pypi(self, query: str) -> list[dict[str, str]]:
         """
         Search PyPI for packages matching the query.
         Uses the mirror's Simple Index API (PEP 503) to list all packages,
@@ -305,7 +305,7 @@ class EnvironmentManager:
         q = query.lower()
         matching = [n for n in names if q in n.lower()]
         matching.sort(key=lambda n: (0 if n.lower().startswith(q) else 1, n))
-        results: List[Dict[str, str]] = []
+        results: list[dict[str, str]] = []
         for name in matching[:50]:
             ver, summary = '', ''
             if len(results) < 15:
@@ -317,12 +317,13 @@ class EnvironmentManager:
             })
         return results
 
-    _package_names_cache: Optional[List[str]] = None
+    _package_names_cache: list[str] | None = None
 
-    def _get_all_package_names(self) -> List[str]:
+    def _get_all_package_names(self) -> list[str]:
         if self._package_names_cache is not None:
             return self._package_names_cache
-        import re, urllib.request
+        import re
+        import urllib.request
         url = 'https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/'
         req = urllib.request.Request(url)
         req.add_header('User-Agent', 'PythonEditor/1.0')
@@ -333,7 +334,8 @@ class EnvironmentManager:
         return names
 
     def _fetch_package_info(self, name: str) -> tuple:
-        import urllib.request, json
+        import json
+        import urllib.request
         try:
             url = f'https://pypi.org/pypi/{name}/json'
             req = urllib.request.Request(url)
@@ -347,8 +349,8 @@ class EnvironmentManager:
 
     # ── create environment ────────────────────────────────────────────
 
-    def create_venv(self, path: str, python_path: Optional[str] = None,
-                    name: Optional[str] = None) -> str:
+    def create_venv(self, path: str, python_path: str | None = None,
+                    name: str | None = None) -> str:
         python = python_path or sys.executable
         if os.path.isdir(path):
             return f'Directory already exists: {path}'
@@ -381,7 +383,7 @@ class EnvironmentManager:
 
     # ── helpers ───────────────────────────────────────────────────────
 
-    def _get_env(self, name: Optional[str] = None) -> Optional[PythonEnvironment]:
+    def _get_env(self, name: str | None = None) -> PythonEnvironment | None:
         with self._lock:
             key = name or self._current
             if key is None:
@@ -389,7 +391,7 @@ class EnvironmentManager:
             return self._environments.get(key)
 
     @staticmethod
-    def _resolve_python(path: str) -> Optional[str]:
+    def _resolve_python(path: str) -> str | None:
         try:
             return os.path.realpath(path)
         except Exception:
@@ -431,7 +433,7 @@ class EnvironmentManager:
         return ''
 
     @staticmethod
-    def _find_python_in_venv(venv_dir: str) -> Optional[str]:
+    def _find_python_in_venv(venv_dir: str) -> str | None:
         if sys.platform == 'win32':
             candidates = [
                 os.path.join(venv_dir, 'Scripts', 'python.exe'),
@@ -447,14 +449,14 @@ class EnvironmentManager:
                 return c
         return None
 
-    def list_environments(self) -> Dict[str, PythonEnvironment]:
+    def list_environments(self) -> dict[str, PythonEnvironment]:
         if not self._scan_done:
             return self.scan()
         with self._lock:
             return dict(self._environments)
 
 
-_env_manager: Optional[EnvironmentManager] = None
+_env_manager: EnvironmentManager | None = None
 
 
 def get_env_manager() -> EnvironmentManager:

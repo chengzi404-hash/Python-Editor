@@ -1,10 +1,12 @@
-from .base import SuggestionExpert, SuggestionBlock, DOMScope, SuggestionItem
-from modules.data import suggestions_path
-from modules.i18n import get_translator
-from modules.highlighter.dom_cache import get_lib_dom, get_or_load_lib_dom, cache_exists
 import json
 import os
 import re
+
+from modules.data import suggestions_path
+from modules.highlighter.dom_cache import cache_exists, get_lib_dom
+from modules.i18n import get_translator
+
+from .base import DOMScope, SuggestionBlock, SuggestionExpert, SuggestionItem
 
 # Priority constants (lower = higher priority)
 # User-defined items take highest priority
@@ -450,7 +452,7 @@ class PythonSuggestionExpert(SuggestionExpert):
 
         # Try to resolve via DOM cache for imported external modules
         # Check for dotted paths like os.path → resolve inner module via cache
-        dom: "LibraryDOM | None" = None
+        dom: LibraryDOM | None = None
         parts = obj_name.rsplit('.', 1)
 
         # Special case: os.path is a real module (ntpath/posixpath) not discoverable by pkgutil

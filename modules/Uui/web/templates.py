@@ -1,15 +1,14 @@
 """Template engine backends for Uui.web. Jinja2 is the default."""
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .exceptions import ImproperlyConfigured
 
+_BACKEND_CACHE: dict[str, 'TemplateBackend'] = {}
 
-_BACKEND_CACHE: Dict[str, 'TemplateBackend'] = {}
 
-
-DEFAULT_TEMPLATES: List[Dict[str, Any]] = [
+DEFAULT_TEMPLATES: list[dict[str, Any]] = [
     {
         'BACKEND': 'Uui.web.templates.Jinja2Backend',
         'DIRS': ['templates'],
@@ -22,11 +21,11 @@ DEFAULT_TEMPLATES: List[Dict[str, Any]] = [
 class TemplateBackend:
     """Base class for template backends."""
 
-    def __init__(self, config: Dict[str, Any], settings: Any) -> None:
+    def __init__(self, config: dict[str, Any], settings: Any) -> None:
         self.config = config
         self.settings = settings
 
-    def render(self, template_name: str, context: Dict[str, Any]) -> str:
+    def render(self, template_name: str, context: dict[str, Any]) -> str:
         raise NotImplementedError
 
 
@@ -37,7 +36,7 @@ class Jinja2Backend(TemplateBackend):
     across requests. The ``auto_reload`` flag is taken from ``settings.DEBUG``.
     """
 
-    def __init__(self, config: Dict[str, Any], settings: Any) -> None:
+    def __init__(self, config: dict[str, Any], settings: Any) -> None:
         super().__init__(config, settings)
         try:
             import jinja2
@@ -61,7 +60,7 @@ class Jinja2Backend(TemplateBackend):
         return env
 
     def _build_loader(self, jinja2):
-        search_paths: List[str] = []
+        search_paths: list[str] = []
         root = Path(getattr(self.settings, 'PROJECT_ROOT', os.getcwd()))
         for d in (self.config.get('DIRS') or []):
             p = Path(d)
@@ -89,7 +88,7 @@ class Jinja2Backend(TemplateBackend):
             search_paths.append(str(root / 'templates'))
         return jinja2.FileSystemLoader(search_paths)
 
-    def render(self, template_name: str, context: Dict[str, Any]) -> str:
+    def render(self, template_name: str, context: dict[str, Any]) -> str:
         try:
             tmpl = self.env.get_template(template_name)
         except self.jinja2.TemplateNotFound:

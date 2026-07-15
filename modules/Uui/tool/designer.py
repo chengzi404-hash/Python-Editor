@@ -1,19 +1,26 @@
 """Uui Visual Widget Designer — Qt Creator inspired layout."""
 import re
 import tkinter as tk
-from tkinter import messagebox, filedialog
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from tkinter import filedialog, messagebox
 
 from Uui import Window
-from Uui.widgets import theme
 from Uui.widgets import (
-    UFrame, ULabel, UButton, UEntry, UText,
-    UCheckButton, URadioButton, UComboBox,
-    UProgressBar, USlider, UMenuBar,
+    UButton,
+    UCheckButton,
+    UComboBox,
+    UEntry,
+    UFrame,
+    ULabel,
+    UMenuBar,
+    UProgressBar,
+    URadioButton,
     UScrollBar,
+    USlider,
+    UText,
+    theme,
 )
-
 
 DESIGNER_VERSION = '2.0'
 
@@ -1769,13 +1776,13 @@ class DesignerApp(Window):
     def _export_kwargs(self, item):
         kwargs = {}
         wtype = item['type']
-        if 'text' in item and item['text']:
+        if item.get('text'):
             kwargs['text'] = repr(item['text'])
         if 'variant' in item and wtype in VARIANT_OPTIONS:
             kwargs['variant'] = repr(item['variant'])
-        if 'placeholder' in item and item['placeholder']:
+        if item.get('placeholder'):
             kwargs['placeholder'] = repr(item['placeholder'])
-        if 'show' in item and item['show']:
+        if item.get('show'):
             kwargs['show'] = repr(item['show'])
         if 'values' in item and str(item['values']).strip():
             vals = [v.strip() for v in str(item['values']).split(',')]

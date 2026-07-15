@@ -25,14 +25,13 @@
 from __future__ import annotations
 
 import threading
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from .base import (
     Settings,
     SettingsChangeEvent,
     SettingsListener,
     SettingsScope,
-    SettingsSchema,
 )
 from .global_settings import GlobalSettings
 from .project_settings import ProjectSettings
@@ -47,13 +46,13 @@ class SettingsManager:
 
     def __init__(
         self,
-        global_settings: Optional[GlobalSettings] = None,
-        project_settings: Optional[ProjectSettings] = None,
+        global_settings: GlobalSettings | None = None,
+        project_settings: ProjectSettings | None = None,
     ) -> None:
         self._lock = threading.RLock()
         self._global = global_settings or GlobalSettings()
-        self._project: Optional[ProjectSettings] = project_settings
-        self._user_listeners: List[SettingsListener] = []
+        self._project: ProjectSettings | None = project_settings
+        self._user_listeners: list[SettingsListener] = []
 
 
     @property
@@ -61,11 +60,11 @@ class SettingsManager:
         return self._global
 
     @property
-    def project_settings(self) -> Optional[ProjectSettings]:
+    def project_settings(self) -> ProjectSettings | None:
         return self._project
 
     @property
-    def project_root(self) -> Optional[str]:
+    def project_root(self) -> str | None:
         return self._project.root if self._project is not None else None
 
 
@@ -135,7 +134,7 @@ class SettingsManager:
         target = self._resolve(scope)
         target.set(key, value)
 
-    def reset(self, scope: SettingsScope, key: Optional[str] = None) -> None:
+    def reset(self, scope: SettingsScope, key: str | None = None) -> None:
         """重置作用域下的一个键或全部键。"""
 
         target = self._resolve(scope)
@@ -189,15 +188,15 @@ class SettingsManager:
             self._project.load()
 
 
-    def global_all(self) -> Dict[str, Any]:
+    def global_all(self) -> dict[str, Any]:
         return self._global.all()
 
-    def project_all(self) -> Dict[str, Any]:
+    def project_all(self) -> dict[str, Any]:
         if self._project is None:
             return {}
         return self._project.all()
 
-    def effective_all(self) -> Dict[str, Any]:
+    def effective_all(self) -> dict[str, Any]:
         """返回合并后的生效配置(项目覆盖全局)。"""
 
         merged = self._global.all()
@@ -208,7 +207,7 @@ class SettingsManager:
         return merged
 
 
-    def __enter__(self) -> "SettingsManager":
+    def __enter__(self) -> SettingsManager:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

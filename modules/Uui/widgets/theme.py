@@ -1,5 +1,5 @@
 import sys
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 
 class Theme:
@@ -138,16 +138,16 @@ class SolarizedDarkTheme(Theme):
     TITLE_ACCENT = '#268bd2'
 
 
-_themes: List[Theme] = [DarkTheme(), LightTheme(), SolarizedDarkTheme()]
+_themes: list[Theme] = [DarkTheme(), LightTheme(), SolarizedDarkTheme()]
 _current: Theme = _themes[0]
-_listeners: List[Callable[[Theme], None]] = []
+_listeners: list[Callable[[Theme], None]] = []
 
 
-def available() -> List[Theme]:
+def available() -> list[Theme]:
     return list(_themes)
 
 
-def by_name(name: str) -> Optional[Theme]:
+def by_name(name: str) -> Theme | None:
     for t in _themes:
         if t.name == name:
             return t
@@ -219,10 +219,10 @@ _DEFAULT_FOLLOW_SYSTEM_THEME: dict = dict(FOLLOW_SYSTEM_THEME)
 _follow_root = None
 _follow_after_id = None
 _follow_enabled = False
-_follow_mapping: Optional[dict] = None
+_follow_mapping: dict | None = None
 
 
-def _read_os_theme() -> Optional[str]:
+def _read_os_theme() -> str | None:
     """Return 'dark', 'light', or None if not detectable."""
     if not sys.platform.startswith('win'):
         try:
@@ -248,12 +248,12 @@ def _read_os_theme() -> Optional[str]:
         return None
 
 
-def _resolve_target_name(os_theme: str) -> Optional[str]:
+def _resolve_target_name(os_theme: str) -> str | None:
     mapping = _follow_mapping if _follow_mapping is not None else _DEFAULT_FOLLOW_SYSTEM_THEME
     return mapping.get(os_theme) or mapping.get('default')
 
 
-def follow_system(root=None, *, mapping: Optional[dict] = None,
+def follow_system(root=None, *, mapping: dict | None = None,
                   poll_interval_ms: int = 1500) -> bool:
     """Start following the OS appearance. Pass the Tk root for live polling.
 

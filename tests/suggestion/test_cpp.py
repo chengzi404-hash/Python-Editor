@@ -1,4 +1,5 @@
 import pytest
+
 from modules.suggestion.cpp import CppSuggestionExpert, SuggestionBlock
 
 

@@ -1,9 +1,11 @@
-import pytest
-import tempfile
-import os
 import json
-from modules.settings.storage import JsonFileSettings, CURRENT_VERSION
-from modules.settings.base import SettingsSchema, SettingSpec, SettingValueType, SettingsScope
+import os
+import tempfile
+
+import pytest
+
+from modules.settings.base import SettingSpec, SettingsSchema, SettingsScope, SettingValueType
+from modules.settings.storage import CURRENT_VERSION, JsonFileSettings
 
 
 class TestJsonFileSettings:

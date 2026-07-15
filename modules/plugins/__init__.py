@@ -41,6 +41,7 @@
 
 from __future__ import annotations
 
+from . import marketplace as plugin_marketplace
 from .api import (
     LanguageContribution,
     PluginCommand,
@@ -51,20 +52,18 @@ from .api import (
 )
 from .hooks import HOOK_SPECS, HookEvents, HookSpec
 from .manager import DiscoveredPlugin, PluginManager
-from . import marketplace as plugin_marketplace
-
 
 __all__ = [
-    "PluginManifest",
-    "PluginContext",
-    "PluginManager",
+    "HOOK_SPECS",
     "DiscoveredPlugin",
-    "PluginCommand",
-    "LanguageContribution",
-    "PluginHostAPI",
-    "PluginLoadError",
     "HookEvents",
     "HookSpec",
-    "HOOK_SPECS",
+    "LanguageContribution",
+    "PluginCommand",
+    "PluginContext",
+    "PluginHostAPI",
+    "PluginLoadError",
+    "PluginManager",
+    "PluginManifest",
     "plugin_marketplace",
 ]

@@ -1,5 +1,6 @@
 import pytest
-from modules.suggestion.base import SuggestionBlock, SuggestionItem, DOMScope, SuggestionExpert
+
+from modules.suggestion.base import DOMScope, SuggestionBlock, SuggestionExpert, SuggestionItem
 
 
 class MockSuggestionExpert(SuggestionExpert):

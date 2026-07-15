@@ -1,8 +1,14 @@
 import pytest
+
 from modules.suggestion.python import (
-    PythonSuggestionExpert, SuggestionBlock, SuggestionItem,
-    _adjust_underscore_priority, _load_suggestion_list,
-    KEYWORDS, BUILTIN_FUNCTIONS, BUILTIN_CLASSES
+    BUILTIN_CLASSES,
+    BUILTIN_FUNCTIONS,
+    KEYWORDS,
+    PythonSuggestionExpert,
+    SuggestionBlock,
+    SuggestionItem,
+    _adjust_underscore_priority,
+    _load_suggestion_list,
 )
 
 

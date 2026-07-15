@@ -1,6 +1,7 @@
 import pytest
-from modules.highlighter.python import PythonHighlighterExpert
+
 from modules.highlighter.base import HighlightBlock
+from modules.highlighter.python import PythonHighlighterExpert
 
 
 class TestPythonHighlighter:

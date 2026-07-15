@@ -1,26 +1,27 @@
 import tkinter as tk
-from typing import Callable, List, Optional, Tuple
+from collections.abc import Callable
+
 from . import theme
 
 
 class UMenu:
     def __init__(self):
-        self._items: List[Tuple] = []
+        self._items: list[tuple] = []
 
-    def add_command(self, label: str, command: Optional[Callable] = None,
+    def add_command(self, label: str, command: Callable | None = None,
                     shortcut: str = ''):
         self._items.append(('command', label, shortcut, command, 'normal'))
 
     def add_separator(self):
         self._items.append(('separator',))
 
-    def add_checkbutton(self, label: str, variable: Optional[tk.BooleanVar] = None,
-                        command: Optional[Callable] = None, shortcut: str = ''):
+    def add_checkbutton(self, label: str, variable: tk.BooleanVar | None = None,
+                        command: Callable | None = None, shortcut: str = ''):
         self._items.append(('check', label, shortcut, command,
                             variable if variable is not None else tk.BooleanVar()))
 
-    def add_radiobutton(self, label: str, value, variable: Optional[tk.Variable] = None,
-                        command: Optional[Callable] = None, shortcut: str = ''):
+    def add_radiobutton(self, label: str, value, variable: tk.Variable | None = None,
+                        command: Callable | None = None, shortcut: str = ''):
         self._items.append(('radio', label, shortcut, command, value,
                             variable if variable is not None else tk.StringVar()))
 
@@ -226,11 +227,11 @@ class UMenuBar(tk.Frame):
         if bg is None:
             bg = theme.BG_TITLE
         super().__init__(parent, bg=bg, highlightthickness=0, bd=0, **kwargs)
-        self._open_dropdown: Optional[_MenuDropdown] = None
-        self._open_submenu_dropdown: Optional[_MenuDropdown] = None
-        self._root_bind: Optional[str] = None
-        self._sub_root_bind: Optional[str] = None
-        self._buttons: List[Tuple[tk.Label, UMenu]] = []
+        self._open_dropdown: _MenuDropdown | None = None
+        self._open_submenu_dropdown: _MenuDropdown | None = None
+        self._root_bind: str | None = None
+        self._sub_root_bind: str | None = None
+        self._buttons: list[tuple[tk.Label, UMenu]] = []
 
 
     def add_cascade(self, label: str) -> UMenu:
@@ -368,10 +369,10 @@ class UMenuBar(tk.Frame):
         except tk.TclError:
             self._sub_root_bind = None
 
-    def _on_root_click(self, e: Optional[tk.Event] = None):
+    def _on_root_click(self, e: tk.Event | None = None):
         dd = self._open_dropdown
         sub = self._open_submenu_dropdown
-        if dd is None and sub is None or e is None:
+        if (dd is None and sub is None) or e is None:
             return
         try:
             in_main = False

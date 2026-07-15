@@ -14,12 +14,8 @@ References:
 """
 import base64
 import datetime
-import math
-import os
 import random
 from pathlib import Path
-from typing import Tuple
-
 
 
 def _b64(n: int) -> bytes:
@@ -90,7 +86,7 @@ def _generate_prime(bits: int) -> int:
             return candidate
 
 
-def _rsa_keypair(bits: int = 2048) -> Tuple[Tuple[int, int], Tuple[int, int, int, int]]:
+def _rsa_keypair(bits: int = 2048) -> tuple[tuple[int, int], tuple[int, int, int, int]]:
     """Return ``((e, n), (d, n, p, q))``."""
     e = 65537
     while True:
@@ -166,7 +162,7 @@ def _sign(tbs: bytes, d: int, n: int) -> bytes:
 
 def generate_self_signed_cert(cn: str = 'localhost',
                               cert_path: str = 'cert.pem',
-                              key_path: str = 'key.pem') -> Tuple[str, str]:
+                              key_path: str = 'key.pem') -> tuple[str, str]:
     """Write a self-signed RSA-2048 cert + key pair to disk and return the paths."""
     (e, n), (d, n2, p, q) = _rsa_keypair(2048)
     not_before = datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc)

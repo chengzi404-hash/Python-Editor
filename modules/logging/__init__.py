@@ -4,10 +4,10 @@
 """
 
 from .logger import (
-    LogLevel,
     Logger,
-    get_logger,
+    LogLevel,
     configure_logging,
+    get_logger,
     set_log_level,
     shutdown,
 )
@@ -15,8 +15,8 @@ from .logger import (
 __all__ = [
     "LogLevel",
     "Logger",
-    "get_logger",
     "configure_logging",
+    "get_logger",
     "set_log_level",
     "shutdown",
 ]

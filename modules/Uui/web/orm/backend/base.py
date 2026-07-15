@@ -1,5 +1,5 @@
 """Base class for database backends."""
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any
 
 
 class Row(dict):
@@ -29,16 +29,16 @@ class Backend:
     def close(self) -> None:
         raise NotImplementedError
 
-    def execute(self, sql: str, params: Tuple = ()) -> Any:
+    def execute(self, sql: str, params: tuple = ()) -> Any:
         raise NotImplementedError
 
-    def executemany(self, sql: str, seq: List[Tuple]) -> None:
+    def executemany(self, sql: str, seq: list[tuple]) -> None:
         raise NotImplementedError
 
-    def fetchall(self, sql: str, params: Tuple = ()) -> List[Any]:
+    def fetchall(self, sql: str, params: tuple = ()) -> list[Any]:
         raise NotImplementedError
 
-    def fetchone(self, sql: str, params: Tuple = ()) -> Any:
+    def fetchone(self, sql: str, params: tuple = ()) -> Any:
         raise NotImplementedError
 
     def placeholder(self, index: int) -> str:
@@ -58,7 +58,7 @@ class Backend:
         qn = self.quote_name(column_name)
         return f'{qn} {column_type} PRIMARY KEY AUTOINCREMENT'
 
-    def limit_offset_sql(self, sql: str, limit: Optional[int], offset: Optional[int]) -> str:
+    def limit_offset_sql(self, sql: str, limit: int | None, offset: int | None) -> str:
         if limit is not None:
             sql += f' LIMIT {int(limit)}'
         if offset is not None:
@@ -94,5 +94,5 @@ class Backend:
         """Convert a Python value before binding it to a SQL parameter."""
         return value
 
-    def _convert_params(self, params: Tuple) -> Tuple:
+    def _convert_params(self, params: tuple) -> tuple:
         return tuple(self.convert_param(p) for p in params)

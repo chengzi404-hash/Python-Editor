@@ -1,15 +1,16 @@
 """HTTP response objects and helpers."""
-from http.client import responses as _status_text
 import json as _json
 import mimetypes
 import os
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
-from .exceptions import ImproperlyConfigured
+from collections.abc import Iterable, Iterator
+from http.client import responses as _status_text
+from typing import Any
 
+from .exceptions import ImproperlyConfigured
 
 _STATUS_TEXT = _status_text
 
-_STATUS_LINE: Dict[int, str] = {
+_STATUS_LINE: dict[int, str] = {
     code: f'{code} {_STATUS_TEXT.get(code, "")}' for code in range(100, 600)
 }
 
@@ -22,13 +23,13 @@ class UResponse:
     inspectable (status_code, headers, content).
     """
 
-    __slots__ = ('status_code', 'status', 'headers', 'body')
+    __slots__ = ('body', 'headers', 'status', 'status_code')
 
     def __init__(self,
-                 body: Union[str, bytes, Iterable[bytes], None] = b'',
-                 status: Union[int, str] = 200,
-                 headers: Optional[Dict[str, str]] = None,
-                 content_type: Optional[str] = None) -> None:
+                 body: str | bytes | Iterable[bytes] | None = b'',
+                 status: int | str = 200,
+                 headers: dict[str, str] | None = None,
+                 content_type: str | None = None) -> None:
         if isinstance(status, int):
             self.status_code = status
             self.status = _STATUS_LINE.get(status, f'{status} {_STATUS_TEXT.get(status, "")}')
@@ -39,7 +40,7 @@ class UResponse:
             except (TypeError, ValueError):
                 self.status_code = 0
 
-        hdrs: Dict[str, str] = {}
+        hdrs: dict[str, str] = {}
         if headers:
             for k, v in headers.items():
                 hdrs[str(k).lower()] = str(v)
@@ -54,7 +55,7 @@ class UResponse:
         elif isinstance(body, (bytes, bytearray)):
             self.body = [bytes(body)]
         elif isinstance(body, Iterable):
-            chunks: List[bytes] = []
+            chunks: list[bytes] = []
             for chunk in body:
                 if isinstance(chunk, str):
                     chunks.append(chunk.encode('utf-8'))
@@ -86,8 +87,8 @@ class UResponse:
         return iter(self.body)
 
 
-    def __call__(self, environ: Dict[str, Any], start_response) -> Iterable[bytes]:
-        header_list: List[Tuple[str, str]] = []
+    def __call__(self, environ: dict[str, Any], start_response) -> Iterable[bytes]:
+        header_list: list[tuple[str, str]] = []
         for k, v in self.headers.items():
             header_list.append((k, v))
         start_response(self.status, header_list)
@@ -106,26 +107,26 @@ class UResponse:
 
 
 
-def _new(body: Union[str, bytes],
+def _new(body: str | bytes,
          status: int = 200,
          content_type: str = 'text/plain; charset=utf-8',
-         headers: Optional[Dict[str, str]] = None) -> UResponse:
+         headers: dict[str, str] | None = None) -> UResponse:
     return UResponse(body=body, status=status, headers=headers, content_type=content_type)
 
 
-def text(content: str, status: int = 200, headers: Optional[Dict[str, str]] = None) -> UResponse:
+def text(content: str, status: int = 200, headers: dict[str, str] | None = None) -> UResponse:
     return _new(content, status=status,
                 content_type='text/plain; charset=utf-8', headers=headers)
 
 
-def html(content: str, status: int = 200, headers: Optional[Dict[str, str]] = None) -> UResponse:
+def html(content: str, status: int = 200, headers: dict[str, str] | None = None) -> UResponse:
     return _new(content, status=status,
                 content_type='text/html; charset=utf-8', headers=headers)
 
 
 def json(data: Any,
          status: int = 200,
-         headers: Optional[Dict[str, str]] = None,
+         headers: dict[str, str] | None = None,
          encoder: Any = None) -> UResponse:
     if encoder is not None:
         body = encoder.encode(data)
@@ -137,11 +138,11 @@ def json(data: Any,
                      content_type='application/json; charset=utf-8')
 
 
-def empty(status: int = 204, headers: Optional[Dict[str, str]] = None) -> UResponse:
+def empty(status: int = 204, headers: dict[str, str] | None = None) -> UResponse:
     return UResponse(body=b'', status=status, headers=headers)
 
 
-def redirect(location: str, status: int = 302, headers: Optional[Dict[str, str]] = None) -> UResponse:
+def redirect(location: str, status: int = 302, headers: dict[str, str] | None = None) -> UResponse:
     hdrs = {'location': location}
     if headers:
         hdrs.update({k.lower(): v for k, v in headers.items()})
@@ -150,9 +151,9 @@ def redirect(location: str, status: int = 302, headers: Optional[Dict[str, str]]
 
 def file(path: str,
          status: int = 200,
-         headers: Optional[Dict[str, str]] = None,
+         headers: dict[str, str] | None = None,
          as_attachment: bool = False,
-         attachment_name: Optional[str] = None) -> UResponse:
+         attachment_name: str | None = None) -> UResponse:
     if not os.path.isfile(path):
         from .exceptions import Http404
         raise Http404(f'No such file: {path}')
@@ -175,7 +176,7 @@ def file(path: str,
     return UResponse(body=_iter_file(), status=status, headers=hdrs)
 
 
-def error(status: int, message: Optional[str] = None) -> UResponse:
+def error(status: int, message: str | None = None) -> UResponse:
     from .exceptions import UWebError
     if message is None:
         message = UWebError.default_message
@@ -183,7 +184,7 @@ def error(status: int, message: Optional[str] = None) -> UResponse:
             if cls.status_code == status:
                 message = cls.default_message
                 break
-    body = f'{status} {message}\n'.encode('utf-8')
+    body = f'{status} {message}\n'.encode()
     return UResponse(body=body, status=status,
                      content_type='text/plain; charset=utf-8')
 
@@ -196,8 +197,8 @@ def _json_default(obj: Any) -> Any:
     raise TypeError(f'Object of type {type(obj).__name__} is not JSON serializable')
 
 
-def render(request: Any, template_name: str, context: Optional[Dict[str, Any]] = None,
-           status: int = 200, headers: Optional[Dict[str, str]] = None) -> UResponse:
+def render(request: Any, template_name: str, context: dict[str, Any] | None = None,
+           status: int = 200, headers: dict[str, str] | None = None) -> UResponse:
     """Render a template through the project's template backend. The
     ``request`` must carry a ``settings`` attribute (any object exposing
     ``TEMPLATES``). The chosen backend is cached so subsequent renders in
@@ -231,6 +232,7 @@ def _settings_from_request() -> Any:
 
 def _get_template_backend(settings: Any) -> Any:
     import importlib
+
     from . import templates as _tpl
     backends = getattr(settings, 'TEMPLATES', None) or _tpl.DEFAULT_TEMPLATES
     cfg = backends[0] if backends else None

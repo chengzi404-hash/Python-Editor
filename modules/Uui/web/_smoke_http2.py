@@ -7,20 +7,16 @@ Spins up the H2 server on a random port, then exercises:
 
 Verifies that the same WSGI app responds identically to both protocols.
 """
-import os
 import socket
-import ssl
 import sys
-import tempfile
 import threading
 import time
 
 sys.path.insert(0, 'D:/Code')
 
-import h2.connection
 import h2.config
+import h2.connection
 import h2.events
-
 
 
 def make_app():
@@ -133,7 +129,7 @@ def h2_get(host, port, path, ssl_ctx=None):
 
 
 def main():
-    from Uui.web.server_http2 import run_http2, H2WSGIServer, HybridRequestHandler
+    from Uui.web.server_http2 import H2WSGIServer
 
     class _Settings:
         DEBUG = False

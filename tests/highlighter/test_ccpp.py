@@ -1,6 +1,7 @@
 import pytest
-from modules.highlighter.ccpp import CcppHighlighterExpert
+
 from modules.highlighter.base import HighlightBlock
+from modules.highlighter.ccpp import CcppHighlighterExpert
 
 
 class TestCcppHighlighter:

@@ -1,10 +1,10 @@
 """Lazy QuerySet supporting filter / exclude / order_by / slicing."""
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from . import connection as _conn
 
 if TYPE_CHECKING:
-    from .models import Model
+    pass
 
 
 _LOOKUPS = {
@@ -29,13 +29,13 @@ class QuerySet:
 
     def __init__(self, model: type) -> None:
         self._model = model
-        self._filters: List[Tuple[str, Tuple[str, Any]]] = []
-        self._exclude: List[Tuple[str, Tuple[str, Any]]] = []
-        self._order: List[str] = []
-        self._limit: Optional[int] = None
-        self._offset: Optional[int] = None
+        self._filters: list[tuple[str, tuple[str, Any]]] = []
+        self._exclude: list[tuple[str, tuple[str, Any]]] = []
+        self._order: list[str] = []
+        self._limit: int | None = None
+        self._offset: int | None = None
         self._distinct: bool = False
-        self._select: List[str] = []
+        self._select: list[str] = []
 
 
     def filter(self, **kwargs) -> 'QuerySet':
@@ -76,7 +76,7 @@ class QuerySet:
         return clone
 
 
-    def all(self) -> List[Any]:
+    def all(self) -> list[Any]:
         return self._fetch()
 
     def __iter__(self):
@@ -109,13 +109,13 @@ class QuerySet:
             raise ValueError(f'get() returned {len(rows)} rows; expected 1')
         return rows[0]
 
-    def first(self) -> Optional[Any]:
+    def first(self) -> Any | None:
         clone = self._clone()
         clone._limit = 1
         rows = clone._fetch()
         return rows[0] if rows else None
 
-    def last(self) -> Optional[Any]:
+    def last(self) -> Any | None:
         clone = self._clone()
         clone._order = ['-' + o if not o.startswith('-') else o[1:] for o in reversed(self._order or ['pk'])]
         clone._limit = 1
@@ -161,7 +161,7 @@ class QuerySet:
         return -1
 
 
-    def _build_sql(self, count: bool = False) -> Tuple[str, list]:
+    def _build_sql(self, count: bool = False) -> tuple[str, list]:
         backend = _conn.get_backend()
         if count:
             select = 'COUNT(*)'
@@ -190,10 +190,10 @@ class QuerySet:
         sql = backend.limit_offset_sql(sql, self._limit, self._offset)
         return sql, params
 
-    def _build_where(self, offset: int = 0) -> Tuple[str, list]:
+    def _build_where(self, offset: int = 0) -> tuple[str, list]:
         backend = _conn.get_backend()
-        clauses: List[str] = []
-        params: List[Any] = []
+        clauses: list[str] = []
+        params: list[Any] = []
         idx = offset + 1
 
         def _add_condition(field: str, op: str, value: Any, negated: bool = False):
@@ -230,11 +230,11 @@ class QuerySet:
             return '', []
         return ' WHERE ' + ' AND '.join(clauses), params
 
-    def _fetch(self) -> List[Any]:
+    def _fetch(self) -> list[Any]:
         backend = _conn.get_backend()
         sql, params = self._build_sql()
         rows = backend.fetchall(sql, tuple(params))
-        results: List[Any] = []
+        results: list[Any] = []
         for row in rows:
             if self._select:
                 results.append(dict(zip(self._select, row)))
@@ -269,7 +269,7 @@ class QuerySet:
 
 
 
-def _parse_lookup(key: str, value: Any) -> Tuple[str, Tuple[str, Any]]:
+def _parse_lookup(key: str, value: Any) -> tuple[str, tuple[str, Any]]:
     if '__' in key:
         field, op = key.rsplit('__', 1)
         sql_op = _LOOKUPS.get(op)

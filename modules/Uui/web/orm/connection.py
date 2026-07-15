@@ -1,13 +1,12 @@
 """Database connection management — thread-local with simple pooling."""
 import importlib
 import threading
-from typing import Any, Dict
+from typing import Any
 
 from .backend.base import Backend
 from .backend.sqlite import SqliteBackend
 
-
-_connections: Dict[str, Backend] = {}
+_connections: dict[str, Backend] = {}
 _lock = threading.Lock()
 _active_alias: str = 'default'
 

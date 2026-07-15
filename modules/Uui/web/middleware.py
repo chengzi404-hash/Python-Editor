@@ -6,10 +6,8 @@ is the next WSGI callable in the chain. The ``__call__`` method is the
 WSGI entry point.
 """
 import os
-from typing import Any, Dict
 
-from .request import URequest
-from .response import UResponse, error as error_response
+from .response import error as error_response
 
 
 class CommonMiddleware:
@@ -67,7 +65,7 @@ class AuthenticationMiddleware:
         self.inner = inner
 
     def __call__(self, environ, start_response):
-        from .auth.users import get_user_by_id, get_anonymous_user
+        from .auth.users import get_anonymous_user, get_user_by_id
         session = environ.get('uui.session')
         user = get_anonymous_user()
         if session is not None:
@@ -121,7 +119,7 @@ class StaticMiddleware:
             if path.startswith(prefix):
                 rel = path[len(prefix):]
                 if rel and '..' not in rel.split('/'):
-                    from .response import file as file_resp, error as err_resp
+                    from .response import error as err_resp, file as file_resp
                     tried = []
                     for base in [self.root, *self.dirs]:
                         full = os.path.join(base, rel)

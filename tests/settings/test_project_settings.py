@@ -1,6 +1,8 @@
-import pytest
-import tempfile
 import os
+import tempfile
+
+import pytest
+
 from modules.settings.project_settings import ProjectSettings, default_project_path
 
 
