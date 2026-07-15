@@ -14,10 +14,11 @@ from modules.logging import configure_logging, get_logger
 from modules.Uui.widgets import (UFrame, ULabel, UButton, UEntry, UText, UComboBox,
                                  UMenuBar, theme, TabBar, Tab,
                                  UDialog, UTabView, UListView, message_box,
-                                 SideBar, ExplorerCard, DebugCard, GitCard)
+                                 SideBar, ExplorerCard, DebugCard, GitCard,
+                                 ui_theme_marketplace)
 from modules.Uui.widgets.window import Window
 from modules.Uui.widgets.editor_suggestion import UEditorSuggestion, CompletionItem
-from modules.highlighter import PythonHighlighterExpert, JsonHighlighterExpert, XmlHighlighterExpert, YamlHighlighterExpert, LogHighlighterExpert, HighlightBlock
+from modules.highlighter import PythonHighlighterExpert, JsonHighlighterExpert, XmlHighlighterExpert, YamlHighlighterExpert, LogHighlighterExpert, HighlightBlock, highlight_themes, highlight_marketplace
 from modules.suggestion import PythonSuggestionExpert, SuggestionBlock
 from modules.checker import Flake8Checker, PyrightChecker, CPythonChecker
 from modules.runner import RunResult, run_blocking, stream_command
@@ -26,8 +27,9 @@ from modules.plugins import (
     PluginManager,
     LanguageContribution,
     HookEvents,
+    plugin_marketplace,
 )
-from modules.i18n import AVAILABLE_LANGUAGES, get_translator, t
+from modules.i18n import AVAILABLE_LANGUAGES, get_translator, t, language_marketplace
 from modules.env_manager import EnvironmentManager, get_env_manager
 
 
@@ -199,6 +201,10 @@ class CodeEditor:
         self._suggestions_enabled = gs.get('completion.enabled', True)
         self._autosave_enabled = gs.get('editor.auto_save', False)
 
+        self._highlight_theme_name = gs.get('ui.highlight_theme', 'Default Dark')
+        if self._highlight_theme_name not in highlight_themes.available_names():
+            self._highlight_theme_name = 'Default Dark'
+
         self._font_family = gs.get('ui.font_family', 'Consolas')
         self._font_size = int(gs.get('ui.font_size', 10))
         self._tab_width = int(gs.get('editor.tab_size', 4))
@@ -208,6 +214,9 @@ class CodeEditor:
         self._suggest_delay_ms = int(
             gs.get('editor.suggestion_delay_ms', 200)
         )
+        self._suggest_min_chars = int(
+            gs.get('completion.min_chars_before_trigger', 1)
+        )
 
         self._highlight_debouncer = _Debouncer(
             self.window.after, self.window.after_cancel,
@@ -215,6 +224,14 @@ class CodeEditor:
         self._suggest_debouncer = _Debouncer(
             self.window.after, self.window.after_cancel,
         )
+        self._autosave_debouncer = _Debouncer(
+            self.window.after, self.window.after_cancel,
+        )
+        self._autosave_format = gs.get('editor.auto_save_format', '{unix.seconds}')
+        self._autosave_delay_ms = int(
+            gs.get('editor.auto_save_delay_ms', 800)
+        )
+        self._autosave_paths: Dict[str, str] = {}
 
         self._find_dialog: Optional[tk.Toplevel] = None
         self._find_query = ''
@@ -456,6 +473,11 @@ class CodeEditor:
                 self._set_theme(event.new, persist=False)
             except Exception:
                 pass
+        elif key == 'ui.highlight_theme':
+            try:
+                self._set_highlight_theme(event.new, persist=False)
+            except Exception:
+                pass
         elif key == 'ui.font_family':
             self._font_family = event.new
             if hasattr(self, '_font_family_tk_var'):
@@ -489,6 +511,13 @@ class CodeEditor:
             self._autosave_enabled = bool(event.new)
             if hasattr(self, '_autosave_tk_var'):
                 self._autosave_tk_var.set(bool(event.new))
+        elif key == 'editor.auto_save_format':
+            self._autosave_format = str(event.new) if event.new else '{unix.seconds}'
+        elif key == 'editor.auto_save_delay_ms':
+            try:
+                self._autosave_delay_ms = max(100, int(event.new))
+            except (TypeError, ValueError):
+                self._autosave_delay_ms = 800
         elif key == 'editor.highlight_delay_ms':
             try:
                 self._highlight_delay_ms = max(0, int(event.new))
@@ -499,6 +528,11 @@ class CodeEditor:
                 self._suggest_delay_ms = max(0, int(event.new))
             except (TypeError, ValueError):
                 self._suggest_delay_ms = 200
+        elif key == 'completion.min_chars_before_trigger':
+            try:
+                self._suggest_min_chars = max(0, int(event.new))
+            except (TypeError, ValueError):
+                self._suggest_min_chars = 1
         elif key == 'i18n.language':
             new_lang = event.new if event.new in AVAILABLE_LANGUAGES else 'zh_CN'
             if self._translator.current_language != new_lang:
@@ -525,12 +559,27 @@ class CodeEditor:
         self._suggest_delay_ms = int(
             gs.get('editor.suggestion_delay_ms', self._suggest_delay_ms)
         )
+        self._suggest_min_chars = int(
+            gs.get('completion.min_chars_before_trigger', self._suggest_min_chars)
+        )
+        self._autosave_format = gs.get('editor.auto_save_format', self._autosave_format)
+        self._autosave_delay_ms = int(
+            gs.get('editor.auto_save_delay_ms', self._autosave_delay_ms)
+        )
+        try:
+            hl_theme = gs.get('ui.highlight_theme', self._highlight_theme_name)
+            if hl_theme in highlight_themes.available_names():
+                self._set_highlight_theme(hl_theme, persist=False)
+        except Exception:
+            pass
         if hasattr(self, '_font_family_tk_var'):
             self._font_family_tk_var.set(self._font_family)
         if hasattr(self, '_font_size_tk_var'):
             self._font_size_tk_var.set(int(self._font_size))
         if hasattr(self, '_tab_width_tk_var'):
             self._tab_width_tk_var.set(int(self._tab_width))
+        if hasattr(self, '_highlight_theme_tk_var'):
+            self._highlight_theme_tk_var.set(self._highlight_theme_name)
         self._apply_editor_font()
         self._set_tab_width(self._tab_width, persist=False)
 
@@ -540,6 +589,12 @@ class CodeEditor:
         try:
             target = self._settings.effective('ui.theme', 'Dark')
             self._set_theme(target, persist=False)
+        except Exception:
+            pass
+        try:
+            hl_target = self._settings.effective('ui.highlight_theme', 'Default Dark')
+            if hl_target in highlight_themes.available_names():
+                self._set_highlight_theme(hl_target, persist=False)
         except Exception:
             pass
 
@@ -790,6 +845,23 @@ class CodeEditor:
             theme_sub.add_radiobutton(name, value=name,
                                        variable=self._theme_var(),
                                        command=lambda n=name: self._set_theme(n))
+        theme_sub.add_separator()
+        theme_sub.add_command(
+            t('menu.settings.theme_marketplace'),
+            self._open_ui_theme_marketplace,
+        )
+        hl_theme_sub = settings_menu.add_cascade(t('menu.settings.highlight_theme'))
+        for name in highlight_themes.available_names():
+            hl_theme_sub.add_radiobutton(
+                name, value=name,
+                variable=self._highlight_theme_var(),
+                command=lambda n=name: self._set_highlight_theme(n),
+            )
+        hl_theme_sub.add_separator()
+        hl_theme_sub.add_command(
+            t('menu.settings.highlight_theme_marketplace'),
+            self._open_highlight_theme_marketplace,
+        )
         font_sub = settings_menu.add_cascade(t('menu.settings.font'))
         for fnt in FONT_FAMILIES:
             font_sub.add_radiobutton(fnt, value=fnt,
@@ -822,6 +894,11 @@ class CodeEditor:
                 variable=self._lang_locale_var(),
                 command=lambda l=lang: self._set_language_locale(l),
             )
+        lang_locale_sub.add_separator()
+        lang_locale_sub.add_command(
+            t('menu.settings.language_marketplace'),
+            self._open_language_marketplace,
+        )
         settings_menu.add_separator()
         settings_menu.add_command(t('menu.settings.global_settings'), self._open_global_settings)
         settings_menu.add_command(t('menu.settings.project_settings'), self._open_project_settings)
@@ -840,6 +917,7 @@ class CodeEditor:
         # 重建, 这里只占位。
         self._plugin_menu = self._menubar.add_cascade(t('menu.plugins'))
         self._plugin_menu.add_command(t('menu.plugins.manage'), self._open_plugin_manager)
+        self._plugin_menu.add_command(t('menu.plugins.marketplace'), self._open_plugin_marketplace)
 
     def _bind_shortcuts(self):
         self.window.bind('<Control-n>', lambda e: self._new_file())
@@ -937,6 +1015,11 @@ class CodeEditor:
         if not hasattr(self, '_autosave_tk_var') or self._autosave_tk_var is None:
             self._autosave_tk_var = tk.BooleanVar(value=self._autosave_enabled)
         return self._autosave_tk_var
+
+    def _highlight_theme_var(self) -> tk.StringVar:
+        if not hasattr(self, '_highlight_theme_tk_var') or self._highlight_theme_tk_var is None:
+            self._highlight_theme_tk_var = tk.StringVar(value=self._highlight_theme_name)
+        return self._highlight_theme_tk_var
 
     def _build_toolbar(self):
         bar = UFrame(self.window, variant='title')
@@ -1284,10 +1367,13 @@ class CodeEditor:
         self._switch_language(value)
 
     def _on_key_release(self, event=None):
+        """KeyRelease: 状态/高亮/补全/脏标记/自动保存/内容事件。"""
+
         self._update_status()
         self._schedule_highlight()
         if self._suggestions_enabled:
             self._schedule_suggestions()
+        self._schedule_autosave()
         self._mark_dirty()
         self._emit_content_changed()
 
@@ -1334,7 +1420,63 @@ class CodeEditor:
         self._suggest_debouncer.cancel()
 
     def _run_scheduled_suggestions(self) -> None:
-        self._show_suggestions()
+        try:
+            self._show_suggestions()
+        except Exception:
+            app_logger.exception("_run_scheduled_suggestions failed")
+
+    def _schedule_autosave(self) -> None:
+        if not self._autosave_enabled:
+            self._autosave_debouncer.cancel()
+            return
+        self._autosave_debouncer.schedule(
+            self._do_autosave, self._autosave_delay_ms,
+        )
+
+    def _do_autosave(self) -> None:
+        if not self._autosave_enabled:
+            return
+        if not (self._active_id and self._active_id in self._documents):
+            return
+        doc = self._documents[self._active_id]
+        if not doc.dirty:
+            return
+        if doc.path:
+            self._save_to_path(doc.path)
+        else:
+            path = self._autosave_paths.get(self._active_id)
+            if path and os.path.exists(path):
+                self._save_to_path(path)
+            else:
+                path = self._format_autosave_path()
+                try:
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                except OSError:
+                    pass
+                self._save_to_path(path)
+                self._documents[self._active_id].path = path
+                self._current_file = path
+                self._autosave_paths[self._active_id] = path
+
+    def _format_autosave_path(self) -> str:
+        import time
+        now = time.localtime()
+        ts = time.time()
+        fields = {
+            'year': f'{now.tm_year:04d}',
+            'month': f'{now.tm_mon:02d}',
+            'day': f'{now.tm_mday:02d}',
+            'hour': f'{now.tm_hour:02d}',
+            'minute': f'{now.tm_min:02d}',
+            'second': f'{now.tm_sec:02d}',
+            'unix.seconds': f'{int(ts)}',
+            'unix.float': f'{ts:.3f}',
+        }
+        fmt = self._autosave_format
+        name = fmt.format_map({k: v for k, v in fields.items()})
+        name = ''.join(c if c.isalnum() or c in '._- ' else '_' for c in name)
+        cache = os.path.join(tempfile.gettempdir(), 'PythonEditor', 'autosave')
+        return os.path.join(cache, f'{name}.py')
 
     def _on_key_press(self, event=None):
         if self._suggestion_popup and self._suggestion_popup.winfo_exists():
@@ -1345,14 +1487,12 @@ class CodeEditor:
 
     def _on_click(self, event=None):
         self._update_status()
-        # 鼠标点击属于"光标主动移动",与键入共用同一条建议 debounce 通道,
-        # 保证停顿 _suggest_delay_ms 毫秒后才真正触发,避免连续点击时抖动。
-        if self._suggestions_enabled:
-            self._schedule_suggestions()
+        self._cancel_pending_suggestions()
         self._emit_cursor_moved()
 
     def _on_focus_in(self, event=None):
         self._update_status()
+        self._cancel_pending_suggestions()
         self._emit_cursor_moved()
 
     def _emit_cursor_moved(self) -> None:
@@ -1384,25 +1524,29 @@ class CodeEditor:
         if result.tokens is None:
             return
 
+        hl_tokens = highlight_themes.tokens()
+        if not hl_tokens:
+            hl_tokens = HIGHLIGHT_TOKENS
+
         text = self._editor._text
         for tag in text.tag_names():
             text.tag_delete(tag)
 
-        for token_type, style in HIGHLIGHT_TOKENS.items():
+        for token_type, style in hl_tokens.items():
             text.tag_configure(token_type, **style)
 
         for token in result.tokens:
             start = self._index_from_pos(token.start)
             end = self._index_from_pos(token.end)
-            tag = token.type if token.type in HIGHLIGHT_TOKENS else 'identifier'
+            tag = token.type if token.type in hl_tokens else 'identifier'
             text.tag_add(tag, start, end)
 
     def _show_suggestions(self):
         if self._large_file_mode:
-            # 大文件模式: 把全文本喂给 highlighter/suggester 会非常慢且
-            # 没必要(用户也看不到结果), 直接跳过。
             return
         if not self._suggestions_enabled:
+            return
+        if self._suggestion_expert is None:
             return
         code = self._editor.get('1.0', 'end-1c')
         cursor = self._editor._text.index(tk.INSERT)
@@ -1892,6 +2036,94 @@ class CodeEditor:
         if persist:
             self._write_setting(SettingsScope.GLOBAL, 'ui.theme', name)
 
+    def _set_highlight_theme(self, name: str, *, persist: bool = True):
+        if name not in highlight_themes.available_names():
+            return
+        self._highlight_theme_name = name
+        highlight_themes.set_theme(name)
+        if hasattr(self, '_highlight_theme_tk_var') and self._highlight_theme_tk_var is not None:
+            self._highlight_theme_tk_var.set(name)
+        self._cancel_pending_highlight()
+        self._apply_highlight()
+        self._status_label.config(text=t('status.highlight_theme', name=name))
+        app_logger.info(f"Highlight theme changed to: {name}")
+        if persist:
+            self._write_setting(SettingsScope.GLOBAL, 'ui.highlight_theme', name)
+
+    def _open_highlight_theme_marketplace(self):
+        marketplace = highlight_marketplace.get_marketplace()
+        providers = marketplace.providers
+        if not providers:
+            messagebox.showinfo(
+                t('dialog.title.highlight_theme_marketplace'),
+                t('dialog.highlight_theme_marketplace.no_providers'),
+                parent=self.window,
+            )
+        else:
+            messagebox.showinfo(
+                t('dialog.title.highlight_theme_marketplace'),
+                t('dialog.highlight_theme_marketplace.placeholder'),
+                parent=self.window,
+            )
+
+    def _open_ui_theme_marketplace(self):
+        marketplace = ui_theme_marketplace.get_ui_marketplace()
+        providers = marketplace.providers
+        if not providers:
+            messagebox.showinfo(
+                t('dialog.title.ui_theme_marketplace'),
+                t('dialog.ui_theme_marketplace.no_providers'),
+                parent=self.window,
+            )
+        else:
+            messagebox.showinfo(
+                t('dialog.title.ui_theme_marketplace'),
+                t('dialog.ui_theme_marketplace.placeholder'),
+                parent=self.window,
+            )
+
+    def _open_plugin_marketplace(self):
+        marketplace = plugin_marketplace.get_plugin_marketplace()
+        providers = marketplace.providers
+        if not providers:
+            messagebox.showinfo(
+                t('dialog.title.plugin_marketplace'),
+                t('dialog.plugin_marketplace.no_providers'),
+                parent=self.window,
+            )
+        else:
+            messagebox.showinfo(
+                t('dialog.title.plugin_marketplace'),
+                t('dialog.plugin_marketplace.placeholder'),
+                parent=self.window,
+            )
+
+    def _open_language_marketplace(self):
+        marketplace = language_marketplace.get_marketplace()
+        providers = marketplace.providers
+        if not providers:
+            messagebox.showinfo(
+                t('dialog.title.language_marketplace'),
+                t('dialog.language_marketplace.no_providers'),
+                parent=self.window,
+            )
+        else:
+            messagebox.showinfo(
+                t('dialog.title.language_marketplace'),
+                t('dialog.language_marketplace.placeholder'),
+                parent=self.window,
+            )
+
+    def _on_settings_panel_action(self, key: str, value: Any) -> None:
+        if key == 'ui.highlight_theme_marketplace':
+            self._open_highlight_theme_marketplace()
+        elif key == 'ui.theme_marketplace':
+            self._open_ui_theme_marketplace()
+        elif key == 'plugins.marketplace':
+            self._open_plugin_marketplace()
+        elif key == 'i18n.language_marketplace':
+            self._open_language_marketplace()
+
     def _force_redraw(self):
         """Force complete window redraw - workaround for Tk rendering quirks on some systems."""
         try:
@@ -1973,6 +2205,7 @@ class CodeEditor:
         try:
             win = UProjectSettingsWindow(
                 self._settings, parent=self.window, title=t('dialog.title.settings'),
+                on_change=self._on_settings_panel_action,
             )
             self._settings_window = win
             win._switch(SettingsScope.GLOBAL)  # noqa: SLF001 - 单文件集成
@@ -2185,6 +2418,7 @@ class CodeEditor:
                 )
         menu.add_separator()
         menu.add_command(t('menu.plugins.manage'), self._open_plugin_manager)
+        menu.add_command(t('menu.plugins.marketplace'), self._open_plugin_marketplace)
         menu.add_command(t('menu.plugins.rescan'), self._reload_all_plugins)
 
     def _refresh_plugin_languages(self) -> None:
