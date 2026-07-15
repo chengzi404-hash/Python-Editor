@@ -1,0 +1,82 @@
+name: code-quality
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  schedule:
+    # 每周一 06:00 UTC 扫描, 捕获依赖升级 / 配置漂移
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  ruff:
+    name: ruff lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: python -m pip install --upgrade pip && python -m pip install ruff
+
+      - name: Run ruff check
+        run: ruff check --output-format=github .
+
+      - name: Run ruff format check
+        run: ruff format --check .
+
+  black:
+    name: black format check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install black
+        run: python -m pip install --upgrade pip && python -m pip install "black>=24.0"
+
+      - name: Run black --check
+        run: black --check --diff .
+
+  mypy:
+    name: mypy type check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install mypy
+        run: python -m pip install --upgrade pip && python -m pip install mypy
+
+      - name: Install project
+        run: python -m pip install -e .
+
+      - name: Run mypy
+        # 顶层 main.py 依赖 Tk, 在 headless Linux runner 上 import 会失败,
+        # 这里只检查 modules/ 与 utils/ 这两个纯 Python 包。
+        # --explicit-package-bases: 项目没有顶层 modules/__init__.py,
+        # mypy 需要显式告诉它 modules/ 是一个包根。
+        run: |
+          set -e
+          TARGETS="main.py modules"
+          if [ -d utils ] && [ -n "$(ls utils/*.py 2>/dev/null)" ]; then
+            TARGETS="$TARGETS utils"
+          fi
+          mypy --explicit-package-bases $TARGETS
