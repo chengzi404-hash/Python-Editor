@@ -14,3 +14,6 @@ logs/
 
 # Cache (runtime data like library DOM)
 cache/
+
+# Test reports
+junit.xml
