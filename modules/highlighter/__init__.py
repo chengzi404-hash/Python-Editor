@@ -5,6 +5,8 @@ from .xml_expert import XmlHighlighterExpert
 from .yaml_expert import YamlHighlighterExpert
 from .log_expert import LogHighlighterExpert
 from .base import HighlightToken, HighlightBlock, HighlighterExpert
+from . import themes as highlight_themes
+from . import marketplace as highlight_marketplace
 from .dom_cache import (
     LibraryDOM,
     ensure_lib_cache,
@@ -26,6 +28,9 @@ __all__ = [
     'XmlHighlighterExpert',
     'YamlHighlighterExpert',
     'LogHighlighterExpert',
+    # Highlight themes
+    'highlight_themes',
+    'highlight_marketplace',
     # DOM cache
     'LibraryDOM',
     'ensure_lib_cache',

@@ -33,6 +33,7 @@ from .translator import (
     get_translator,
     t,
 )
+from . import marketplace as language_marketplace
 
 __all__ = [
     "AVAILABLE_LANGUAGES",
@@ -40,4 +41,5 @@ __all__ = [
     "Translator",
     "get_translator",
     "t",
+    "language_marketplace",
 ]

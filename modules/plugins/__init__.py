@@ -51,6 +51,7 @@ from .api import (
 )
 from .hooks import HOOK_SPECS, HookEvents, HookSpec
 from .manager import DiscoveredPlugin, PluginManager
+from . import marketplace as plugin_marketplace
 
 
 __all__ = [
@@ -65,4 +66,5 @@ __all__ = [
     "HookEvents",
     "HookSpec",
     "HOOK_SPECS",
+    "plugin_marketplace",
 ]
