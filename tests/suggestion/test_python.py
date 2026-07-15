@@ -41,7 +41,9 @@ class TestBasicInterface:
         """返回结果应去重并按字母序排序。"""
         expert = PythonSuggestionExpert()
         result = expert.suggest(SuggestionBlock(code="\n", position=0))
-        assert result == sorted(set(result))
+        assert result == sorted(result, key=lambda x: (x.priority, x.label.lower()))
+        labels = [item.label for item in result]
+        assert len(labels) == len(set(labels))
 
 
 
@@ -121,26 +123,30 @@ class TestIdentifierSuggestion:
     def test_includes_keywords(self) -> None:
         expert = PythonSuggestionExpert()
         result = expert.suggest(SuggestionBlock(code="\n", position=0))
+        labels = {s.label for s in result}
         for kw in ("if", "else", "def", "class", "return"):
-            assert kw in result, f"missing keyword: {kw}"
+            assert kw in labels, f"missing keyword: {kw}"
 
     def test_includes_builtin_functions(self) -> None:
         expert = PythonSuggestionExpert()
         result = expert.suggest(SuggestionBlock(code="\n", position=0))
+        labels = {s.label for s in result}
         for name in ("print", "len", "isinstance", "open", "input"):
-            assert name in result
+            assert name in labels
 
     def test_includes_builtin_classes(self) -> None:
         expert = PythonSuggestionExpert()
         result = expert.suggest(SuggestionBlock(code="\n", position=0))
+        labels = {s.label for s in result}
         for name in ("list", "dict", "str", "int", "bool"):
-            assert name in result
+            assert name in labels
 
     def test_includes_builtin_properties(self) -> None:
         expert = PythonSuggestionExpert()
         result = expert.suggest(SuggestionBlock(code="\n", position=0))
+        labels = {s.label for s in result}
         for name in ("True", "False", "None", "__name__"):
-            assert name in result
+            assert name in labels
 
     def test_prefix_filter(self) -> None:
         """输入 ``pr`` 时,结果应以 ``pr`` 开头。"""
@@ -149,13 +155,13 @@ class TestIdentifierSuggestion:
         result = expert.suggest(block)
         assert result, "expected non-empty suggestions"
         for s in result:
-            assert s.startswith("pr"), f"unexpected suggestion: {s!r}"
+            assert s.label.startswith("pr"), f"unexpected suggestion: {s!r}"
 
     def test_prefix_filter_for_print(self) -> None:
         expert = PythonSuggestionExpert()
         block = SuggestionBlock(code="pri", position=3)
         result = expert.suggest(block)
-        assert "print" in result
+        assert any(s.label == "print" for s in result)
 
     def test_no_match_returns_empty(self) -> None:
         """没有任何标识符以某个奇怪前缀开头时,应返回空列表。"""
@@ -171,7 +177,7 @@ class TestIdentifierSuggestion:
             code="my_local_var = 1\nmy", position=len("my_local_var = 1\nmy")
         )
         result = expert.suggest(block)
-        assert "my_local_var" in result
+        assert any(s.label == "my_local_var" for s in result)
 
     def test_function_in_scope_is_suggested(self) -> None:
         expert = PythonSuggestionExpert()
@@ -182,7 +188,7 @@ class TestIdentifierSuggestion:
         )
         block = SuggestionBlock(code=code, position=len(code))
         result = expert.suggest(block)
-        assert "helper" in result
+        assert any(s.label == "helper" for s in result)
 
     def test_class_in_scope_is_suggested(self) -> None:
         expert = PythonSuggestionExpert()
@@ -193,7 +199,7 @@ class TestIdentifierSuggestion:
         )
         block = SuggestionBlock(code=code, position=len(code))
         result = expert.suggest(block)
-        assert "Greeter" in result
+        assert any(s.label == "Greeter" for s in result)
 
     def test_root_functions_visible_in_nested_scope(self) -> None:
         """root 作用域里定义的函数在嵌套作用域中仍是可见的。"""
@@ -206,8 +212,8 @@ class TestIdentifierSuggestion:
         )
         block = SuggestionBlock(code=code, position=len(code))
         result = expert.suggest(block)
-        assert "helper" in result
-        assert "runner" in result
+        assert any(s.label == "helper" for s in result)
+        assert any(s.label == "runner" for s in result)
 
 
 
@@ -226,8 +232,8 @@ class TestAttributeSuggestion:
         pos = code.index("self.\n") + len("self.")
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
-        assert "greet" in result
-        assert "__init__" in result
+        assert any(s.label == "greet" for s in result)
+        assert any(s.label == "__init__" for s in result)
 
     def test_self_dot_outside_class_returns_generic_dunders(self) -> None:
         """光标 ``self.|`` 不在任何 class 内时,应回退到通用 dunder 列表。"""
@@ -236,9 +242,9 @@ class TestAttributeSuggestion:
         pos = code.index("self.\n") + len("self.")
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
-        assert "__init__" in result
-        assert "__class__" in result
-        assert "greet" not in result
+        assert any(s.label == "__init__" for s in result)
+        assert any(s.label == "__class__" for s in result)
+        assert not any(s.label == "greet" for s in result)
 
     def test_str_dot_returns_str_attributes(self) -> None:
         """``str.|`` 应给出 ``BUILTIN_ATTRS['str']`` 中的方法。"""
@@ -247,8 +253,9 @@ class TestAttributeSuggestion:
         pos = code.index("str.") + len("str.")
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
+        labels = {s.label for s in result}
         for attr in ("upper", "lower", "split", "strip"):
-            assert attr in result, f"missing attribute: {attr}"
+            assert attr in labels, f"missing attribute: {attr}"
 
     def test_unknown_typed_name_does_not_get_type_specific_attrs(self) -> None:
         """``lis.|`` (lis 不是已知内建类型)不应列出 list 专有属性。"""
@@ -257,7 +264,7 @@ class TestAttributeSuggestion:
         pos = code.index("lis.") + len("lis.")
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
-        assert "append" not in result
+        assert not any(s.label == "append" for s in result)
 
     def test_int_dot_with_b_prefix(self) -> None:
         """``int.b|`` 应只返回以 ``b`` 开头的 int 属性。"""
@@ -267,9 +274,10 @@ class TestAttributeSuggestion:
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
         for s in result:
-            assert s.startswith("b"), f"unexpected suggestion: {s!r}"
-        assert "bit_length" in result
-        assert "bit_count" in result
+            assert s.label.startswith("b"), f"unexpected suggestion: {s!r}"
+        labels = {s.label for s in result}
+        assert "bit_length" in labels
+        assert "bit_count" in labels
 
     def test_unknown_object_returns_generic_dunders(self) -> None:
         expert = PythonSuggestionExpert()
@@ -277,8 +285,8 @@ class TestAttributeSuggestion:
         pos = code.index("obj.") + len("obj.")
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
-        assert "__init__" in result
-        assert "__class__" in result
+        assert any(s.label == "__init__" for s in result)
+        assert any(s.label == "__class__" for s in result)
 
     def test_attribute_prefix_filter(self) -> None:
         """``str.up|`` 应只返回以 ``up`` 开头的 str 属性。"""
@@ -287,7 +295,7 @@ class TestAttributeSuggestion:
         pos = code.index("str.up") + len("str.up")
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
-        assert result == ["upper"]
+        assert [s.label for s in result] == ["upper"]
 
 
 
@@ -390,11 +398,11 @@ class TestEndToEnd:
         pos = source.index("self.") + len("self.")
         block = SuggestionBlock(code=source, position=pos)
         attr_result = expert.suggest(block)
-        assert "greet" in attr_result
-        assert "__init__" in attr_result
+        assert any(s.label == "greet" for s in attr_result)
+        assert any(s.label == "__init__" for s in attr_result)
 
         pos2 = source.index("print(") + len("print(")
         block2 = SuggestionBlock(code=source, position=pos2)
         ident_result = expert.suggest(block2)
-        assert "Greeter" in ident_result
-        assert "print" in ident_result
+        assert any(s.label == "Greeter" for s in ident_result)
+        assert any(s.label == "print" for s in ident_result)

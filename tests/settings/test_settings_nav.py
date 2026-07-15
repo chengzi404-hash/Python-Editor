@@ -155,6 +155,7 @@ class TestGroupKeysForSchema:
             "editor.use_spaces",
             "editor.auto_save",
             "editor.auto_save_delay_ms",
+            "editor.auto_save_format",
             "editor.word_wrap",
             "editor.highlight_delay_ms",
             "editor.suggestion_delay_ms",

@@ -28,28 +28,30 @@ class TestBasicInterface:
     def test_suggest_is_sorted_and_unique(self) -> None:
         expert = CppSuggestionExpert()
         result = expert.suggest(SuggestionBlock(code="\n", position=0))
-        assert result == sorted(set(result))
+        assert result == sorted(result, key=lambda x: (x.priority, x.label.lower()))
 
 
 class TestIdentifierSuggestion:
     def test_includes_cpp_keywords(self) -> None:
         expert = CppSuggestionExpert()
         result = expert.suggest(SuggestionBlock(code="\n", position=0))
+        labels = {s.label for s in result}
         for kw in ("int", "return", "class", "namespace", "virtual", "template", "public", "private"):
-            assert kw in result, f"missing keyword: {kw}"
+            assert kw in labels, f"missing keyword: {kw}"
 
     def test_includes_builtins(self) -> None:
         expert = CppSuggestionExpert()
         result = expert.suggest(SuggestionBlock(code="\n", position=0))
+        labels = {s.label for s in result}
         for name in ("printf", "malloc", "sizeof", "nullptr", "vector", "string", "push_back", "size"):
-            assert name in result
+            assert name in labels
 
     def test_prefix_filter(self) -> None:
         expert = CppSuggestionExpert()
         block = SuggestionBlock(code="vec", position=3)
         result = expert.suggest(block)
         for s in result:
-            assert s.startswith("vec"), f"unexpected suggestion: {s!r}"
+            assert s.label.startswith("vec"), f"unexpected suggestion: {s!r}"
 
     def test_no_match_returns_empty(self) -> None:
         expert = CppSuggestionExpert()
@@ -67,7 +69,7 @@ class TestIdentifierSuggestion:
         )
         block = SuggestionBlock(code=code, position=len(code))
         result = expert.suggest(block)
-        assert "helper" in result
+        assert any(s.label == "helper" for s in result)
 
     def test_class_in_scope_is_suggested(self) -> None:
         expert = CppSuggestionExpert()
@@ -80,7 +82,7 @@ class TestIdentifierSuggestion:
         )
         block = SuggestionBlock(code=code, position=len(code))
         result = expert.suggest(block)
-        assert "Greeter" in result
+        assert any(s.label == "Greeter" for s in result)
 
 
 class TestAttributeSuggestion:
@@ -91,8 +93,9 @@ class TestAttributeSuggestion:
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
         assert len(result) > 0
+        labels = {s.label for s in result}
         for attr in ("begin", "end", "size", "empty", "push_back", "data"):
-            assert attr in result
+            assert attr in labels
 
     def test_arrow_suggests_attributes(self) -> None:
         expert = CppSuggestionExpert()
@@ -101,8 +104,9 @@ class TestAttributeSuggestion:
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
         assert len(result) > 0
-        assert "size" in result
-        assert "data" in result
+        labels = {s.label for s in result}
+        assert "size" in labels
+        assert "data" in labels
 
     def test_attribute_prefix_filter(self) -> None:
         expert = CppSuggestionExpert()
@@ -111,8 +115,8 @@ class TestAttributeSuggestion:
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
         for s in result:
-            assert s.startswith("si"), f"unexpected suggestion: {s!r}"
-        assert "size" in result
+            assert s.label.startswith("si"), f"unexpected suggestion: {s!r}"
+        assert any(s.label == "size" for s in result)
 
 
 class TestScopeSuggestion:
@@ -122,11 +126,12 @@ class TestScopeSuggestion:
         pos = code.index("std::") + len("std::")
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
-        assert "cout" in result
-        assert "cin" in result
-        assert "endl" in result
-        assert "string" in result
-        assert "vector" in result
+        labels = {s.label for s in result}
+        assert "cout" in labels
+        assert "cin" in labels
+        assert "endl" in labels
+        assert "string" in labels
+        assert "vector" in labels
 
     def test_scope_prefix_filter(self) -> None:
         expert = CppSuggestionExpert()
@@ -135,8 +140,8 @@ class TestScopeSuggestion:
         block = SuggestionBlock(code=code, position=pos)
         result = expert.suggest(block)
         for s in result:
-            assert s.startswith("co"), f"unexpected suggestion: {s!r}"
-        assert "cout" in result
+            assert s.label.startswith("co"), f"unexpected suggestion: {s!r}"
+        assert any(s.label == "cout" for s in result)
 
 
 class TestNamespaceAndClass:
@@ -149,11 +154,11 @@ class TestNamespaceAndClass:
         expert = CppSuggestionExpert()
         block = SuggestionBlock(code=code, position=0)
         result = expert.suggest(block)
-        assert "mylib" in result
+        assert any(s.label == "mylib" for s in result)
 
     def test_enum_found_in_scope(self) -> None:
         code = "enum class Color { Red, Green, Blue };\n"
         expert = CppSuggestionExpert()
         block = SuggestionBlock(code=code, position=0)
         result = expert.suggest(block)
-        assert "Color" in result
+        assert any(s.label == "Color" for s in result)
