@@ -45,6 +45,7 @@ class SettingValueType(str, Enum):
     CHOICE = "choice"     # 字符串枚举，由 ``choices`` 提供候选项
     LIST = "list"         # 字符串列表（json 数组）
     PATH = "path"         # 文件系统路径
+    BUTTON = "button"     # 动作按钮，不存储值，点击触发回调
 
 
 
@@ -160,6 +161,9 @@ class SettingSpec:
                         f"got {type(item).__name__}"
                     )
             return list(value)
+
+        if self.type is SettingValueType.BUTTON:
+            return value
 
         if self.type is SettingValueType.PATH:
             if not isinstance(value, str):

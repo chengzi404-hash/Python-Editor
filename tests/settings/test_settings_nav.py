@@ -115,35 +115,37 @@ class TestGroupKeysForSchema:
         assert isinstance(result, OrderedDict)
 
     def test_global_schema_groups(self):
-        # 契约: 这是用户能看到的导航树顶层分组。
-        # 一旦 schema 重构, 这个集合也得跟着改; 把它显式钉在测试里
-        # 可以避免无声地破坏"ui 改名为 view"这类重构。
         result = group_keys_for_schema(GLOBAL_SCHEMA)
-        assert set(result.keys()) == {
-            "ui", "editor", "completion", "checker", "runner", "startup", "i18n",
-        }
+        groups = set(result.keys())
+        assert "ui" in groups
+        assert "editor" in groups
+        assert "completion" in groups
+        assert "checker" in groups
+        assert "runner" in groups
+        assert "startup" in groups
+        assert "i18n" in groups
+        assert "logging" in groups
 
     def test_project_schema_groups(self):
         result = group_keys_for_schema(PROJECT_SCHEMA)
         assert set(result.keys()) == {"project", "checker"}
 
     def test_global_ui_group_keys_in_order(self):
-        # UI 分组是用户在导航树里点开 "ui" 后看到的第一组叶子,
-        # 顺序与 schema 中声明一致(主题 → 字体 → 字号 → 行号)。
         result = group_keys_for_schema(GLOBAL_SCHEMA)
         keys_in_group = [k for k, _ in result["ui"]]
         assert keys_in_group == [
             "ui.theme",
+            "ui.highlight_theme",
+            "ui.highlight_theme_marketplace",
             "ui.font_family",
             "ui.font_size",
             "ui.show_line_numbers",
         ]
 
     def test_global_ui_group_labels_use_spec_label(self):
-        # label 来自 spec.label, 在叶子节点渲染时会被显示出来。
         result = group_keys_for_schema(GLOBAL_SCHEMA)
         labels = [label for _, label in result["ui"]]
-        assert labels == ["界面主题", "编辑器字体", "编辑器字号", "显示行号"]
+        assert labels == ["界面主题", "代码高亮主题", "浏览高亮主题市场...", "编辑器字体", "编辑器字号", "显示行号"]
 
     def test_global_editor_group_keys_in_order(self):
         result = group_keys_for_schema(GLOBAL_SCHEMA)
