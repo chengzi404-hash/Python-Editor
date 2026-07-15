@@ -38,7 +38,7 @@ class TestProjectSettings:
     def test_has(self, temp_dir):
         settings = ProjectSettings(root=temp_dir, auto_load=False)
         settings.set("project.tab_size", 8)
-        assert settings.has("project.tab_size") == True
+        assert settings.has("project.tab_size")
 
     def test_save_and_load(self, temp_dir):
         path = os.path.join(temp_dir, ".pyeditor", "settings.json")

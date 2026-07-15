@@ -21,6 +21,7 @@ API 与 ttk.Treeview 时代完全一致:
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tkinter as tk
 from collections.abc import Callable, Iterable
@@ -249,10 +250,8 @@ class UFileTree(UFrame):
             self._tree.toggle(iid)
             return
         if self._on_activate is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._on_activate(path)
-            except Exception:
-                pass
 
     def _on_toggle(self, iid: str, is_open: bool) -> None:
         """目录首次展开时, 懒加载其下的子节点。
@@ -298,25 +297,19 @@ class UFileTree(UFrame):
         标题 / body / TreeCanvas 全部跟随 theme 切换。
         """
 
-        try:
+        with contextlib.suppress(tk.TclError):
             super()._apply_theme()
-        except tk.TclError:
-            pass
-        try:
+        with contextlib.suppress(tk.TclError, AttributeError):
             self._title_label.config(
                 bg=theme.BG_TITLE, fg=theme.FG_SECONDARY,
             )
-        except (tk.TclError, AttributeError):
-            pass
         # TreeCanvas 自己实现了 _apply_theme, 通过 super()._apply_theme
         # 的递归(在 UFrame 中)已经会被命中, 但 _apply_theme 实际只在
         # 收到 _apply_theme 调用时刷新。UFrame._apply_theme 不递归,
         # 这里显式触发 TreeCanvas 的主题刷新。
         if hasattr(self._tree, "_apply_theme"):
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._tree._apply_theme()
-            except tk.TclError:
-                pass
 
 
 __all__ = ["UFileTree"]

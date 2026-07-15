@@ -1,3 +1,4 @@
+import contextlib
 import sys
 from collections.abc import Callable
 
@@ -163,10 +164,8 @@ def on_change(callback: Callable[[Theme], None]) -> None:
 
 
 def off_change(callback: Callable[[Theme], None]) -> None:
-    try:
+    with contextlib.suppress(ValueError):
         _listeners.remove(callback)
-    except ValueError:
-        pass
 
 
 def set_theme(theme_obj: Theme, *, refresh_root=None) -> None:
@@ -177,20 +176,16 @@ def set_theme(theme_obj: Theme, *, refresh_root=None) -> None:
     if refresh_root is not None:
         apply_theme_recursive(refresh_root)
     for cb in list(_listeners):
-        try:
+        with contextlib.suppress(Exception):
             cb(theme_obj)
-        except Exception:
-            pass
 
 
 def apply_theme_recursive(widget) -> None:
     """Walk the widget tree and call _apply_theme() on every themed widget."""
     apply_fn = getattr(widget, '_apply_theme', None)
     if apply_fn is not None:
-        try:
+        with contextlib.suppress(Exception):
             apply_fn()
-        except Exception:
-            pass
     try:
         children = widget.winfo_children()
     except Exception:
@@ -292,10 +287,8 @@ def _schedule_poll(root, interval_ms: int) -> None:
     global _follow_after_id
     if not _follow_enabled or root is None:
         return
-    try:
+    with contextlib.suppress(Exception):
         _follow_after_id = root.after(interval_ms, _poll, root, interval_ms)
-    except Exception:
-        pass
 
 
 def _poll(root, interval_ms: int) -> None:
@@ -317,10 +310,8 @@ def stop_following() -> None:
     global _follow_enabled, _follow_root, _follow_after_id, _follow_mapping
     _follow_enabled = False
     if _follow_root is not None and _follow_after_id is not None:
-        try:
+        with contextlib.suppress(Exception):
             _follow_root.after_cancel(_follow_after_id)
-        except Exception:
-            pass
     _follow_root = None
     _follow_after_id = None
     _follow_mapping = None

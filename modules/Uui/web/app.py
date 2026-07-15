@@ -96,7 +96,7 @@ class UWSGIApp:
     def _handle(self, request: URequest, start_response: Callable) -> list[bytes]:
         if self._router is None:
             raise ImproperlyConfigured('Router not initialised')
-        view, kwargs, ns = self._router.resolve(request.path)
+        view, kwargs, _ns = self._router.resolve(request.path)
         result = view(request, **kwargs)
         if isinstance(result, UResponse):
             return _respond(start_response, result)

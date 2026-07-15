@@ -14,6 +14,7 @@ Public API
 
 from __future__ import annotations
 
+import contextlib
 import subprocess
 import tkinter as tk
 from collections.abc import Callable
@@ -717,10 +718,8 @@ class GitCard(UFrame):
     # ─────────────────────────── theming ───────────────────────────
 
     def _apply_theme(self) -> None:
-        try:
+        with contextlib.suppress(tk.TclError):
             super()._apply_theme()
-        except tk.TclError:
-            pass
 
         try:
             self._title_label.config(bg=theme.BG_TITLE, fg=theme.FG_SECONDARY)

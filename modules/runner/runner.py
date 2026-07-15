@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import subprocess
 import threading
 from collections.abc import Callable
@@ -110,10 +111,8 @@ def stream_command(
             # 进程被外部关闭 stream 时, iter 会抛 ValueError; 视作结束。
             pass
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 stream.close()
-            except Exception:
-                pass
 
     stdout_thread = threading.Thread(
         target=_drain, args=(process.stdout, "stdout"),
@@ -133,10 +132,8 @@ def stream_command(
             returncode = process.wait(timeout=timeout_s)
         except subprocess.TimeoutExpired:
             timed_out = True
-            try:
+            with contextlib.suppress(Exception):
                 process.kill()
-            except Exception:
-                pass
             try:
                 returncode = process.wait(timeout=2.0)
             except Exception:
@@ -146,10 +143,8 @@ def stream_command(
         stdout_thread.join(timeout=2.0)
         stderr_thread.join(timeout=2.0)
         if done_callback is not None:
-            try:
+            with contextlib.suppress(Exception):
                 done_callback(RunResult(returncode=returncode, timed_out=timed_out))
-            except Exception:
-                pass
 
     supervisor = threading.Thread(
         target=_supervise, name="runner-supervisor", daemon=True,

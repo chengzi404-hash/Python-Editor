@@ -31,19 +31,19 @@ class TestTranslator:
     def test_set_language_valid(self):
         translator = Translator()
         result = translator.set_language("zh_CN")
-        assert result == True
+        assert result
         assert translator.current_language == "zh_CN"
 
     def test_set_language_invalid(self):
         translator = Translator()
         result = translator.set_language("invalid_lang")
-        assert result == False
+        assert not result
 
     def test_set_language_same(self):
         translator = Translator()
         translator.set_language("zh_CN")
         result = translator.set_language("zh_CN")
-        assert result == False
+        assert not result
 
     def test_translate_key_exists(self):
         translator = Translator()
@@ -78,15 +78,15 @@ class TestTranslator:
 
     def test_has_key(self):
         translator = Translator()
-        assert translator.has("menu.file.new") == True
+        assert translator.has("menu.file.new")
 
     def test_has_key_false(self):
         translator = Translator()
-        assert translator.has("nonexistent.key.xyz") == False
+        assert not translator.has("nonexistent.key.xyz")
 
     def test_has_key_with_locale(self):
         translator = Translator()
-        assert translator.has("menu.file.new", locale="zh_CN") == True
+        assert translator.has("menu.file.new", locale="zh_CN")
 
     def test_add_listener(self):
         translator = Translator()

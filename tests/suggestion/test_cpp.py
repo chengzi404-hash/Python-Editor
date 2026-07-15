@@ -39,7 +39,7 @@ class TestCppSuggestionExpert:
             assert s.label.lower().startswith("st")
 
     def test_iter_classes(self):
-        expert = CppSuggestionExpert()
+        CppSuggestionExpert()
         code = """
 class MyClass {
 };
@@ -47,7 +47,7 @@ class MyClass {
 class AnotherClass {
 };
 """
-        block = SuggestionBlock(code=code, position=0)
+        SuggestionBlock(code=code, position=0)
         classes = []
         for _, _, kind, name, _ in CppSuggestionExpert._collect_entries(code):
             if kind == 'class':
@@ -56,21 +56,21 @@ class AnotherClass {
         assert "AnotherClass" in classes
 
     def test_iter_functions(self):
-        expert = CppSuggestionExpert()
+        CppSuggestionExpert()
         code = "int my_function() {}"
-        block = SuggestionBlock(code=code, position=0)
+        SuggestionBlock(code=code, position=0)
         entries = CppSuggestionExpert._collect_entries(code)
         function_entries = [name for _, _, kind, name, _ in entries if kind == 'function']
         assert len(function_entries) >= 0
 
     def test_suggest_namespace(self):
-        expert = CppSuggestionExpert()
+        CppSuggestionExpert()
         code = """
 namespace my_namespace {
     class MyClass {};
 }
 """
-        block = SuggestionBlock(code=code, position=0)
+        SuggestionBlock(code=code, position=0)
         classes = []
         for _, _, kind, name, _ in CppSuggestionExpert._collect_entries(code):
             if kind == 'namespace':

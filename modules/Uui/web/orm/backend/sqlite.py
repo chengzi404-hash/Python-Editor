@@ -1,4 +1,5 @@
 """SQLite backend."""
+import contextlib
 import sqlite3
 import threading
 from typing import Any
@@ -29,20 +30,16 @@ class SqliteBackend(Backend):
                                     check_same_thread=False)
             conn.row_factory = sqlite3.Row
             for pragma, value in self._pragmas.items():
-                try:
+                with contextlib.suppress(Exception):
                     conn.execute(f'PRAGMA {pragma} = {value!r}')
-                except Exception:
-                    pass
             self._local.conn = conn
         return conn
 
     def close(self) -> None:
         conn = getattr(self._local, 'conn', None)
         if conn is not None:
-            try:
+            with contextlib.suppress(Exception):
                 conn.close()
-            except Exception:
-                pass
             self._local.conn = None
 
     def execute(self, sql: str, params: tuple = ()) -> Any:
@@ -54,10 +51,8 @@ class SqliteBackend(Backend):
 
     def executemany(self, sql: str, seq: list[tuple]) -> None:
         cur = self.connection().executemany(sql, seq)
-        try:
+        with contextlib.suppress(Exception):
             cur.close()
-        except Exception:
-            pass
 
     def fetchall(self, sql: str, params: tuple = ()) -> list[tuple]:
         cur = self.connection().execute(sql, params)

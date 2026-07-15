@@ -1,4 +1,5 @@
 """Admin views: index, app_index, change_list, add_form, change_form, delete."""
+import contextlib
 from typing import Any
 
 from .. import response
@@ -28,7 +29,7 @@ def _find_admin(request, parts: list[str]):
         return None, None, None
     app_label = parts[0]
     model_name = parts[1] if len(parts) > 1 else None
-    for model, admin in s._registry.items():
+    for _model, admin in s._registry.items():
         if admin.app_label == app_label:
             if model_name is None or admin.model_name == model_name:
                 return s, app_label, admin
@@ -40,7 +41,7 @@ def _find_admin(request, parts: list[str]):
 def index(request):
     s = _site(request)
     apps: dict[str, list[dict[str, Any]]] = {}
-    for model, admin in s._registry.items():
+    for _model, admin in s._registry.items():
         apps.setdefault(admin.app_label, []).append({
             'name': admin.verbose_name_plural,
             'url': f'/admin/{admin.app_label}/{admin.model_name}/',
@@ -236,10 +237,8 @@ def _save_form(request, admin, obj):
         fld = admin.opts['fields'].get(fname)
         raw = form_data.get(fname, '')
         if fld is not None and hasattr(fld, 'to_python'):
-            try:
+            with contextlib.suppress(Exception):
                 raw = fld.to_python(raw)
-            except Exception:
-                pass
         setattr(obj, fname, raw)
     admin.save_model(request, obj, form_data, change=obj is not None and obj.id is not None)
     return response.redirect(f'/admin/{admin.app_label}/{admin.model_name}/{obj.id}/change/')  # type: ignore[union-attr]

@@ -20,6 +20,7 @@ Tk, 以便在无 GUI 环境下单元测试 (见 ``tests/settings/test_settings_n
 
 from __future__ import annotations
 
+import contextlib
 import tkinter as tk
 from collections import OrderedDict
 from collections.abc import Callable
@@ -335,10 +336,8 @@ class USettingsNavBar(UFrame):
         sel = self._node_data.get(iid)
         if sel is None or self._on_select is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             self._on_select(sel)
-        except Exception:
-            pass
 
     def _on_tree_activate(self, iid: str) -> None:
         # 与原 ttk.Treeview 版本一致: Enter / 双击 都触发 on_select,
@@ -352,21 +351,15 @@ class USettingsNavBar(UFrame):
     def _apply_theme(self) -> None:
         """被 :func:`theme.apply_theme_recursive` 调用, 刷新所有颜色."""
 
-        try:
+        with contextlib.suppress(tk.TclError):
             super()._apply_theme()
-        except tk.TclError:
-            pass
-        try:
+        with contextlib.suppress(tk.TclError, AttributeError):
             self._title_label.config(
                 bg=theme.BG_TITLE, fg=theme.FG_SECONDARY,
             )
-        except (tk.TclError, AttributeError):
-            pass
         if hasattr(self._tree, "_apply_theme"):
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._tree._apply_theme()
-            except tk.TclError:
-                pass
 
 
 __all__ = [

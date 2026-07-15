@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tempfile
@@ -233,16 +234,12 @@ class JsonFileSettings(Settings):
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
                 f.flush()
-                try:
+                with contextlib.suppress(OSError, AttributeError):
                     os.fsync(f.fileno())
-                except (OSError, AttributeError):
-                    pass
             os.replace(tmp_path, path)
         except Exception:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
-            except OSError:
-                pass
             raise
 
     def load(self) -> None:

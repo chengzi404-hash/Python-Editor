@@ -1,3 +1,4 @@
+import contextlib
 import tkinter as tk
 from collections.abc import Callable
 
@@ -90,7 +91,6 @@ class _MenuItemRow(tk.Frame):
                             fg=theme.FG_SECONDARY, font=theme.MENU_FONT, anchor='e')
         self.sc.pack(side=tk.RIGHT, padx=(6, 10))
 
-        state = 'normal'
         var = None
         value = None
 
@@ -118,7 +118,8 @@ class _MenuItemRow(tk.Frame):
                     command()
                 self._dropdown._menu_bar._close_dropdown()
         else:
-            on_click = lambda e=None: None
+            def on_click(e=None):
+                return None
 
         for w in (self, self.prefix, self.text, self.sc):
             w.bind('<Button-1>', on_click)
@@ -277,10 +278,8 @@ class UMenuBar(tk.Frame):
 
     def _close_dropdown(self):
         if self._open_submenu_dropdown is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._open_submenu_dropdown.destroy()
-            except tk.TclError:
-                pass
             self._open_submenu_dropdown = None
         if self._sub_root_bind is not None:
             try:
@@ -290,10 +289,8 @@ class UMenuBar(tk.Frame):
                 pass
             self._sub_root_bind = None
         if self._open_dropdown is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._open_dropdown.destroy()
-            except tk.TclError:
-                pass
             self._open_dropdown = None
         if self._root_bind is not None:
             try:
@@ -303,17 +300,13 @@ class UMenuBar(tk.Frame):
                 pass
             self._root_bind = None
         for btn, _ in self._buttons:
-            try:
+            with contextlib.suppress(tk.TclError):
                 btn.config(bg=self['bg'])
-            except tk.TclError:
-                pass
 
     def _open_submenu_at(self, parent_item: _MenuItemRow, sub_menu: UMenu):
         if self._open_submenu_dropdown is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._open_submenu_dropdown.destroy()
-            except tk.TclError:
-                pass
             self._open_submenu_dropdown = None
 
         top = self.winfo_toplevel()
@@ -353,15 +346,15 @@ class UMenuBar(tk.Frame):
         for item in sub_menu._items:
             kind = item[0]
             if kind == 'separator':
-                row = _MenuItemRow(inner, 'separator', dropdown=sub)  # type: ignore[arg-type]
+                _MenuItemRow(inner, 'separator', dropdown=sub)  # type: ignore[arg-type]
             elif kind == 'command':
-                row = _MenuItemRow(inner, 'command', item[1], item[2], item[3], dropdown=sub)  # type: ignore[arg-type]
+                _MenuItemRow(inner, 'command', item[1], item[2], item[3], dropdown=sub)  # type: ignore[arg-type]
             elif kind == 'check':
-                row = _MenuItemRow(inner, 'check', item[1], item[2], item[3], item[4], dropdown=sub)  # type: ignore[arg-type]
+                _MenuItemRow(inner, 'check', item[1], item[2], item[3], item[4], dropdown=sub)  # type: ignore[arg-type]
             elif kind == 'radio':
-                row = _MenuItemRow(inner, 'radio', item[1], item[2], item[3], item[4], item[5], dropdown=sub)  # type: ignore[arg-type]
+                _MenuItemRow(inner, 'radio', item[1], item[2], item[3], item[4], item[5], dropdown=sub)  # type: ignore[arg-type]
             elif kind == 'cascade':
-                row = _MenuItemRow(inner, 'cascade', item[1], item[2], dropdown=sub)  # type: ignore[arg-type]
+                _MenuItemRow(inner, 'cascade', item[1], item[2], dropdown=sub)  # type: ignore[arg-type]
 
         self._open_submenu_dropdown = sub  # type: ignore[assignment]
         try:
@@ -402,11 +395,7 @@ class UMenuBar(tk.Frame):
 
     def _apply_theme(self):
         for btn, _ in self._buttons:
-            try:
+            with contextlib.suppress(tk.TclError):
                 btn.config(bg=theme.BG_TITLE, fg=theme.FG_PRIMARY, font=theme.MENU_FONT)
-            except tk.TclError:
-                pass
-        try:
+        with contextlib.suppress(tk.TclError):
             self.config(bg=theme.BG_TITLE)
-        except tk.TclError:
-            pass

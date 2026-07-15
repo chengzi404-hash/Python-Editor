@@ -171,7 +171,7 @@ class CSuggestionExpert(SuggestionExpert):
 
         lines = code.split('\n')
         current_line = lines[line_no] if line_no < len(lines) else ''
-        before_cursor = current_line[:col]
+        current_line[:col]
 
         word_start = col
         while word_start > 0 and (current_line[word_start - 1].isalnum() or current_line[word_start - 1] == '_'):

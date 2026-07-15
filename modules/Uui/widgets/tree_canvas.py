@@ -39,6 +39,7 @@ API 概览::
 
 from __future__ import annotations
 
+import contextlib
 import tkinter as tk
 from collections.abc import Callable
 from typing import Any
@@ -219,10 +220,8 @@ class TreeCanvas(UFrame):
         """清空整棵树, 回到初始状态."""
 
         for frame in self._row_frames.values():
-            try:
+            with contextlib.suppress(tk.TclError):
                 frame.destroy()
-            except tk.TclError:
-                pass
         self._row_frames.clear()
         self._row_y.clear()
         self._row_window_id.clear()
@@ -248,10 +247,8 @@ class TreeCanvas(UFrame):
             self._apply_selection(None)
         self._relayout()
         if fire_toggle and self._on_toggle is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._on_toggle(iid, is_open)
-            except Exception:
-                pass
 
     def toggle(self, iid: str) -> None:
         node = self._nodes.get(iid)
@@ -277,10 +274,8 @@ class TreeCanvas(UFrame):
         if iid is not None and scroll:
             self.see(iid)
         if fire and iid is not None and self._on_select is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._on_select(iid)
-            except Exception:
-                pass
 
     def get_selected(self) -> str | None:
         return self._selected_iid
@@ -370,10 +365,8 @@ class TreeCanvas(UFrame):
         """按当前可见性扁平化整棵树, 重建所有行 widget."""
 
         for frame in self._row_frames.values():
-            try:
+            with contextlib.suppress(tk.TclError):
                 frame.destroy()
-            except tk.TclError:
-                pass
         self._row_frames.clear()
         self._row_y.clear()
         self._row_window_id.clear()
@@ -489,12 +482,10 @@ class TreeCanvas(UFrame):
         for iid, window_id in self._row_window_id.items():
             depth = self._depth(iid)
             indent = depth * self._row_indent
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._canvas.itemconfigure(
                     window_id, width=max(50, canvas_w - indent - 16),
                 )
-            except tk.TclError:
-                pass
 
     # ------------------------------------------------------------------
     # 内部: 绘制 (hover / selected)
@@ -538,10 +529,8 @@ class TreeCanvas(UFrame):
 
         if not isinstance(widget, (tk.Frame, tk.Label)):
             return
-        try:
+        with contextlib.suppress(tk.TclError):
             widget.config(**kwargs)
-        except tk.TclError:
-            pass
 
     def _apply_selection(self, iid: str | None) -> None:
         """更新选中状态并重绘相关行; 不触发回调也不滚动."""
@@ -577,19 +566,15 @@ class TreeCanvas(UFrame):
         if iid is None:
             return
         if self._on_activate is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._on_activate(iid)
-            except Exception:
-                pass
 
     def _on_canvas_return(self, _event: tk.Event) -> None:
         iid = self._selected_iid
         if iid is None or self._on_activate is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             self._on_activate(iid)
-        except Exception:
-            pass
 
     def _on_canvas_configure(self, _event: tk.Event) -> None:
         # 防抖: 拖窗口时一连串 <Configure>, 50ms 内只刷一次。
@@ -619,10 +604,8 @@ class TreeCanvas(UFrame):
     def _on_row_double(self, iid: str) -> None:
         if self._on_activate is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             self._on_activate(iid)
-        except Exception:
-            pass
 
     def _on_triangle_click(self, iid: str) -> None:
         self.toggle(iid)
@@ -656,20 +639,14 @@ class TreeCanvas(UFrame):
     # ------------------------------------------------------------------
 
     def _apply_theme(self) -> None:
-        try:
+        with contextlib.suppress(tk.TclError):
             super()._apply_theme()
-        except tk.TclError:
-            pass
-        try:
+        with contextlib.suppress(tk.TclError):
             self._canvas.config(bg=theme.BG_INPUT)
-        except tk.TclError:
-            pass
         # UScrollBar 自己实现 _apply_theme, 直接转发即可。
         if hasattr(self._vsb, "_apply_theme"):
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._vsb._apply_theme()
-            except tk.TclError:
-                pass
         # 重画所有行 — 不重建 widget, 保留选择/hover/滚动位置。
         for iid, frame in self._row_frames.items():
             self._paint_row(

@@ -1,4 +1,5 @@
 """Uui Visual Widget Designer — Qt Creator inspired layout."""
+import contextlib
 import re
 import tkinter as tk
 import xml.etree.ElementTree as ET
@@ -1305,10 +1306,8 @@ class DesignerApp(Window):
             return
         self._rename_overlay = None
         entry = overlay_data['entry']
-        try:
+        with contextlib.suppress(tk.TclError):
             entry.destroy()
-        except tk.TclError:
-            pass
 
     def _add_widget(self, wtype):
         width, height = DEFAULT_SIZE.get(wtype, (120, 24))
@@ -1423,11 +1422,9 @@ class DesignerApp(Window):
         widget = self._widget_instances.get(item['id'])
         if widget is None:
             return
-        try:
+        with contextlib.suppress(tk.TclError):
             widget.place_configure(x=item['x'], y=item['y'],
                                    width=item['width'], height=item['height'])
-        except tk.TclError:
-            pass
         self._refresh_selection()
         self._update_status_bar()
 
@@ -1539,10 +1536,8 @@ class DesignerApp(Window):
     def _destroy_widget_instance(self, item_id):
         widget = self._widget_instances.pop(item_id, None)
         if widget is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 widget.destroy()
-            except tk.TclError:
-                pass
 
     def _to_int(self, value, default=0):
         try:

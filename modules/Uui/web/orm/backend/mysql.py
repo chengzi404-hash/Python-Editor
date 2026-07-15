@@ -5,6 +5,7 @@ Tries drivers in this order:
     2. mysql.connector
     3. MySQLdb
 """
+import contextlib
 import threading
 from typing import Any
 
@@ -67,10 +68,8 @@ class MysqlBackend(Backend):
     def close(self) -> None:
         conn = getattr(self._local, 'conn', None)
         if conn is not None:
-            try:
+            with contextlib.suppress(Exception):
                 conn.close()
-            except Exception:
-                pass
             self._local.conn = None
 
     def _cursor(self) -> Any:
@@ -82,20 +81,16 @@ class MysqlBackend(Backend):
             cur.execute(sql, self._convert_params(params))
             return cur
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 cur.close()
-            except Exception:
-                pass
 
     def executemany(self, sql: str, seq: list[tuple]) -> None:
         cur = self._cursor()
         try:
             cur.executemany(sql, [self._convert_params(p) for p in seq])
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 cur.close()
-            except Exception:
-                pass
 
     def fetchall(self, sql: str, params: tuple = ()) -> list[Row]:
         cur = self._cursor()
@@ -104,10 +99,8 @@ class MysqlBackend(Backend):
             rows = cur.fetchall()
             return [Row(r) for r in rows] if rows else []
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 cur.close()
-            except Exception:
-                pass
 
     def fetchone(self, sql: str, params: tuple = ()) -> Row | None:
         cur = self._cursor()
@@ -116,10 +109,8 @@ class MysqlBackend(Backend):
             row = cur.fetchone()
             return Row(row) if row else None
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 cur.close()
-            except Exception:
-                pass
 
     def last_insert_id(self, table: str, pk: str) -> int:
         row = self.fetchone('SELECT LAST_INSERT_ID()')

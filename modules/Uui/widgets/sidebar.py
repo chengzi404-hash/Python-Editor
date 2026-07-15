@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import tkinter as tk
 from collections.abc import Callable
 
@@ -198,10 +199,8 @@ class SideBar(UFrame):
             self.set_active(card_id)
 
     def _apply_theme(self) -> None:
-        try:
+        with contextlib.suppress(tk.TclError):
             super()._apply_theme()
-        except tk.TclError:
-            pass
         self._content_frame.config(bg=theme.BG_PANEL)
         self._activity_bar._apply_theme()
 

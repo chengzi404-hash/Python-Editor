@@ -188,7 +188,7 @@ class CppSuggestionExpert(SuggestionExpert):
 
         lines = code.split('\n')
         current_line = lines[line_no] if line_no < len(lines) else ''
-        before_cursor = current_line[:col]
+        current_line[:col]
 
         if col >= 2 and current_line[col - 2:col] == '::':
             prefix = ''

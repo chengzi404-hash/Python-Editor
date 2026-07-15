@@ -23,7 +23,6 @@ class JsonHighlighterExpert(HighlighterExpert):
     def highlight(self, block: HighlightBlock) -> HighlightBlock:
         tokens: list[HighlightToken] = []
         code = block.code
-        i = 0
 
         def is_key_position(pos: int) -> bool:
             scanned = code[:pos].rstrip()

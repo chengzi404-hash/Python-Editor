@@ -27,7 +27,7 @@ class TestLibraryDOM:
 
 class TestDomCache:
     def test_cache_exists_false_for_unknown(self):
-        assert cache_exists("nonexistent_library_xyz123") == False
+        assert not cache_exists("nonexistent_library_xyz123")
 
     def test_get_lib_dom_none_for_unknown(self):
         result = get_lib_dom("nonexistent_library_xyz123")

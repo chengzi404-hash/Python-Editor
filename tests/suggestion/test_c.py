@@ -46,7 +46,7 @@ class TestCSuggestionExpert:
             assert s.label.lower().startswith("pri")
 
     def test_iter_classes(self):
-        expert = CSuggestionExpert()
+        CSuggestionExpert()
         code = """
 struct MyStruct {
     int x;
@@ -56,7 +56,7 @@ struct AnotherStruct {
     int y;
 };
 """
-        block = SuggestionBlock(code=code, position=0)
+        SuggestionBlock(code=code, position=0)
         classes = []
         for _, _, kind, name, _ in CSuggestionExpert._collect_entries(code):
             if kind in ('class', 'typedef'):
@@ -65,7 +65,7 @@ struct AnotherStruct {
         assert "AnotherStruct" in classes
 
     def test_iter_functions(self):
-        expert = CSuggestionExpert()
+        CSuggestionExpert()
         code = """
 int my_function() {
     return 0;
@@ -74,7 +74,7 @@ int my_function() {
 void another_function() {
 }
 """
-        block = SuggestionBlock(code=code, position=0)
+        SuggestionBlock(code=code, position=0)
         functions = []
         for _, _, kind, name, _ in CSuggestionExpert._collect_entries(code):
             if kind == 'function':

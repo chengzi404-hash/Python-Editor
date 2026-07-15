@@ -101,7 +101,7 @@ def _resolve_module_attr(module_name: str, attr_name: str,
     if attr_name in sub_contents:
         return 'module'
 
-    for sub_name, sub_info in sub_contents.items():
+    for _sub_name, sub_info in sub_contents.items():
         classes = sub_info.get("classes", [])
         functions = sub_info.get("functions", [])
         if attr_name in classes:
@@ -209,7 +209,7 @@ class PythonHighlighterExpert(HighlighterExpert):
                 else:
                     # Check pending name first (name right after def/class/from/import)
                     if pending_name is not None:
-                        type_, kw_word, kw_end = pending_name
+                        type_, _kw_word, kw_end = pending_name
                         between = code[kw_end:start]
                         if between.strip() == '':
                             if type_ == 'function':

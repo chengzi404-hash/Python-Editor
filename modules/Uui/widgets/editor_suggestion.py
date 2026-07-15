@@ -1,3 +1,4 @@
+import contextlib
 import tkinter as tk
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -130,15 +131,11 @@ class UEditorSuggestion(tk.Toplevel):
         if UEditorSuggestion._active is self:
             UEditorSuggestion._active = None
         if self._root_bind is not None and self._owner_top is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._owner_top.unbind('<Button-1>', self._root_bind)
-            except tk.TclError:
-                pass
             self._root_bind = None
-        try:
+        with contextlib.suppress(tk.TclError):
             self.withdraw()
-        except tk.TclError:
-            pass
 
     def set_items(self, items: Iterable[Any]) -> None:
         normalized: list[CompletionItem] = []
@@ -189,10 +186,8 @@ class UEditorSuggestion(tk.Toplevel):
         self._clamp_position(x, y)
 
     def destroy(self) -> None:
-        try:
+        with contextlib.suppress(ValueError):
             theme.off_change(self._theme_callback)
-        except ValueError:
-            pass
         if UEditorSuggestion._active is self:
             UEditorSuggestion._active = None
         super().destroy()
@@ -292,10 +287,8 @@ class UEditorSuggestion(tk.Toplevel):
         item = self.selected()
         self.hide()
         if item is not None and self._on_select is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._on_select(item)
-            except Exception:
-                pass
 
     def _ensure_selected_visible(self) -> None:
         if self._selected_index < self._scroll_offset:

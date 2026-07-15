@@ -6,6 +6,7 @@ Tries drivers in this order:
 
 Configuration uses HOST, PORT and SERVICE_NAME (falls back to NAME).
 """
+import contextlib
 import re
 import threading
 from datetime import date, datetime
@@ -67,10 +68,8 @@ class OracleBackend(Backend):
     def close(self) -> None:
         conn = getattr(self._local, 'conn', None)
         if conn is not None:
-            try:
+            with contextlib.suppress(Exception):
                 conn.close()
-            except Exception:
-                pass
             self._local.conn = None
 
     def _cursor(self) -> Any:
@@ -81,7 +80,7 @@ class OracleBackend(Backend):
         columns = [desc[0] for desc in cursor.description] if cursor.description else []
 
         def factory(*args):
-            return Row(zip(columns, args))
+            return Row(zip(columns, args, strict=False))
 
         return factory
 
@@ -91,20 +90,16 @@ class OracleBackend(Backend):
             cur.execute(sql, self._convert_params(params))
             return cur
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 cur.close()
-            except Exception:
-                pass
 
     def executemany(self, sql: str, seq: list[tuple]) -> None:
         cur = self._cursor()
         try:
             cur.executemany(sql, [self._convert_params(p) for p in seq])
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 cur.close()
-            except Exception:
-                pass
 
     def fetchall(self, sql: str, params: tuple = ()) -> list[Row]:
         cur = self._cursor()
@@ -114,10 +109,8 @@ class OracleBackend(Backend):
             rows = cur.fetchall()
             return list(rows) if rows else []
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 cur.close()
-            except Exception:
-                pass
 
     def fetchone(self, sql: str, params: tuple = ()) -> Row | None:
         cur = self._cursor()
@@ -127,10 +120,8 @@ class OracleBackend(Backend):
             row = cur.fetchone()
             return row if row else None
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 cur.close()
-            except Exception:
-                pass
 
     def last_insert_id(self, table: str, pk: str) -> int:
         row = self.fetchone(

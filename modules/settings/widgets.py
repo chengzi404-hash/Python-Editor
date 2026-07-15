@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import tkinter as tk
 from collections.abc import Callable
 from tkinter import filedialog, messagebox
@@ -234,10 +235,8 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
 
     def _on_button(self, key: str) -> None:
         if self._on_change is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._on_change(key, None)
-            except Exception:
-                pass
 
     def _user_changed(self, key: str, value: Any) -> None:
         try:
@@ -247,10 +246,8 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
             return
         self._working[key] = coerced
         if self._on_change is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._on_change(key, coerced)
-            except Exception:
-                pass
 
     def _coerce(self, key: str, value: Any) -> Any:
         spec = self._settings.spec(key)
@@ -332,10 +329,8 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
 
     def destroy(self) -> None:  # type: ignore[override]
         if self._listener is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._settings.remove_listener(self._listener)
-            except Exception:
-                pass
         super().destroy()  # type: ignore[misc]
 
 
@@ -524,10 +519,8 @@ class UProjectSettingsWindow:
         """根据 selection 重建右侧 ``USettingPanel``."""
 
         if self._panel is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._panel.destroy()
-            except Exception:
-                pass
             self._panel = None
 
         scope = selection.scope
@@ -586,10 +579,8 @@ class UProjectSettingsWindow:
         messagebox.showinfo(t('settings.msg.save.success.title'), t('settings.msg.save.success.body'), parent=self._root)
 
     def _on_close(self) -> None:
-        try:
+        with contextlib.suppress(tk.TclError):
             self._root.destroy()
-        except tk.TclError:
-            pass
 
     def _on_reset_defaults(self) -> None:
         if self._panel is None:

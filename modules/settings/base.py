@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -283,19 +284,15 @@ class Settings(ABC):
     def remove_listener(self, callback: SettingsListener) -> None:
         """移除一个已注册的回调，未注册则忽略。"""
 
-        try:
+        with contextlib.suppress(ValueError):
             self._listeners.remove(callback)
-        except ValueError:
-            pass
 
     def _notify(self, event: SettingsChangeEvent) -> None:
         """内部触发回调：捕获异常避免单个监听器影响其它订阅者。"""
 
         for cb in list(self._listeners):
-            try:
+            with contextlib.suppress(Exception):
                 cb(event)
-            except Exception:
-                pass
 
 
     @abstractmethod

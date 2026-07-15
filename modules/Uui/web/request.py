@@ -1,4 +1,5 @@
 """WSGI request wrapper with lazy body parsing."""
+import contextlib
 from collections.abc import Mapping
 from typing import Any
 from urllib.parse import parse_qs, parse_qsl
@@ -192,10 +193,8 @@ def _read_body(environ: Mapping[str, Any]) -> bytes:
         data = body.read(length)
     except Exception:
         return b''
-    try:
+    with contextlib.suppress(Exception):
         body.seek(0)
-    except Exception:
-        pass
     return data or b''
 
 

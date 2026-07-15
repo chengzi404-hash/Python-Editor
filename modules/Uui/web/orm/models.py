@@ -141,7 +141,7 @@ class Model(metaclass=ModelMeta):
                 for i, c in enumerate(values)
             )
             sql = f'UPDATE {backend.quote_name(self._meta["table"])} SET {assignments} WHERE {backend.quote_name(pk_field.column)} = {backend.placeholder(len(values) + 1)}'
-            backend.execute(sql, tuple(values.values()) + (pk_value,))
+            backend.execute(sql, (*tuple(values.values()), pk_value))
         return self
 
     def delete(self) -> int:

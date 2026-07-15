@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import subprocess
 import threading
@@ -97,9 +98,7 @@ class DebugSession:
             for line in lines:
                 breakpoint_args.extend(['-c', f'break {bp_file}:{line}'])
 
-        cmd = [
-            'python', '-u', '-m', 'pdb',
-        ] + breakpoint_args + [file]
+        cmd = ['python', '-u', '-m', 'pdb', *breakpoint_args, file]
 
         if args:
             cmd.extend(args.split())
@@ -222,10 +221,8 @@ class DebugSession:
         self._running = False
         self._stopped = True
         if self._process:
-            try:
+            with contextlib.suppress(Exception):
                 self._process.terminate()
-            except Exception:
-                pass
         self._notify_state_change('stopped')
 
     def is_running(self) -> bool:
@@ -577,10 +574,8 @@ class DebugCard(UFrame):
         self._current_file = file
 
     def _apply_theme(self) -> None:
-        try:
+        with contextlib.suppress(tk.TclError):
             super()._apply_theme()
-        except tk.TclError:
-            pass
         self._title_label.config(bg=theme.BG_TITLE, fg=theme.FG_SECONDARY)
         if hasattr(self, '_title_accent'):
             self._title_accent.config(bg=theme.TITLE_ACCENT)

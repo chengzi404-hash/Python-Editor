@@ -38,6 +38,8 @@ try:
 except ImportError:  # pragma: no cover
     H2_AVAILABLE = False
 
+import contextlib
+
 from .exceptions import ImproperlyConfigured
 
 
@@ -117,10 +119,8 @@ def _consume_app_iter(app_iter: Any, chunks: list[bytes], max_bytes: int) -> int
     finally:
         close = getattr(app_iter, 'close', None)
         if close is not None:
-            try:
+            with contextlib.suppress(Exception):
                 close()
-            except Exception:
-                pass
     return total
 
 
@@ -227,10 +227,8 @@ class _H2Connection:
         return buf
 
     def _read_some(self) -> bytes:
-        try:
+        with contextlib.suppress(Exception):
             self.sock.settimeout(0.5)
-        except Exception:
-            pass
         try:
             data = self.sock.recv(65535)
         except (TimeoutError, BlockingIOError, OSError):
@@ -310,10 +308,8 @@ class _H2Connection:
             self.h2.end_stream(stream.stream_id)
         out = self.h2.data_to_send()
         if out:
-            try:
+            with contextlib.suppress(BrokenPipeError, ConnectionResetError, OSError):
                 self.sock.sendall(out)
-            except (BrokenPipeError, ConnectionResetError, OSError):
-                pass
 
 
     def _handle_event(self, event: 'h2.events.Event') -> None:
@@ -419,10 +415,8 @@ class _H2Connection:
                         self.sock.sendall(remaining)
             except Exception:
                 pass
-            try:
+            with contextlib.suppress(Exception):
                 self.sock.close()
-            except Exception:
-                pass
 
 
 class _H2Closed(Exception):
@@ -482,41 +476,31 @@ class HybridRequestHandler:
             self._serve_h2(request, client_address, server)
             return
         if alpn and alpn == 'http/1.1':
-            try:
+            with contextlib.suppress(Exception):
                 request.settimeout(None)
-            except Exception:
-                pass
             self.h1_handler(request, client_address, server)
             return
 
-        try:
+        with contextlib.suppress(Exception):
             request.settimeout(2.0)
-        except Exception:
-            pass
         try:
             head = self._peek(request, len(_HTTP2_PREFACE))
         except (TimeoutError, OSError):
             head = b''
         if head.startswith(_HTTP2_PREFACE):
-            try:
+            with contextlib.suppress(Exception):
                 request.settimeout(None)
-            except Exception:
-                pass
             self._serve_h2(request, client_address, server)
             return
         if (head.startswith(b'GET ') or head.startswith(b'POST ') or
                 head.startswith(b'PUT ') or head.startswith(b'DELETE ') or
                 head.startswith(b'HEAD ') or head.startswith(b'OPTIONS ')):
-            try:
+            with contextlib.suppress(Exception):
                 request.settimeout(None)
-            except Exception:
-                pass
             self.h1_handler(request, client_address, server)
             return
-        try:
+        with contextlib.suppress(Exception):
             request.close()
-        except Exception:
-            pass
 
     @staticmethod
     def _peek(sock: 'socket.socket', n: int) -> bytes:
@@ -531,10 +515,8 @@ class HybridRequestHandler:
             conn = _H2Connection(request, self.settings, self.wsgi_app)
             conn.serve()
         except Exception:
-            try:
+            with contextlib.suppress(Exception):
                 request.close()
-            except Exception:
-                pass
 
 
 
@@ -591,10 +573,8 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
             pass
         finally:
             self._is_shut_down.set()
-            try:
+            with contextlib.suppress(Exception):
                 self.server_close()
-            except Exception:
-                pass
 
     def _serve_forever(self) -> None:
         while not self._is_shut_down.is_set():
@@ -618,17 +598,13 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
         try:
             self.finish_request(request, client_address)
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 request.close()
-            except Exception:
-                pass
 
     def shutdown(self) -> None:
         self._is_shut_down.set()
-        try:
+        with contextlib.suppress(Exception):
             self.socket.close()
-        except Exception:
-            pass
 
 
 
@@ -650,10 +626,8 @@ def run_http2(host: str, port: int, settings: Any,
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(certfile=ssl_certfile, keyfile=ssl_keyfile)
         if alpn_h2:
-            try:
+            with contextlib.suppress(AttributeError, NotImplementedError):
                 ctx.set_alpn_protocols(['h2', 'http/1.1'])
-            except (AttributeError, NotImplementedError):
-                pass
         ssl_ctx = ctx
 
     server = H2WSGIServer((host, port), wsgi, settings, ssl_context=ssl_ctx)
@@ -669,7 +643,5 @@ def run_http2(host: str, port: int, settings: Any,
     except KeyboardInterrupt:
         pass
     finally:
-        try:
+        with contextlib.suppress(Exception):
             server.server_close()
-        except Exception:
-            pass

@@ -1,3 +1,4 @@
+import contextlib
 import sys
 import tkinter as tk
 
@@ -144,10 +145,8 @@ def _build_theme_picker(parent, window: Window) -> UFrame:
 
     def _on_theme_change(new_theme):
         var.set(new_theme.name)
-        try:
+        with contextlib.suppress(Exception):
             combo.set(new_theme.name)
-        except Exception:
-            pass
 
     theme.on_change(_on_theme_change)
 
@@ -216,7 +215,7 @@ def _build_button_row(canvas, body) -> None:
     variants = ['default', 'primary', 'success', 'danger', 'warning', 'ghost']
     labels = ['Default', 'Primary', 'Success', 'Danger', 'Warning', 'Ghost']
 
-    for label, variant in zip(labels, variants):
+    for label, variant in zip(labels, variants, strict=False):
         UButton(
             row, text=label, variant=variant,
             command=lambda v=variant: print(f'[button] {v}'),

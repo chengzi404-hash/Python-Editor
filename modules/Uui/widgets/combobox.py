@@ -1,3 +1,4 @@
+import contextlib
 import tkinter as tk
 
 from . import theme
@@ -144,16 +145,12 @@ class UComboBox(tk.Frame):
 
     def _close_dropdown(self):
         if self._dropdown is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._dropdown.destroy()
-            except tk.TclError:
-                pass
             self._dropdown = None
         if self._root_bind is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 self.winfo_toplevel().unbind('<Button-1>', self._root_bind)
-            except tk.TclError:
-                pass
             self._root_bind = None
         self._button.config(bg=theme.BG_INPUT)
         self._text_label.config(bg=theme.BG_INPUT)

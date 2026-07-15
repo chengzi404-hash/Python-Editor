@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import tkinter as tk
 from collections.abc import Callable
 from typing import Any, Literal
@@ -247,10 +248,8 @@ class UScrollBar(tk.Frame):
             # 滑道点击 → 翻页
             direction = -1 if pos < self._slider_pos else 1
             if self._command is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self._command("scroll", direction, "pages")
-                except Exception:
-                    pass
 
     def _on_drag(self, event: tk.Event) -> None:
         if not self._dragging:
@@ -262,10 +261,8 @@ class UScrollBar(tk.Frame):
         new_first = new_start / max(1, self._widget_size)
         new_first = max(0.0, min(1.0 - max(visible, 0.01), new_first))
         if self._command is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._command("moveto", str(new_first))
-            except Exception:
-                pass
 
     def _on_release(self, event: tk.Event) -> None:
         self._dragging = False
@@ -273,10 +270,8 @@ class UScrollBar(tk.Frame):
     def _on_wheel(self, event: tk.Event) -> None:
         if self._command is not None:
             delta = -1 if event.delta > 0 else 1
-            try:
+            with contextlib.suppress(Exception):
                 self._command("scroll", delta, "units")
-            except Exception:
-                pass
 
     # ==================================================================
     # 自动隐藏
@@ -291,20 +286,16 @@ class UScrollBar(tk.Frame):
 
         if needs_scroll and not is_mapped:
             if self._saved_pack:
-                try:
+                with contextlib.suppress(tk.TclError):
                     self.pack(**self._saved_pack)
-                except tk.TclError:
-                    pass
         elif not needs_scroll and is_mapped:
             try:
                 info = self.pack_info()
             except tk.TclError:
                 return
             self._saved_pack = {k: v for k, v in info.items() if k != "in"}
-            try:
+            with contextlib.suppress(tk.TclError):
                 self.pack_forget()
-            except tk.TclError:
-                pass
 
     # ==================================================================
     # 主题刷新

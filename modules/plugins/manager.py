@@ -28,6 +28,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import importlib.util
 import logging
@@ -445,10 +446,8 @@ class PluginManager(PluginHostAPI):
             return
         # 先调 plugin 自己的 unregister 钩子 (如果有)
         for cb in record.ctx._unregister_callbacks:
-            try:
+            with contextlib.suppress(Exception):
                 cb()
-            except Exception:
-                pass
         # 再清 UI
         self._deactivate_record(record)
         # 清掉 sys.modules
@@ -489,10 +488,8 @@ class PluginManager(PluginHostAPI):
             spec.loader.exec_module(module)
         finally:
             if added:
-                try:
+                with contextlib.suppress(ValueError):
                     sys.path.remove(parent)
-                except ValueError:
-                    pass
         return module
 
     @staticmethod

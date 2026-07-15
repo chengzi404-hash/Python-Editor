@@ -17,6 +17,7 @@ Usage::
         r = c.get('/dashboard/')
         assert r.status_code == 200
 """
+import contextlib
 import json as _json
 from collections.abc import Mapping
 from http.cookies import SimpleCookie
@@ -128,10 +129,8 @@ class UTestClient:
                     captured['body'].append(chunk)
             finally:
                 if hasattr(body_iter, 'close'):
-                    try:
+                    with contextlib.suppress(Exception):
                         body_iter.close()
-                    except Exception:
-                        pass
         body = b''.join(captured['body'])
         status = captured['status'] or '500 Internal Server Error'
         try:

@@ -13,6 +13,7 @@ Usage::
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import pkgutil
@@ -139,7 +140,7 @@ def _scan_library(lib_name: str) -> LibraryDOM | None:
     try:
         # Walk the package path to find submodules
         if hasattr(mod, "__path__"):
-            for importer, modname, ispkg in pkgutil.iter_modules(mod.__path__, lib_name + "."):
+            for _importer, modname, _ispkg in pkgutil.iter_modules(mod.__path__, lib_name + "."):
                 short = modname.split(".", 1)[-1] if "." in modname else modname
                 if short not in submodules:
                     submodules.append(short)
@@ -233,7 +234,7 @@ def build_full_cache(progress_callback=None) -> int:
         if not os.path.isdir(sp):
             continue
         try:
-            for importer, modname, ispkg in pkgutil.iter_modules([sp]):
+            for _importer, modname, ispkg in pkgutil.iter_modules([sp]):
                 if ispkg:
                     seen.add(modname)
         except Exception:
@@ -267,7 +268,5 @@ def cache_exists(lib_name: str) -> bool:
 def invalidate_lib_cache(lib_name: str) -> None:
     """Remove the cached entry for ``lib_name``."""
     path = _cache_file(lib_name)
-    try:
+    with contextlib.suppress(OSError):
         os.remove(path)
-    except OSError:
-        pass

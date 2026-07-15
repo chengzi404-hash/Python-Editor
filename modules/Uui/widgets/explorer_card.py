@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import tkinter as tk
 from collections.abc import Callable
 
@@ -64,10 +65,8 @@ class ExplorerCard(UFrame):
         self._file_tree.refresh()
 
     def _apply_theme(self) -> None:
-        try:
+        with contextlib.suppress(tk.TclError):
             super()._apply_theme()
-        except tk.TclError:
-            pass
         self._title_label.config(bg=theme.BG_TITLE, fg=theme.FG_SECONDARY)
         if hasattr(self, '_title_accent'):
             self._title_accent.config(bg=theme.TITLE_ACCENT)

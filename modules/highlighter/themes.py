@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -153,10 +154,8 @@ def set_theme(name: str) -> None:
         return
     _current_name = name
     for cb in list(_listeners):
-        try:
+        with contextlib.suppress(Exception):
             cb(name)
-        except Exception:
-            pass
 
 
 def on_change(callback: Callable[[str], None]) -> None:
@@ -164,10 +163,8 @@ def on_change(callback: Callable[[str], None]) -> None:
 
 
 def off_change(callback: Callable[[str], None]) -> None:
-    try:
+    with contextlib.suppress(ValueError):
         _listeners.remove(callback)
-    except ValueError:
-        pass
 
 
 register(HighlightTheme(

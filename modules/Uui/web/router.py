@@ -186,7 +186,7 @@ class URLRouter:
             if kw is not None:
                 return route.view, kw, {}
 
-        for module_name, sub in self._include_routes:
+        for _module_name, sub in self._include_routes:
             try:
                 return sub.resolve(path)
             except Http404:

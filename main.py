@@ -10,6 +10,8 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import contextlib
+
 from modules.checker import CPythonChecker, Flake8Checker, PyrightChecker
 from modules.env_manager import get_env_manager
 from modules.highlighter import (
@@ -84,10 +86,8 @@ class _Debouncer:
 
     def schedule(self, callback, delay_ms: int) -> None:
         if self._after_id is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._cancel(self._after_id)
-            except Exception:
-                pass
             self._after_id = None
         delay = max(0, int(delay_ms))
         try:
@@ -98,10 +98,8 @@ class _Debouncer:
     def cancel(self) -> None:
         if self._after_id is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             self._cancel(self._after_id)
-        except Exception:
-            pass
         self._after_id = None
 
     @property
@@ -286,10 +284,8 @@ class CodeEditor:
         self._plugin_menus: dict[str, Any] = {}
         self._plugin_lang_combo_added: list[str] = []
         self._plugin_manager.attach_editor(self)
-        try:
+        with contextlib.suppress(Exception):
             self._plugin_manager.load_global_plugins()
-        except Exception:
-            pass
         self._refresh_plugin_menu()
         self._refresh_plugin_languages()
 
@@ -494,15 +490,11 @@ class CodeEditor:
             return
         key = event.key
         if key == 'ui.theme':
-            try:
+            with contextlib.suppress(Exception):
                 self._set_theme(event.new, persist=False)
-            except Exception:
-                pass
         elif key == 'ui.highlight_theme':
-            try:
+            with contextlib.suppress(Exception):
                 self._set_highlight_theme(event.new, persist=False)
-            except Exception:
-                pass
         elif key == 'ui.font_family':
             self._font_family = event.new
             if hasattr(self, '_font_family_tk_var'):
@@ -570,10 +562,8 @@ class CodeEditor:
     def _refresh_all_from_settings(self) -> None:
         """设置面板整体保存后,把全局值同步回 UI。"""
 
-        try:
+        with contextlib.suppress(Exception):
             self._set_theme(self._settings.effective('ui.theme'), persist=False)
-        except Exception:
-            pass
         gs = self._settings.global_settings
         self._font_family = gs.get('ui.font_family', self._font_family)
         self._font_size = int(gs.get('ui.font_size', self._font_size))
@@ -643,10 +633,8 @@ class CodeEditor:
             for attr in ('_find_dialog', '_settings_window', '_plugin_manager_window'):
                 win = getattr(self, attr, None)
                 if win is not None and win.winfo_exists():
-                    try:
+                    with contextlib.suppress(tk.TclError):
                         win.destroy()
-                    except tk.TclError:
-                        pass
                 if attr == '_find_dialog':
                     self._find_dialog = None
 
@@ -657,16 +645,12 @@ class CodeEditor:
             # 重建插件菜单 / 语言下拉框: 它们依赖 LANG_CONFIG, 不随 i18n 变
             # (代码语言与界面语言是两回事), 但插件菜单的 label 是动态拼出来的,
             # 需要刷新一下, 否则会停留在旧文案。
-            try:
+            with contextlib.suppress(Exception):
                 self._refresh_plugin_menu()
-            except Exception:
-                pass
 
             # 刷新状态栏与 pos 标签
-            try:
+            with contextlib.suppress(Exception):
                 self._refresh_status_for_language()
-            except Exception:
-                pass
         finally:
             self._lang_changing = False
 
@@ -685,10 +669,8 @@ class CodeEditor:
         try:
             # _buttons 是 [(tk.Label, UMenu), ...], 销毁 Label 即可
             for btn, _ in list(getattr(bar, '_buttons', [])):
-                try:
+                with contextlib.suppress(tk.TclError):
                     btn.destroy()
-                except tk.TclError:
-                    pass
             bar._buttons = []
         except Exception:
             pass
@@ -698,17 +680,13 @@ class CodeEditor:
 
         if not hasattr(self, '_status_label'):
             return
-        try:
+        with contextlib.suppress(tk.TclError):
             self._status_label.config(text=t('status.ready'))
-        except tk.TclError:
-            pass
         # pos 标签: 走 _update_status 重算 (里面没有硬编码文案,
         # 但 status.pos 的 key 是新的, 这里确保 _pos_label 存在)
         if hasattr(self, '_pos_label'):
-            try:
+            with contextlib.suppress(Exception):
                 self._update_status()
-            except Exception:
-                pass
 
     def _write_setting(self, scope: SettingsScope, key: str, value) -> None:
         """写入 setting(抑制 listener,避免用户操作 UI 后回到原值的无效回弹)。"""
@@ -730,21 +708,18 @@ class CodeEditor:
 
         # 检查所有文档是否有未保存更改
         dirty_docs = [doc for doc in self._documents.values() if doc.dirty]
-        if dirty_docs:
-            if not messagebox.askyesno(
-                t('dialog.title.unsaved_exit'),
-                t('dialog.unsaved_exit.message'),
-            ):
-                return
+        if dirty_docs and not messagebox.askyesno(
+            t('dialog.title.unsaved_exit'),
+            t('dialog.unsaved_exit.message'),
+        ):
+            return
 
         self._cancel_pending_highlight()
         self._cancel_pending_suggestions()
         app_logger.info("Editor closing...")
         self._emit(HookEvents.EDITOR_CLOSING)
-        try:
+        with contextlib.suppress(Exception):
             self._plugin_manager.unload_all()
-        except Exception:
-            pass
         self._plugin_manager.detach_editor()
         self._settings.detach_project()
         try:
@@ -1260,18 +1235,14 @@ class CodeEditor:
 
         def insert_chunk() -> None:
             if my_epoch != self._stream_epoch:
-                try:
+                with contextlib.suppress(Exception):
                     f.close()
-                except Exception:
-                    pass
                 return
             try:
                 chunk = f.read(chunk_size)
             except OSError as e:
-                try:
+                with contextlib.suppress(Exception):
                     f.close()
-                except Exception:
-                    pass
                 self._editor._text.config(state='normal')
                 self._large_file_mode = False
                 messagebox.showerror(t('dialog.title.read_failed'), str(e), parent=self.window)
@@ -1279,10 +1250,8 @@ class CodeEditor:
                 return
 
             if not chunk:
-                try:
+                with contextlib.suppress(Exception):
                     f.close()
-                except Exception:
-                    pass
                 self._editor._text.config(state='normal')
                 self._large_file_mode = False
                 self._status_label.config(
@@ -1291,10 +1260,8 @@ class CodeEditor:
                 # 更新文档内容
                 if doc_id in self._documents:
                     self._documents[doc_id].content = ''.join(accumulated)
-                try:
+                with contextlib.suppress(tk.TclError):
                     self._last_emit_code = self._editor.get('1.0', 'end-1c')
-                except tk.TclError:
-                    pass
                 self._emit(HookEvents.EDITOR_FILE_OPENED, path)
                 return
 
@@ -1474,10 +1441,8 @@ class CodeEditor:
                 self._save_to_path(path)
             else:
                 path = self._format_autosave_path()
-                try:
+                with contextlib.suppress(OSError):
                     os.makedirs(os.path.dirname(path), exist_ok=True)
-                except OSError:
-                    pass
                 self._save_to_path(path)
                 self._documents[self._active_id].path = path
                 self._current_file = path
@@ -1498,7 +1463,7 @@ class CodeEditor:
             'unix.float': f'{ts:.3f}',
         }
         fmt = self._autosave_format
-        name = fmt.format_map({k: v for k, v in fields.items()})
+        name = fmt.format_map(dict(fields.items()))
         name = ''.join(c if c.isalnum() or c in '._- ' else '_' for c in name)
         cache = os.path.join(tempfile.gettempdir(), 'PythonEditor', 'autosave')
         return os.path.join(cache, f'{name}.py')
@@ -1789,17 +1754,13 @@ class CodeEditor:
         self._emit(HookEvents.EDITOR_FILE_SAVED, path)
 
     def _undo(self):
-        try:
+        with contextlib.suppress(tk.TclError):
             self._editor._text.edit_undo()
-        except tk.TclError:
-            pass
         self._apply_highlight()
 
     def _redo(self):
-        try:
+        with contextlib.suppress(tk.TclError):
             self._editor._text.edit_redo()
-        except tk.TclError:
-            pass
         self._apply_highlight()
 
     def _cut(self):
@@ -2260,10 +2221,8 @@ class CodeEditor:
                 self._settings, parent=self.window, title=t('dialog.title.project_settings'),
             )
             # 切到项目 Tab
-            try:
+            with contextlib.suppress(Exception):
                 win._switch(SettingsScope.PROJECT)
-            except Exception:
-                pass
             self._settings_window = win
         except Exception as exc:
             messagebox.showerror(t('dialog.title.project_load_failed'),
@@ -2277,10 +2236,8 @@ class CodeEditor:
             return
         # 切项目: 先卸载旧项目的项目级插件, 再 attach 新项目, 再加载新插件。
         # 顺序避免"加载新插件时还在用旧项目 settings"的混淆。
-        try:
+        with contextlib.suppress(Exception):
             self._plugin_manager.unload_project_plugins()
-        except Exception:
-            pass
         self._settings.detach_project()
         try:
             self._settings.attach_project(root)
@@ -2298,10 +2255,8 @@ class CodeEditor:
         if hasattr(self, '_explorer_card') and self._explorer_card is not None:
             self._explorer_card.set_root(root)
         # 加载项目级插件 (<root>/plugins/)
-        try:
+        with contextlib.suppress(Exception):
             self._plugin_manager.load_project_plugins(root)
-        except Exception:
-            pass
         self._refresh_plugin_menu()
         self._refresh_plugin_languages()
 
@@ -2312,10 +2267,8 @@ class CodeEditor:
             parent=self.window,
         ):
             return
-        try:
+        with contextlib.suppress(Exception):
             self._settings.reset(SettingsScope.GLOBAL)
-        except Exception:
-            pass
         self._refresh_all_from_settings()
         try:
             self._settings.save_all()
@@ -2347,10 +2300,8 @@ class CodeEditor:
         manager = getattr(self, '_plugin_manager', None)
         if manager is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             manager.emit(hook, *args, **kwargs)
-        except Exception:
-            pass
 
     def _emit_content_changed(self) -> None:
         """按当前编辑器内容是否真的发生变化来决定是否 emit content_changed。
@@ -2456,10 +2407,8 @@ class CodeEditor:
             callback()
         except Exception as exc:
             self._append_output(f'[ERROR] {t("dialog.plugin.error", err=exc)}\n')
-            try:
+            with contextlib.suppress(Exception):
                 messagebox.showerror(t('dialog.title.plugin_error'), str(exc), parent=self.window)
-            except Exception:
-                pass
 
     def _show_plugin_info(self, record: Any) -> None:
         """弹窗显示单个插件的元信息 + 来源路径 + 错误。"""
@@ -2508,25 +2457,19 @@ class CodeEditor:
     def _reload_all_plugins(self) -> None:
         """手动触发完整 reload: 卸载 + 重新扫描 + 加载。"""
 
-        try:
+        with contextlib.suppress(Exception):
             self._plugin_manager.unload_all()
-        except Exception:
-            pass
         # 清菜单缓存
         self._plugin_menus = {}
         for name in list(LANG_CONFIG.keys()):
             if LANG_CONFIG[name].get('plugin_id'):
                 LANG_CONFIG.pop(name, None)
         self._plugin_lang_combo_added = []
-        try:
+        with contextlib.suppress(Exception):
             self._plugin_manager.load_global_plugins()
-        except Exception:
-            pass
         if self._current_project_root:
-            try:
+            with contextlib.suppress(Exception):
                 self._plugin_manager.load_project_plugins(self._current_project_root)
-            except Exception:
-                pass
         self._refresh_plugin_menu()
         self._refresh_plugin_languages()
         self._status_label.config(text=t('status.plugins_reloaded'))
@@ -2605,10 +2548,8 @@ class CodeEditor:
             self._status_label.config(text=t('status.check_failed'))
             self._emit(HookEvents.EDITOR_CHECK_FINISHED, self._lang, [])
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(temp_path)
-            except OSError:
-                pass
 
     def _run_code(self):
         code = self._editor.get('1.0', 'end-1c')
@@ -2629,10 +2570,8 @@ class CodeEditor:
                 python_path = self._env_manager.get_python_path() if hasattr(self, '_env_manager') else sys.executable
                 cmd: list[str] = [python_path, temp_path]
             else:
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(temp_path)
-                except OSError:
-                    pass
                 return
 
             # 取 runner 相关设置; 默认值与 schema 中保持一致, 即使在
@@ -2666,10 +2605,8 @@ class CodeEditor:
             # 理论上不会到这里 (Python 走 sys.executable, C/C++ 的
             # FileNotFoundError 已被 _compile_c_cpp 消化), 兜底以防
             # 未来新增语言的 cmd 找不到解释器。
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(temp_path)
-            except OSError:
-                pass
             self._output._text.config(state='normal')
             self._output.clear()
             self._append_output(
@@ -2678,10 +2615,8 @@ class CodeEditor:
             self._output._text.config(state='disabled')
             self._status_label.config(text=t('status.compiler_not_found'))
         except Exception as e:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(temp_path)
-            except OSError:
-                pass
             self._output._text.config(state='normal')
             self._output.clear()
             self._append_output(f'Run error: {e}\n')
@@ -2747,10 +2682,8 @@ class CodeEditor:
                 self._lang, -1, '', str(e),
             )
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(temp_path)
-            except OSError:
-                pass
 
     def _run_streaming_path(
         self,
@@ -2779,10 +2712,8 @@ class CodeEditor:
         # 里灌陈旧的行 (用户连续点 Run 时常见)。
         prev_after = getattr(self, '_stream_drain_after_id', None)
         if prev_after is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 self.window.after_cancel(prev_after)
-            except tk.TclError:
-                pass
 
         line_q: queue.Queue = queue.Queue()
         self._stream_drain_after_id: Any = None
@@ -2792,16 +2723,12 @@ class CodeEditor:
         captured_stderr: list[str] = []
 
         def on_line(stream_name: str, line: str) -> None:
-            try:
+            with contextlib.suppress(Exception):
                 line_q.put((stream_name, line))
-            except Exception:
-                pass
 
         def on_done(result: RunResult) -> None:
-            try:
+            with contextlib.suppress(Exception):
                 line_q.put(('__done__', result))
-            except Exception:
-                pass
 
         def drain() -> None:
             try:
@@ -2821,10 +2748,8 @@ class CodeEditor:
                         self._status_label.config(
                             text=t('status.timeout') if result.timed_out else t('status.run_complete'),
                         )
-                        try:
+                        with contextlib.suppress(OSError):
                             os.unlink(temp_path)
-                        except OSError:
-                            pass
                         self._stream_drain_after_id = None
                         # 通知插件: 流式运行结束
                         self._emit(

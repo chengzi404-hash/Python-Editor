@@ -1,5 +1,6 @@
 """Uui.web command-line interface."""
 import argparse
+import contextlib
 import importlib
 import json
 import sys
@@ -443,10 +444,8 @@ def cmd_shell(args: argparse.Namespace) -> int:
     app = get_application(args.settings)
     banner = 'Uui.web shell  (objects: app, settings)'
     ctx = {'app': app, 'settings': app.settings}
-    try:
+    with contextlib.suppress(SystemExit):
         code.interact(banner=banner, local=ctx, exitmsg='bye')
-    except SystemExit:
-        pass
     return 0
 
 
@@ -548,7 +547,6 @@ def cmd_bench(args: argparse.Namespace) -> int:
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
 
-    flask_metrics: dict = {}
     try:
         import urllib.request
         urls = [f'http://127.0.0.1:{port}/{i:03d}' for i in range(100)]
@@ -705,10 +703,8 @@ def _load_apps(settings) -> None:
     """Import every module in ``settings.INSTALLED_APPS`` so its models
     are registered with the metaclass."""
     for name in (getattr(settings, 'INSTALLED_APPS', []) or []):
-        try:
+        with contextlib.suppress(Exception):
             importlib.import_module(name)
-        except Exception:
-            pass
 
 
 def cmd_migrate(args: argparse.Namespace) -> int:

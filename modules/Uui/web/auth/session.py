@@ -1,4 +1,5 @@
 """Session backends. The default stores sessions in the database."""
+import contextlib
 import datetime as _dt
 import secrets
 from typing import Any
@@ -116,10 +117,8 @@ class SessionStore:
     def delete(self) -> None:
         if not self._key:
             return
-        try:
+        with contextlib.suppress(Exception):
             Session.objects.filter(session_key=self._key).delete()
-        except Exception:
-            pass
         self._key = None
         self._data = {}
         self._modified = False
@@ -169,10 +168,7 @@ class SessionMiddleware:
                 new_key = store.save()
                 old_key = environ.get('uui._session_old_key')
                 if new_key != old_key:
-                    headers = list(headers) + [(
-                        'Set-Cookie',
-                        f'{self.cookie_name}={new_key}; Path=/; Max-Age={self.age}; HttpOnly; SameSite=Lax'
-                    )]
+                    headers = [*list(headers), ('Set-Cookie', f'{self.cookie_name}={new_key}; Path=/; Max-Age={self.age}; HttpOnly; SameSite=Lax')]
                 store._modified = False
             return start_response(status, headers, exc_info)
 

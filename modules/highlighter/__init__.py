@@ -17,24 +17,24 @@ from .xml_expert import XmlHighlighterExpert
 from .yaml_expert import YamlHighlighterExpert
 
 __all__ = [
-    'HighlightToken',
-    'HighlightBlock',
-    'HighlighterExpert',
-    'PythonHighlighterExpert',
     'CcppHighlighterExpert',
+    'HighlightBlock',
+    'HighlightToken',
+    'HighlighterExpert',
     'JsonHighlighterExpert',
-    'XmlHighlighterExpert',
-    'YamlHighlighterExpert',
-    'LogHighlighterExpert',
-    # Highlight themes
-    'highlight_themes',
-    'highlight_marketplace',
     # DOM cache
     'LibraryDOM',
+    'LogHighlighterExpert',
+    'PythonHighlighterExpert',
+    'XmlHighlighterExpert',
+    'YamlHighlighterExpert',
+    'build_full_cache',
+    'cache_exists',
     'ensure_lib_cache',
     'get_lib_dom',
     'get_or_load_lib_dom',
-    'build_full_cache',
-    'cache_exists',
+    'highlight_marketplace',
+    # Highlight themes
+    'highlight_themes',
     'invalidate_lib_cache',
 ]

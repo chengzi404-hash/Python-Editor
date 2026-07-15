@@ -97,9 +97,8 @@ class CcppHighlighterExpert(HighlighterExpert):
         tokens: list[HighlightToken] = []
         last_struct_class: int | None = None
         in_preprocessor = False
-        line_start = 0
 
-        for i, char in enumerate(code):
+        for _i, char in enumerate(code):
             if char == '\n' and in_preprocessor:
                 in_preprocessor = False
 

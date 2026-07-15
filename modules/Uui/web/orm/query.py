@@ -237,7 +237,7 @@ class QuerySet:
         results: list[Any] = []
         for row in rows:
             if self._select:
-                results.append(dict(zip(self._select, row)))
+                results.append(dict(zip(self._select, row, strict=False)))
             else:
                 results.append(self._hydrate(row))
         return results
@@ -245,7 +245,7 @@ class QuerySet:
     def _hydrate(self, row) -> Any:
         instance = self._model()
         keys = row.keys() if hasattr(row, 'keys') else range(len(row))
-        mapping = dict(zip(keys, row))
+        mapping = dict(zip(keys, row, strict=False))
         for fname, fld in self._model._meta['fields'].items():
             value = mapping.get(fld.column)
             if hasattr(fld, 'to_python'):

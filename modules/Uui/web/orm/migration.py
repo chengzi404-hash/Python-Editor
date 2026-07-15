@@ -165,7 +165,7 @@ def generate_migration(app: str, name: str = 'initial') -> dict[str, Any]:
 
     for mdl in seen:
         columns = []
-        for fname, fld in mdl._meta['fields'].items():
+        for _fname, fld in mdl._meta['fields'].items():
             columns.append({
                 'name': fld.column,
                 'type': fld.sql_type,

@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import threading
@@ -89,10 +90,8 @@ class Translator:
             listeners = list(self._listeners)
         try:
             for cb in listeners:
-                try:
+                with contextlib.suppress(Exception):
                     cb(lang)
-                except Exception:
-                    pass
             return True
         finally:
             with self._lock:
@@ -106,10 +105,8 @@ class Translator:
 
     def remove_listener(self, callback: I18nListener) -> None:
         with self._lock:
-            try:
+            with contextlib.suppress(ValueError):
                 self._listeners.remove(callback)
-            except ValueError:
-                pass
 
     def reload(self) -> None:
         """从磁盘重读所有语言包。便于测试与开发期修改后立即生效。"""

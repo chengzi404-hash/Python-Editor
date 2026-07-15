@@ -1,3 +1,4 @@
+import contextlib
 import tkinter as tk
 from typing import Literal
 
@@ -75,10 +76,8 @@ class UText(tk.Frame):
         self._scroll.set(*args)
         if self._line_numbers is not None:
             # 让行号栏跟一次重画; 内部已经做了防抖, 重复触发也无副作用。
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._line_numbers.redraw()
-            except tk.TclError:
-                pass
 
     def _apply_theme(self):
         try:
@@ -98,15 +97,11 @@ class UText(tk.Frame):
         # UScrollBar 自己实现 _apply_theme, 转发即可 (troughcolor /
         # activebackground 跟随, bg 仅在未显式指定时跟随)。
         if hasattr(self._scroll, "_apply_theme"):
-            try:
+            with contextlib.suppress(Exception):
                 self._scroll._apply_theme()
-            except Exception:
-                pass
         # 行号栏: 颜色 + 重画一次。
         if self._line_numbers is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._line_numbers._apply_theme()
-            except Exception:
-                pass
 
     configure = config  # type: ignore[assignment]

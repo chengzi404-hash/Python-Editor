@@ -28,7 +28,7 @@ class YamlHighlighterExpert(HighlighterExpert):
             end = m.end()
 
             if start > pos:
-                text_between = code[pos:start]
+                code[pos:start]
 
             kind = m.lastgroup
             if kind == 'comment':

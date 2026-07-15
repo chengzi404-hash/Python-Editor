@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
@@ -89,10 +90,8 @@ class LanguageMarketplace:
     ) -> dict[str, MarketplaceSearchResult]:
         results: dict[str, MarketplaceSearchResult] = {}
         for name, provider in self._providers.items():
-            try:
+            with contextlib.suppress(Exception):
                 results[name] = provider.search(query, tags, page, page_size)
-            except Exception:
-                pass
         return results
 
     def download_and_install(

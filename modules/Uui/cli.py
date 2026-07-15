@@ -751,7 +751,7 @@ def _new_interactive(args: argparse.Namespace) -> int:
     if vcs_tools:
         vcs_step = total_steps
         _step(vcs_step, total_steps, 'Version control')
-        vcs_choices = vcs_tools + ['none']
+        vcs_choices = [*vcs_tools, 'none']
         vcs_default = vcs_tools[0]
         vcs = _prompt_choice('Initialise a version-control repo?',
                               vcs_choices, default=vcs_default)

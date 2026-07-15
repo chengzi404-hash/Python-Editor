@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import tkinter as tk
 from collections.abc import Callable
 from typing import Any
@@ -173,10 +174,8 @@ class UListView(tk.Frame):
 
     def _schedule_sync(self):
         if self._after_resize_id:
-            try:
+            with contextlib.suppress(Exception):
                 self.after_cancel(self._after_resize_id)
-            except Exception:
-                pass
         self._after_resize_id = self.after(20, self._sync_header_spacer)
 
     def _on_inner_configure(self, e):

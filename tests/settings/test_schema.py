@@ -83,7 +83,7 @@ class TestSettingSpec:
     def test_validate_boolean_valid(self):
         spec = SettingSpec(key="test", type=SettingValueType.BOOLEAN, default=False)
         result = spec.validate(True)
-        assert result == True
+        assert result
 
     def test_validate_boolean_invalid(self):
         spec = SettingSpec(key="test", type=SettingValueType.BOOLEAN, default=False)
@@ -122,8 +122,8 @@ class TestSettingsSchema:
         spec1 = SettingSpec(key="key1", type=SettingValueType.STRING, default="")
         spec2 = SettingSpec(key="key2", type=SettingValueType.INTEGER, default=0)
         schema = SettingsSchema((spec1, spec2))
-        assert "key1" in schema.keys()
-        assert "key2" in schema.keys()
+        assert "key1" in schema
+        assert "key2" in schema
 
     def test_get(self):
         spec1 = SettingSpec(key="key1", type=SettingValueType.STRING, default="")

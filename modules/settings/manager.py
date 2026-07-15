@@ -24,6 +24,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import threading
 from typing import Any
 
@@ -76,10 +77,8 @@ class SettingsManager:
 
         with self._lock:
             if self._project is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self.save_all()
-                except Exception:
-                    pass
             self._project = ProjectSettings(root=root)
             self._project.add_listener(self._relay_event)
             return self._project
@@ -90,10 +89,8 @@ class SettingsManager:
         with self._lock:
             if self._project is None:
                 return
-            try:
+            with contextlib.suppress(Exception):
                 self._project.save()
-            except Exception:
-                pass
             self._project.remove_listener(self._relay_event)
             self._project = None
 
@@ -167,10 +164,8 @@ class SettingsManager:
         """把子对象事件原样转发给所有 manager 级订阅者。"""
 
         for cb in list(self._user_listeners):
-            try:
+            with contextlib.suppress(Exception):
                 cb(event)
-            except Exception:
-                pass
 
 
     def save_all(self) -> None:
@@ -211,10 +206,8 @@ class SettingsManager:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self.save_all()
-        except Exception:
-            pass
 
     def __repr__(self) -> str:
         root = self.project_root

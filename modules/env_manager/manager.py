@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import shutil
@@ -73,19 +74,15 @@ class EnvironmentManager:
 
     def remove_listener(self, callback: Callable[[str], None]) -> None:
         with self._lock:
-            try:
+            with contextlib.suppress(ValueError):
                 self._listeners.remove(callback)
-            except ValueError:
-                pass
 
     def _notify(self, env_name: str) -> None:
         with self._lock:
             listeners = list(self._listeners)
         for cb in listeners:
-            try:
+            with contextlib.suppress(Exception):
                 cb(env_name)
-            except Exception:
-                pass
 
     # ── scan / detect ─────────────────────────────────────────────────
 
