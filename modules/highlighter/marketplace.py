@@ -14,8 +14,8 @@ class MarketplaceItem:
     author: str
     description: str
     tags: list[str] = field(default_factory=list)
-    download_url: str = ''
-    thumbnail_url: str = ''
+    download_url: str = ""
+    thumbnail_url: str = ""
     rating: float = 0.0
     download_count: int = 0
 
@@ -46,26 +46,22 @@ class MarketplaceSearchResult:
 
 class MarketplaceProvider(ABC):
     @abstractmethod
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     @abstractmethod
     def search(
         self,
-        query: str = '',
+        query: str = "",
         tags: list[str] | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> MarketplaceSearchResult:
-        ...
+    ) -> MarketplaceSearchResult: ...
 
     @abstractmethod
-    def get_item(self, item_id: str) -> MarketplaceItem | None:
-        ...
+    def get_item(self, item_id: str) -> MarketplaceItem | None: ...
 
     @abstractmethod
-    def download(self, item: MarketplaceItem, target_dir: str) -> str:
-        ...
+    def download(self, item: MarketplaceItem, target_dir: str) -> str: ...
 
 
 class HighlightThemeMarketplace:
@@ -84,7 +80,7 @@ class HighlightThemeMarketplace:
 
     def search(
         self,
-        query: str = '',
+        query: str = "",
         tags: list[str] | None = None,
         page: int = 1,
         page_size: int = 20,
@@ -120,10 +116,10 @@ def get_marketplace() -> HighlightThemeMarketplace:
 
 
 __all__ = [
-    'HighlightThemeMarketplace',
-    'HighlightThemePackage',
-    'MarketplaceItem',
-    'MarketplaceProvider',
-    'MarketplaceSearchResult',
-    'get_marketplace',
+    "HighlightThemeMarketplace",
+    "HighlightThemePackage",
+    "MarketplaceItem",
+    "MarketplaceProvider",
+    "MarketplaceSearchResult",
+    "get_marketplace",
 ]

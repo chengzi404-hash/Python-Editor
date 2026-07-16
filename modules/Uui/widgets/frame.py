@@ -4,11 +4,10 @@ from . import theme
 
 
 class UFrame(tk.Frame):
-    def __init__(self, parent, variant: str = 'panel',
-                 bg_key: str | None = None, **kwargs):
+    def __init__(self, parent, variant: str = "panel", bg_key: str | None = None, **kwargs):
         self._variant = variant
         self._bg_key = bg_key
-        self._explicit_bg = kwargs.pop('bg', None)
+        self._explicit_bg = kwargs.pop("bg", None)
 
         if bg_key is not None:
             bg = getattr(theme, bg_key)
@@ -17,17 +16,17 @@ class UFrame(tk.Frame):
         else:
             bg = self._variant_bg(variant)
 
-        kwargs.setdefault('highlightthickness', 0)
-        kwargs.setdefault('bd', 0)
+        kwargs.setdefault("highlightthickness", 0)
+        kwargs.setdefault("bd", 0)
         super().__init__(parent, bg=bg, **kwargs)
 
     def _variant_bg(self, variant: str) -> str:
         return {
-            'title': theme.BG_TITLE,
-            'base': theme.BG_BASE,
-            'panel': theme.BG_PANEL,
-            'raised': theme.BG_RAISED,
-            'input': theme.BG_INPUT,
+            "title": theme.BG_TITLE,
+            "base": theme.BG_BASE,
+            "panel": theme.BG_PANEL,
+            "raised": theme.BG_RAISED,
+            "input": theme.BG_INPUT,
         }.get(variant, theme.BG_PANEL)
 
     def _apply_theme(self):

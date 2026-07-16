@@ -1,4 +1,5 @@
 """ModelAdmin — describes how a model is presented in the admin UI."""
+
 from typing import Any
 
 
@@ -9,7 +10,7 @@ class ModelAdmin:
     ``list_per_page`` etc. to customise the change list page.
     """
 
-    list_display: list[str] = ['__str__']
+    list_display: list[str] = ["__str__"]
     list_filter: list[str] = []
     search_fields: list[str] = []
     list_per_page: int = 25
@@ -25,10 +26,10 @@ class ModelAdmin:
         self.model = model
         self.admin_site = admin_site
         self.opts = model._meta
-        self.app_label = self.opts.get('app') or model.__name__.lower()
+        self.app_label = self.opts.get("app") or model.__name__.lower()
         self.model_name = model.__name__.lower()
-        self.verbose_name = getattr(model, 'verbose_name', model.__name__)
-        self.verbose_name_plural = getattr(model, 'verbose_name_plural', self.verbose_name + 's')
+        self.verbose_name = getattr(model, "verbose_name", model.__name__)
+        self.verbose_name_plural = getattr(model, "verbose_name_plural", self.verbose_name + "s")
 
     def get_list_display(self, request) -> list[str]:
         return list(self.list_display)
@@ -37,12 +38,12 @@ class ModelAdmin:
         if self.fields is not None:
             return [f for f in self.fields if f not in self.exclude]
         out = []
-        for fname, fld in self.opts['fields'].items():
+        for fname, fld in self.opts["fields"].items():
             if fname in self.exclude:
                 continue
-            if getattr(fld, 'auto', False):
+            if getattr(fld, "auto", False):
                 continue
-            if fld.primary_key and getattr(fld, 'auto', False):
+            if fld.primary_key and getattr(fld, "auto", False):
                 continue
             out.append(fname)
         return out
@@ -51,7 +52,7 @@ class ModelAdmin:
         return list(self.search_fields)
 
     def get_ordering(self, request) -> list[str]:
-        return list(self.ordering) or [self.opts.get('pk', 'id')]
+        return list(self.ordering) or [self.opts.get("pk", "id")]
 
     def get_list_per_page(self, request) -> int:
         return self.list_per_page
@@ -81,4 +82,4 @@ class ModelAdmin:
         obj.delete()
 
     def __repr__(self) -> str:
-        return f'<ModelAdmin {self.model.__name__}>'
+        return f"<ModelAdmin {self.model.__name__}>"

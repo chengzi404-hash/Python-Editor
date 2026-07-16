@@ -5,35 +5,42 @@ from . import theme
 
 class ULabel(tk.Label):
     _VARIANT_FG_KEYS = {
-        'primary': 'FG_PRIMARY',
-        'secondary': 'FG_SECONDARY',
-        'tertiary': 'FG_TERTIARY',
-        'disabled': 'FG_DISABLED',
-        'blue': 'BLUE',
-        'red': 'RED',
-        'green': 'GREEN',
-        'yellow': 'YELLOW',
+        "primary": "FG_PRIMARY",
+        "secondary": "FG_SECONDARY",
+        "tertiary": "FG_TERTIARY",
+        "disabled": "FG_DISABLED",
+        "blue": "BLUE",
+        "red": "RED",
+        "green": "GREEN",
+        "yellow": "YELLOW",
     }
 
-    def __init__(self, parent, text: str = '', variant: str = 'primary',
-                 font=None, bg: str | None = None, **kwargs):
+    def __init__(
+        self,
+        parent,
+        text: str = "",
+        variant: str = "primary",
+        font=None,
+        bg: str | None = None,
+        **kwargs,
+    ):
         self._variant = variant
         self._explicit_bg = bg
         if bg is None:
             bg = self._parent_bg(parent)
-        kwargs.setdefault('fg', self._variant_fg(variant))
-        kwargs.setdefault('bg', bg)
-        kwargs.setdefault('font', font or theme.LABEL_FONT)
+        kwargs.setdefault("fg", self._variant_fg(variant))
+        kwargs.setdefault("bg", bg)
+        kwargs.setdefault("font", font or theme.LABEL_FONT)
         super().__init__(parent, text=text, **kwargs)
 
     def _variant_fg(self, variant: str) -> str:
-        key = self._VARIANT_FG_KEYS.get(variant, 'FG_PRIMARY')
+        key = self._VARIANT_FG_KEYS.get(variant, "FG_PRIMARY")
         return getattr(theme, key)
 
     @staticmethod
     def _parent_bg(parent) -> str:
         try:
-            bg = parent.cget('bg')
+            bg = parent.cget("bg")
             if bg:
                 return bg
         except Exception:

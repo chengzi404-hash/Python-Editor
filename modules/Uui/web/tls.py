@@ -9,17 +9,19 @@ If openssl is not on PATH, falls back to a stdlib-only generator (which
 emits a slightly less polished certificate, or to ``cryptography`` if
 installed).
 """
+
 import os
 import shutil
 import subprocess
 
 
 def openssl_available() -> bool:
-    return shutil.which('openssl') is not None
+    return shutil.which("openssl") is not None
 
 
-def _generate_via_cryptography(cn: str, cert_path: str, key_path: str,
-                               days: int = 3650) -> tuple[str, str]:
+def _generate_via_cryptography(
+    cn: str, cert_path: str, key_path: str, days: int = 3650
+) -> tuple[str, str]:
     """Use the optional ``cryptography`` library to issue a real cert."""
     import datetime
 
@@ -29,11 +31,12 @@ def _generate_via_cryptography(cn: str, cert_path: str, key_path: str,
     from cryptography.hazmat.primitives.asymmetric import rsa
     from cryptography.x509.oid import NameOID
 
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048,
-                                    backend=default_backend())
-    subject = issuer = x509.Name([
-        x509.NameAttribute(NameOID.COMMON_NAME, cn),
-    ])
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
+    subject = issuer = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COMMON_NAME, cn),
+        ]
+    )
     now = datetime.datetime.now(datetime.timezone.utc)
     cert = (
         x509.CertificateBuilder()
@@ -55,17 +58,16 @@ def _generate_via_cryptography(cn: str, cert_path: str, key_path: str,
         format=serialization.PrivateFormat.TraditionalOpenSSL,
         encryption_algorithm=serialization.NoEncryption(),
     )
-    with open(cert_path, 'wb') as f:
+    with open(cert_path, "wb") as f:
         f.write(cert_pem)
-    with open(key_path, 'wb') as f:
+    with open(key_path, "wb") as f:
         f.write(key_pem)
     return cert_path, key_path
 
 
-def generate_self_signed_cert(cn: str = 'localhost',
-                              days: int = 3650,
-                              cert_path: str = 'cert.pem',
-                              key_path: str = 'key.pem') -> tuple[str, str]:
+def generate_self_signed_cert(
+    cn: str = "localhost", days: int = 3650, cert_path: str = "cert.pem", key_path: str = "key.pem"
+) -> tuple[str, str]:
     """Generate a self-signed RSA-2048 cert + key pair.
 
     Preference order:
@@ -75,15 +77,24 @@ def generate_self_signed_cert(cn: str = 'localhost',
     """
     if openssl_available():
         cmd = [
-            'openssl', 'req', '-x509', '-newkey', 'rsa:2048',
-            '-nodes', '-days', str(days),
-            '-subj', f'/CN={cn}',
-            '-addext', f'subjectAltName=DNS:{cn}',
-            '-keyout', key_path,
-            '-out', cert_path,
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-nodes",
+            "-days",
+            str(days),
+            "-subj",
+            f"/CN={cn}",
+            "-addext",
+            f"subjectAltName=DNS:{cn}",
+            "-keyout",
+            key_path,
+            "-out",
+            cert_path,
         ]
-        subprocess.check_call(cmd, stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL)
+        subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return cert_path, key_path
 
     try:
@@ -92,13 +103,16 @@ def generate_self_signed_cert(cn: str = 'localhost',
         pass
 
     from .tls_pyfallback import generate_self_signed_cert as _gen
+
     return _gen(cn=cn, cert_path=cert_path, key_path=key_path)
 
 
-def ensure_dev_cert(cn: str = 'localhost',
-                    cert_path: str = 'cert.pem',
-                    key_path: str = 'key.pem',
-                    regenerate: bool = False) -> tuple[str, str]:
+def ensure_dev_cert(
+    cn: str = "localhost",
+    cert_path: str = "cert.pem",
+    key_path: str = "key.pem",
+    regenerate: bool = False,
+) -> tuple[str, str]:
     """Return existing cert paths, or generate a fresh self-signed pair."""
     if not regenerate and os.path.isfile(cert_path) and os.path.isfile(key_path):
         return cert_path, key_path

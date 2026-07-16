@@ -1,7 +1,8 @@
-"""``modules.plugins.api`` — 插件公共契约。
+"""``modules.plugins.api`` — Plugin public contract.
 
-这一层只定义**给插件作者看的稳定类型**, 不涉及加载 / 注册 / 事件分发等
-运行时逻辑。运行时的具体实现在 :mod:`modules.plugins.manager` 中。
+This layer only defines **stable types for plugin authors**, excluding loading /
+registration / event dispatch runtime logic. The actual runtime implementation
+is in :mod:`modules.plugins.manager`.
 """
 
 from __future__ import annotations
@@ -45,7 +46,7 @@ class PluginManifest:
             raise ValueError("PluginManifest.id must be a non-empty string")
         if not all(ch.isalnum() or ch in "_-" for ch in self.id):
             raise ValueError(
-                f"PluginManifest.id={self.id!r} 只能包含字母/数字/下划线/短横线"
+                f"PluginManifest.id={self.id!r} can only contain letters/digits/underscores/dashes"
             )
         if not self.name:
             raise ValueError("PluginManifest.name must be non-empty")
@@ -60,7 +61,7 @@ class PluginCommand:
     plugin_id: str
     label: str
     callback: CommandCallback
-    menu: str = "插件"
+    menu: str = "Plugin"
     shortcut: str | None = None
 
 
@@ -83,17 +84,19 @@ class _HookSubscription:
 
 
 class PluginLoadError(RuntimeError):
-    """加载插件过程中抛出的统一异常, 主窗口会捕获并提示。"""
+    """Unified exception thrown during plugin loading; main window catches and displays it."""
 
 
 @runtime_checkable
 class PluginHostAPI(Protocol):
-    """由 :class:`PluginManager` 实现的内部协议, 用于测试时 mock。"""
+    """Internal protocol implemented by :class:`PluginManager`, used for mocking in tests."""
 
     def register_hook(self, sub: _HookSubscription) -> None: ...
     def register_command(self, cmd: PluginCommand) -> None: ...
     def register_language(
-        self, plugin_id: str, contrib: LanguageContribution,
+        self,
+        plugin_id: str,
+        contrib: LanguageContribution,
     ) -> None: ...
     def append_output(self, text: str) -> None: ...
     def setting(self, key: str, default: Any = None) -> Any: ...
@@ -101,7 +104,7 @@ class PluginHostAPI(Protocol):
 
 
 class PluginContext:
-    """插件与编辑器交互的唯一入口。"""
+    """Single entry point for plugin-editor interaction."""
 
     def __init__(
         self,
@@ -131,12 +134,12 @@ class PluginContext:
         hook: str,
         callback: HookHandler | None = None,
     ) -> _HookSubscription | Callable[[HookHandler], _HookSubscription]:
-        """监听钩子事件。
+        """Listen for hook events.
 
-        两种用法:
+        Two usage patterns:
 
-        * ``ctx.on("hook", callback)`` — 直接注册, 返回 :class:`_HookSubscription`。
-        * ``@ctx.on("hook")`` 装饰 ``def cb():`` — 等价写法。
+        * ``ctx.on("hook", callback)`` — direct registration, returns :class:`_HookSubscription`.
+        * ``@ctx.on("hook")`` decorates ``def cb():`` — equivalent form.
         """
 
         if not isinstance(hook, str) or not hook:
@@ -151,7 +154,7 @@ class PluginContext:
             return sub
 
         if callback is None:
-            # 装饰器模式: 返回一个接收 callback 的小函数
+            # Decorator mode: return a small function that accepts a callback
             return _register
         return _register(callback)
 
@@ -160,7 +163,7 @@ class PluginContext:
         *,
         label: str,
         callback: CommandCallback,
-        menu: str = "插件",
+        menu: str = "Plugin",
         shortcut: str | None = None,
     ) -> PluginCommand:
         cmd = PluginCommand(

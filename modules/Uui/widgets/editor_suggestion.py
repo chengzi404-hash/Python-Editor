@@ -10,10 +10,10 @@ from . import theme
 @dataclass
 class CompletionItem:
     label: str
-    detail: str = ''
-    description: str = ''
-    insert: str = ''
-    kind: str = ''
+    detail: str = ""
+    description: str = ""
+    insert: str = ""
+    kind: str = ""
     priority: int = 0
 
     def __post_init__(self):
@@ -22,7 +22,7 @@ class CompletionItem:
 
 
 class UEditorSuggestion(tk.Toplevel):
-    _active: Optional['UEditorSuggestion'] = None
+    _active: Optional["UEditorSuggestion"] = None
 
     _ITEM_HEIGHT = 24
     _FOOTER_LINES = 3
@@ -31,11 +31,18 @@ class UEditorSuggestion(tk.Toplevel):
     _MAX_WIDTH = 480
     _PAD_X = 10
 
-    def __init__(self, parent, items: Iterable[Any] = (),
-                 on_select: Callable[[CompletionItem], None] | None = None,
-                 *, max_visible: int = 8, show_detail: bool = True,
-                 show_description: bool = True, grab_focus: bool = False) -> None:
-        top = parent.winfo_toplevel() if parent is not None else getattr(tk, '_default_root', None)
+    def __init__(
+        self,
+        parent,
+        items: Iterable[Any] = (),
+        on_select: Callable[[CompletionItem], None] | None = None,
+        *,
+        max_visible: int = 8,
+        show_detail: bool = True,
+        show_description: bool = True,
+        grab_focus: bool = False,
+    ) -> None:
+        top = parent.winfo_toplevel() if parent is not None else getattr(tk, "_default_root", None)
         super().__init__(top)
         self._owner_top = top
         self.withdraw()
@@ -59,7 +66,8 @@ class UEditorSuggestion(tk.Toplevel):
         self._root_bind: str | None = None
 
         self._outer = tk.Frame(
-            self, bg=theme.BG_PANEL,
+            self,
+            bg=theme.BG_PANEL,
             highlightthickness=1,
             highlightbackground=theme.BORDER,
             bd=0,
@@ -71,30 +79,41 @@ class UEditorSuggestion(tk.Toplevel):
 
         self._sep = tk.Frame(self._outer, bg=theme.BORDER, height=1)
         self._footer = tk.Label(
-            self._outer, text='', bg=theme.BG_PANEL,
-            fg=theme.FG_SECONDARY, font=theme.LABEL_FONT_SMALL,
-            anchor='nw', justify='left', padx=self._PAD_X, pady=6,
+            self._outer,
+            text="",
+            bg=theme.BG_PANEL,
+            fg=theme.FG_SECONDARY,
+            font=theme.LABEL_FONT_SMALL,
+            anchor="nw",
+            justify="left",
+            padx=self._PAD_X,
+            pady=6,
             wraplength=0,
         )
 
-        self.bind('<Down>', lambda e: self.select_next())
-        self.bind('<Up>', lambda e: self.select_prev())
-        self.bind('<Return>', lambda e: self._commit())
-        self.bind('<Tab>', lambda e: self._commit())
-        self.bind('<Escape>', lambda e: self.hide())
+        self.bind("<Down>", lambda e: self.select_next())
+        self.bind("<Up>", lambda e: self.select_prev())
+        self.bind("<Return>", lambda e: self._commit())
+        self.bind("<Tab>", lambda e: self._commit())
+        self.bind("<Escape>", lambda e: self.hide())
 
         if grab_focus:
-            self.bind('<FocusOut>', lambda e: self.hide())
+            self.bind("<FocusOut>", lambda e: self.hide())
 
         self._theme_callback = self._on_theme_change
         theme.on_change(self._theme_callback)
 
         self.set_items(items)
 
-    def show(self, items: Iterable[Any] | None = None, *,
-             x: int | None = None, y: int | None = None,
-             attach_to: tk.Widget | None = None,
-             index: str = 'insert') -> None:
+    def show(
+        self,
+        items: Iterable[Any] | None = None,
+        *,
+        x: int | None = None,
+        y: int | None = None,
+        attach_to: tk.Widget | None = None,
+        index: str = "insert",
+    ) -> None:
         if items is not None:
             self.set_items(items)
 
@@ -119,10 +138,9 @@ class UEditorSuggestion(tk.Toplevel):
         self._clamp_position(x, y)
 
         if self._owner_top is not None:
-            self._root_bind = self._owner_top.bind(
-                '<Button-1>', self._on_root_click, add='+')
+            self._root_bind = self._owner_top.bind("<Button-1>", self._on_root_click, add="+")
 
-        self.attributes('-topmost', True)
+        self.attributes("-topmost", True)
         self.deiconify()
         if self._grab_focus:
             self.focus_set()
@@ -132,7 +150,7 @@ class UEditorSuggestion(tk.Toplevel):
             UEditorSuggestion._active = None
         if self._root_bind is not None and self._owner_top is not None:
             with contextlib.suppress(tk.TclError):
-                self._owner_top.unbind('<Button-1>', self._root_bind)
+                self._owner_top.unbind("<Button-1>", self._root_bind)
             self._root_bind = None
         with contextlib.suppress(tk.TclError):
             self.withdraw()
@@ -145,17 +163,18 @@ class UEditorSuggestion(tk.Toplevel):
             elif isinstance(it, str):
                 normalized.append(CompletionItem(label=it))
             elif isinstance(it, dict):
-                normalized.append(CompletionItem(
-                    label=it.get('label', ''),
-                    detail=it.get('detail', ''),
-                    description=it.get('description', ''),
-                    insert=it.get('insert', ''),
-                    kind=it.get('kind', ''),
-                    priority=it.get('priority', 0),
-                ))
+                normalized.append(
+                    CompletionItem(
+                        label=it.get("label", ""),
+                        detail=it.get("detail", ""),
+                        description=it.get("description", ""),
+                        insert=it.get("insert", ""),
+                        kind=it.get("kind", ""),
+                        priority=it.get("priority", 0),
+                    )
+                )
             else:
-                raise TypeError(
-                    f'unsupported completion item type: {type(it).__name__}')
+                raise TypeError(f"unsupported completion item type: {type(it).__name__}")
         # Sort by priority (lower = higher priority), then alphabetically
         normalized.sort(key=lambda x: (x.priority, x.label))
         self._items = normalized
@@ -194,7 +213,7 @@ class UEditorSuggestion(tk.Toplevel):
 
     def _resolve_anchor(self, widget: tk.Widget, index: str) -> tuple:
         try:
-            bbox_method = getattr(widget, 'bbox', None)
+            bbox_method = getattr(widget, "bbox", None)
             if callable(bbox_method):
                 bbox = bbox_method(index)
                 if isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
@@ -222,7 +241,7 @@ class UEditorSuggestion(tk.Toplevel):
             x = 0
         if y < 0:
             y = 0
-        self.geometry(f'+{int(x)}+{int(y)}')
+        self.geometry(f"+{int(x)}+{int(y)}")
 
     def _rebuild_rows(self) -> None:
         for row in self._row_widgets:
@@ -241,15 +260,19 @@ class UEditorSuggestion(tk.Toplevel):
 
     def _build_row(self, item: CompletionItem, idx: int) -> tk.Frame:
         row = tk.Frame(
-            self._list_frame, bg=theme.BG_PANEL,
+            self._list_frame,
+            bg=theme.BG_PANEL,
             height=self._ITEM_HEIGHT,
         )
         row.pack_propagate(False)
 
         label = tk.Label(
-            row, text=item.label, bg=theme.BG_PANEL,
-            fg=theme.FG_PRIMARY, font=theme.MONO_FONT,
-            anchor='w',
+            row,
+            text=item.label,
+            bg=theme.BG_PANEL,
+            fg=theme.FG_PRIMARY,
+            font=theme.MONO_FONT,
+            anchor="w",
         )
         label.pack(side=tk.LEFT, padx=(self._PAD_X, 6), pady=3)
 
@@ -258,16 +281,19 @@ class UEditorSuggestion(tk.Toplevel):
 
         if self._show_detail and item.detail:
             detail_label = tk.Label(
-                row, text=item.detail, bg=theme.BG_PANEL,
-                fg=theme.FG_SECONDARY, font=theme.LABEL_FONT_SMALL,
-                anchor='e',
+                row,
+                text=item.detail,
+                bg=theme.BG_PANEL,
+                fg=theme.FG_SECONDARY,
+                font=theme.LABEL_FONT_SMALL,
+                anchor="e",
             )
             detail_label.pack(side=tk.RIGHT, padx=(6, self._PAD_X), pady=3)
             widgets.append(detail_label)
 
         for w in widgets:
-            w.bind('<Button-1>', lambda e, i=idx: self._on_row_click(i))
-            w.bind('<Enter>', lambda e, i=idx: self._set_hover(i))
+            w.bind("<Button-1>", lambda e, i=idx: self._on_row_click(i))
+            w.bind("<Enter>", lambda e, i=idx: self._set_hover(i))
 
         self._row_widgets_map[row] = (widgets, label, detail_label)
         return row
@@ -317,8 +343,7 @@ class UEditorSuggestion(tk.Toplevel):
         for i, row in enumerate(self._row_widgets):
             selected = i == self._selected_index
             bg = theme.BLUE if selected else theme.BG_PANEL
-            widgets, main_label, detail_label = self._row_widgets_map.get(
-                row, ([row], None, None))
+            widgets, main_label, detail_label = self._row_widgets_map.get(row, ([row], None, None))
             for w in widgets:
                 try:
                     w.config(bg=bg)  # type: ignore
@@ -331,8 +356,7 @@ class UEditorSuggestion(tk.Toplevel):
                     pass
             if detail_label is not None:
                 try:
-                    detail_label.config(
-                        fg=theme.FG_PRIMARY if selected else theme.FG_SECONDARY)  # type: ignore
+                    detail_label.config(fg=theme.FG_PRIMARY if selected else theme.FG_SECONDARY)  # type: ignore
                 except tk.TclError:
                     pass
         self._update_footer()
@@ -343,7 +367,7 @@ class UEditorSuggestion(tk.Toplevel):
             width = max(self.winfo_width() - 2 * self._PAD_X, 1)
             self._footer.config(text=item.description, wraplength=width)
         else:
-            self._footer.config(text='')
+            self._footer.config(text="")
 
     def _on_root_click(self, event: tk.Event) -> None:
         try:
@@ -368,13 +392,11 @@ class UEditorSuggestion(tk.Toplevel):
         list_height = visible_count * self._ITEM_HEIGHT
         footer_height = 0
         if self._show_description and any(it.description for it in self._items):
-            footer_height = (
-                self._FOOTER_LINES * self._FOOTER_LINE_HEIGHT + 12 + 1
-            )
+            footer_height = self._FOOTER_LINES * self._FOOTER_LINE_HEIGHT + 12 + 1
         height = list_height + footer_height
 
         self._list_frame.config(height=list_height)
-        self.geometry(f'{width}x{height}')
+        self.geometry(f"{width}x{height}")
 
     def _on_theme_change(self, _theme: theme.Theme) -> None:
         self._apply_theme()
@@ -391,12 +413,12 @@ class UEditorSuggestion(tk.Toplevel):
         self._list_frame.config(bg=theme.BG_PANEL)
         self._sep.config(bg=theme.BORDER)
         self._footer.config(
-            bg=theme.BG_PANEL, fg=theme.FG_SECONDARY,
+            bg=theme.BG_PANEL,
+            fg=theme.FG_SECONDARY,
             font=theme.LABEL_FONT_SMALL,
         )
         for row in self._row_widgets:
-            widgets, main_label, detail_label = self._row_widgets_map.get(
-                row, ([row], None, None))
+            widgets, main_label, detail_label = self._row_widgets_map.get(row, ([row], None, None))
             for w in widgets:
                 try:
                     w.config(bg=theme.BG_PANEL)  # type: ignore
@@ -415,4 +437,4 @@ class UEditorSuggestion(tk.Toplevel):
         self._refresh_selection()
 
 
-__all__ = ['CompletionItem', 'UEditorSuggestion']
+__all__ = ["CompletionItem", "UEditorSuggestion"]

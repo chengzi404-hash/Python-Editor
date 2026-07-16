@@ -6,14 +6,21 @@ from . import theme
 
 
 class UDialog(tk.Toplevel):
-    def __init__(self, parent, title: str = '', width: int = 600, height: int = 400,
-                 resizable: bool = True, **kwargs):
+    def __init__(
+        self,
+        parent,
+        title: str = "",
+        width: int = 600,
+        height: int = 400,
+        resizable: bool = True,
+        **kwargs,
+    ):
         super().__init__(parent, **kwargs)
         self._parent = parent
         self._ui_built = False
 
         self.title(title)
-        self.geometry(f'{width}x{height}+{self._center_x(width)}+{self._center_y(height)}')
+        self.geometry(f"{width}x{height}+{self._center_x(width)}+{self._center_y(height)}")
         self.transient(parent)
         self.grab_set()
 
@@ -25,8 +32,10 @@ class UDialog(tk.Toplevel):
         self._title_bar.pack_propagate(False)
 
         self._title_label = tk.Label(
-            self._title_bar, text=title,
-            bg=theme.BG_TITLE, fg=theme.FG_PRIMARY,
+            self._title_bar,
+            text=title,
+            bg=theme.BG_TITLE,
+            fg=theme.FG_PRIMARY,
             font=theme.LABEL_FONT_BOLD,
         )
         self._title_label.pack(side=tk.LEFT, padx=12, pady=6)
@@ -37,7 +46,7 @@ class UDialog(tk.Toplevel):
         if not resizable:
             self.resizable(False, False)
 
-        self.protocol('WM_DELETE_WINDOW', self.destroy)
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
 
     def _center_x(self, w: int) -> int:
         try:

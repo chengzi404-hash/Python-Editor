@@ -1,4 +1,5 @@
 """Base class for database backends."""
+
 from typing import Any
 
 
@@ -16,8 +17,8 @@ class Row(dict):
 class Backend:
     """Abstract base for database backends."""
 
-    engine_name: str = ''
-    param_style: str = '?'  # '?', '%s' or ':n'
+    engine_name: str = ""
+    param_style: str = "?"  # '?', '%s' or ':n'
 
     def __init__(self, alias: str, config: dict) -> None:
         self.alias = alias
@@ -43,8 +44,8 @@ class Backend:
 
     def placeholder(self, index: int) -> str:
         """Return the parameter placeholder for the *index* position."""
-        if self.param_style == ':n':
-            return f':{index}'
+        if self.param_style == ":n":
+            return f":{index}"
         return self.param_style
 
     def quote_name(self, name: str) -> str:
@@ -56,39 +57,39 @@ class Backend:
     def auto_increment_sql(self, column_name: str, column_type: str) -> str:
         """Render an auto-incrementing primary key column definition."""
         qn = self.quote_name(column_name)
-        return f'{qn} {column_type} PRIMARY KEY AUTOINCREMENT'
+        return f"{qn} {column_type} PRIMARY KEY AUTOINCREMENT"
 
     def limit_offset_sql(self, sql: str, limit: int | None, offset: int | None) -> str:
         if limit is not None:
-            sql += f' LIMIT {int(limit)}'
+            sql += f" LIMIT {int(limit)}"
         if offset is not None:
-            sql += f' OFFSET {int(offset)}'
+            sql += f" OFFSET {int(offset)}"
         return sql
 
     def boolean_sql_type(self) -> str:
-        return 'BOOLEAN'
+        return "BOOLEAN"
 
     def sql_type(self, generic_type: str) -> str:
         """Map a generic SQL type to a backend-specific type."""
-        if generic_type.upper() == 'BOOLEAN':
+        if generic_type.upper() == "BOOLEAN":
             return self.boolean_sql_type()
         return generic_type
 
     def create_table_sql(self, table_name: str, columns_sql: str) -> str:
-        return f'CREATE TABLE IF NOT EXISTS {self.quote_name(table_name)} ({columns_sql})'
+        return f"CREATE TABLE IF NOT EXISTS {self.quote_name(table_name)} ({columns_sql})"
 
     def drop_table_sql(self, table_name: str) -> str:
-        return f'DROP TABLE IF EXISTS {self.quote_name(table_name)}'
+        return f"DROP TABLE IF EXISTS {self.quote_name(table_name)}"
 
     def ensure_migrations_table(self) -> None:
-        self.execute('''
+        self.execute("""
             CREATE TABLE IF NOT EXISTS uui_migrations (
                 app TEXT NOT NULL,
                 id TEXT NOT NULL,
                 applied_at TEXT,
                 PRIMARY KEY (app, id)
             )
-        ''')
+        """)
 
     def convert_param(self, value: Any) -> Any:
         """Convert a Python value before binding it to a SQL parameter."""

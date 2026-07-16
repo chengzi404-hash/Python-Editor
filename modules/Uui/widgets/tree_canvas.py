@@ -1,17 +1,17 @@
-"""``modules.Uui.widgets.tree_canvas`` — 基于 ``tk.Canvas`` 的通用树控件.
+"""``modules.Uui.widgets.tree_canvas`` — ``tk.Canvas``-based generic tree control.
 
-设计动机:
+Design Motivation:
 
-* 仓库里目前两个树形控件 (:class:`UFileTree` /
-  :class:`USettingsNavBar`) 都基于 ``tkinter.ttk.Treeview`` + ``clam``
-  主题, 用 :class:`ttk.Style` 一项一项 ``configure`` 才能贴齐当前
-  :data:`theme`, 维护成本高且与 Tk 主题系统耦合。
-* :class:`TreeCanvas` 提供一个最小、可复用的树形渲染层, 业务侧只
-  负责: 把"iid + 父 iid + 显示文本"喂进来, 再监听 ``on_select`` /
-  ``on_activate`` / ``on_toggle`` 三个回调即可。颜色完全由
-  :data:`theme` 决定, :meth:`_apply_theme` 一行就能全树刷色。
+* Currently two tree controls in the repo (:class:`UFileTree` /
+  :class:`USettingsNavBar`) both use ``tkinter.ttk.Treeview`` + ``clam``
+  theme, requiring :class:`ttk.Style` ``configure`` item by item to align
+  with current :data:`theme`, high maintenance cost and coupled with Tk theme system.
+* :class:`TreeCanvas` provides a minimal, reusable tree rendering layer; business side only
+  needs to: feed in "iid + parent iid + display text", then listen to ``on_select`` /
+  ``on_activate`` / ``on_toggle`` three callbacks. Colors entirely determined by
+  :data:`theme`, :meth:`_apply_theme` can refresh entire tree in one line.
 
-API 概览::
+API Overview::
 
     tree = TreeCanvas(
         parent,
@@ -26,15 +26,15 @@ API 概览::
     tree.see("child")
     tree.clear()
 
-设计要点:
+Design Points:
 
-* 每个可见节点用 :class:`tk.Frame` 嵌入到 :class:`tk.Canvas` (``create_window``),
-  这样 hover / selected 的高亮直接改 Frame 的 ``bg`` 即可, 不需要
-  走 ttk style 体系。
-* 节点的展开/折叠通过在每行左侧画一个 ``▼ / ▶`` 三角实现; 整棵
-  树扁平化为一个 ``iid -> row_y`` 字典, 滚动只关心行序。
-* 主题刷新只需重画所有行 Frame 的 ``bg / fg``; 不重建 widget,
-  因此选择状态、hover 状态、滚动位置都不会丢。
+* Each visible node is embedded into :class:`tk.Canvas` (``create_window``) using :class:`tk.Frame`,
+  so hover / selected highlight can directly modify Frame's ``bg``, no need to
+  go through ttk style system.
+* Node expand/collapse implemented by drawing a ``▼ / ▶`` triangle on left side of each row; entire
+  tree flattened into an ``iid -> row_y`` dict, scrolling only cares about row order.
+* Theme refresh only needs to redraw all row Frames' ``bg / fg``; don't rebuild widgets,
+  so selection state, hover state, and scroll position are all preserved.
 """
 
 from __future__ import annotations
@@ -48,14 +48,14 @@ from . import theme
 from .frame import UFrame
 from .scrollbar import UScrollBar
 
-# 三角字符 — 用 ASCII 回退兼容所有字体; 视觉上比 ▼/▶ 更稳。
-_TRI_OPEN = "v"   # "已展开" 的占位
-_TRI_CLOSED = ">"  # "已折叠" 的占位
-_TRI_BLANK = " "   # 叶子节点 (无子) 的占位
+# Triangle characters -- using ASCII fallback for font compatibility; visually more stable than ▼/▶.
+_TRI_OPEN = "v"  # "expanded" placeholder
+_TRI_CLOSED = ">"  # "collapsed" placeholder
+_TRI_BLANK = " "  # leaf node (no children) placeholder
 
 
 class _Node:
-    """树节点的纯数据层; 不持有任何 Tk 引用, 方便测试与重建."""
+    """Pure data layer for tree nodes; doesn't hold any Tk references, convenient for testing and rebuilding."""
 
     __slots__ = ("children", "data", "iid", "is_open", "parent_iid")
 
@@ -68,12 +68,12 @@ class _Node:
 
 
 class TreeCanvas(UFrame):
-    """基于 Canvas 的可复用树控件.
+    """Canvas-based reusable tree control.
 
-    业务侧只需要提供"iid -> 显示文本"的回调以及三个事件回调, 即可
-    构建一棵可点击、可展开/折叠、可滚动、跟随主题的树。具体的"iid
-    背后是什么业务对象"完全交给调用方 — 通常调用方会维护一个
-    ``iid -> 业务对象`` 的字典, 在回调里反向查表。
+    Business side only needs to provide "iid -> display text" callback and three event callbacks
+    to build a clickable, expandable/collapsible, scrollable, theme-following tree. What
+    "business object the iid represents" is entirely delegated to caller -- typically caller
+    maintains a ``iid -> business object`` dict and reverse-lookups in callbacks.
     """
 
     def __init__(
@@ -89,7 +89,7 @@ class TreeCanvas(UFrame):
         show_disclosure: bool = True,
         **kwargs,
     ) -> None:
-        # 视觉与 UFileTree 同构: 自身是 'panel' 容器。
+        # Visually isomorphic with UFileTree: self is 'panel' container.
         kwargs.setdefault("variant", "panel")
         super().__init__(parent, **kwargs)
 
@@ -101,22 +101,22 @@ class TreeCanvas(UFrame):
         self._row_indent = row_indent
         self._show_disclosure = show_disclosure
 
-        # 树模型 (纯数据, 不依赖 Tk)
+        # Tree model (pure data, no Tk dependency)
         self._nodes: dict[str, _Node] = {}
         self._root_iids: list[str] = []
         self._selected_iid: str | None = None
         self._hover_iid: str | None = None
 
-        # 渲染层
-        self._row_frames: dict[str, tk.Frame] = {}  # iid -> 行 Frame
-        self._row_y: dict[str, int] = {}            # iid -> canvas y
-        self._row_window_id: dict[str, int] = {}    # iid -> canvas window item id
-        self._pending_width_sync = False            # 防抖: 多次 resize 只刷一次
+        # Rendering layer
+        self._row_frames: dict[str, tk.Frame] = {}  # iid -> row Frame
+        self._row_y: dict[str, int] = {}  # iid -> canvas y
+        self._row_window_id: dict[str, int] = {}  # iid -> canvas window item id
+        self._pending_width_sync = False  # Debounce: multiple resize only refresh once
 
         self._build_canvas()
 
     # ------------------------------------------------------------------
-    # 构造
+    # Construction
     # ------------------------------------------------------------------
 
     def _build_canvas(self) -> None:
@@ -126,9 +126,9 @@ class TreeCanvas(UFrame):
             highlightthickness=0,
             bd=0,
         )
-        # 收口到 :class:`UScrollBar` — 主题色、autohide 行为都集中维护;
-        # 旧版手写 6 个 kwargs 的 Scrollbar 已经散落在 4 个文件里, 改
-        # 一次样式要改 4 处, 这里统一收口。
+        # Unified at :class:`UScrollBar` -- theme colors and autohide behavior are centrally maintained;
+        # The old handwritten 6 kwargs Scrollbar has scattered across 4 files, changing
+        # style once required changes in 4 places, now unified here.
         self._vsb = UScrollBar(
             self,
             orient="vertical",
@@ -139,18 +139,18 @@ class TreeCanvas(UFrame):
         self._vsb.pack(side=tk.RIGHT, fill=tk.Y)
         self._canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # 事件
+        # Events
         self._canvas.bind("<Button-1>", self._on_canvas_press)
         self._canvas.bind("<Double-Button-1>", self._on_canvas_double)
         self._canvas.bind("<Return>", self._on_canvas_return)
         self._canvas.bind("<Configure>", self._on_canvas_configure)
-        # 鼠标滚轮 (Windows / macOS 用 delta; Linux 用 Button-4/5)
+        # Mouse wheel (Windows / macOS use delta; Linux use Button-4/5)
         self._canvas.bind("<MouseWheel>", self._on_mousewheel)
         self._canvas.bind("<Button-4>", lambda e: self._canvas.yview_scroll(-1, "units"))
         self._canvas.bind("<Button-5>", lambda e: self._canvas.yview_scroll(1, "units"))
 
     # ------------------------------------------------------------------
-    # 公共 API: 增 / 删 / 改节点
+    # Public API: add / remove / modify nodes
     # ------------------------------------------------------------------
 
     def add_node(
@@ -161,10 +161,10 @@ class TreeCanvas(UFrame):
         is_open: bool = False,
         data: Any = None,
     ) -> None:
-        """注册一个节点. 父节点必须已存在 (除了 ``parent_iid=None`` 的根).
+        """Register a node. Parent must already exist (except root with ``parent_iid=None``).
 
-        重复 iid 静默忽略, 避免上游重复构造时把已有的子节点清空;
-        如需"重建"语义, 先调用 :meth:`clear`。
+        Duplicate iid silently ignored, to avoid upstream duplicate construction clearing existing child nodes;
+        if "rebuild" semantics needed, call :meth:`clear` first.
         """
 
         if iid in self._nodes:
@@ -177,34 +177,32 @@ class TreeCanvas(UFrame):
         else:
             parent = self._nodes.get(parent_iid)
             if parent is None:
-                # 防御: 父节点缺失, 不允许建立孤儿节点, 否则永远不会
-                # 被 _relayout 命中, 形成"看上去加进去了但看不见"的 bug。
+                # Defensive: parent missing, don't allow orphan nodes, otherwise will never
+                # be hit by _relayout, forming "looks added but invisible" bug.
                 del self._nodes[iid]
-                raise ValueError(
-                    f"TreeCanvas.add_node: parent {parent_iid!r} not found"
-                )
+                raise ValueError(f"TreeCanvas.add_node: parent {parent_iid!r} not found")
             parent.children.append(iid)
         self._relayout()
 
     def remove_node(self, iid: str) -> None:
-        """删除一个节点及其全部后代."""
+        """Delete a node and all its descendants."""
 
         node = self._nodes.get(iid)
         if node is None:
             return
         to_remove: list[str] = []
         self._collect_descendants(iid, to_remove)
-        # 从根列表中清掉被删的根节点。
+        # Remove deleted root nodes from root list.
         for rid in to_remove:
             if rid in self._root_iids:
                 self._root_iids.remove(rid)
-        # 关键: 还要从父节点的 children 列表里把自己摘掉, 否则下次
-        # _relayout 走 DFS 时仍会撞上已删的 iid, 触发 KeyError。
+        # Key: must also remove self from parent's children list, otherwise next
+        # _relayout DFS will still encounter deleted iid, triggering KeyError.
         if node.parent_iid is not None:
             parent = self._nodes.get(node.parent_iid)
             if parent is not None and iid in parent.children:
                 parent.children.remove(iid)
-        # 释放 Tk 资源 + 清空数据层。
+        # Release Tk resources + clear data layer.
         for rid in to_remove:
             self._nodes.pop(rid, None)
             self._row_frames.pop(rid, None)
@@ -217,7 +215,7 @@ class TreeCanvas(UFrame):
         self._relayout()
 
     def clear(self) -> None:
-        """清空整棵树, 回到初始状态."""
+        """Clear the entire tree, return to initial state."""
 
         for frame in self._row_frames.values():
             with contextlib.suppress(tk.TclError):
@@ -233,7 +231,7 @@ class TreeCanvas(UFrame):
         self._update_scroll_region()
 
     def set_open(self, iid: str, is_open: bool, *, fire_toggle: bool = True) -> None:
-        """程序式打开 / 关闭一个节点. 关闭时若当前选中项被隐藏, 取消选中."""
+        """Programmatically open/close a node. When closing, if current selection is hidden, deselect."""
 
         node = self._nodes.get(iid)
         if node is None or node.is_open == is_open:
@@ -257,13 +255,17 @@ class TreeCanvas(UFrame):
         self.set_open(iid, not node.is_open)
 
     # ------------------------------------------------------------------
-    # 公共 API: 选中 / 滚动 / 查找
+    # Public API: selection / scroll / find
     # ------------------------------------------------------------------
 
     def set_selected(
-        self, iid: str | None, *, fire: bool = True, scroll: bool = True,
+        self,
+        iid: str | None,
+        *,
+        fire: bool = True,
+        scroll: bool = True,
     ) -> None:
-        """程序式选中一个节点. 隐藏节点不可被选中 (保护 UX 一致性)."""
+        """Programmatically select a node. Hidden nodes cannot be selected (protecting UX consistency)."""
 
         if iid is not None:
             if iid not in self._nodes:
@@ -288,13 +290,13 @@ class TreeCanvas(UFrame):
         return node.is_open if node is not None else False
 
     def node_data(self, iid: str) -> Any:
-        """返回 :meth:`add_node` 时塞进来的 ``data`` (供业务侧反查)."""
+        """Return ``data`` passed in when :meth:`add_node` was called (for business side reverse lookup)."""
 
         node = self._nodes.get(iid)
         return node.data if node is not None else None
 
     def see(self, iid: str) -> None:
-        """滚动到让 ``iid`` 进入可见区. 不可见节点直接忽略."""
+        """Scroll to bring ``iid`` into visible area. Invisible nodes are silently ignored."""
 
         if iid not in self._nodes or not self._is_visible(iid):
             return
@@ -313,12 +315,10 @@ class TreeCanvas(UFrame):
         if y < top_y:
             self._canvas.yview_moveto(y / total_h)
         elif y + self._row_height > top_y + canvas_h:
-            self._canvas.yview_moveto(
-                (y + self._row_height - canvas_h) / total_h
-            )
+            self._canvas.yview_moveto((y + self._row_height - canvas_h) / total_h)
 
     def identify_row(self, y: int) -> str | None:
-        """把 canvas y 坐标反查到 iid; 不在行上则返回 ``None``."""
+        """Reverse lookup canvas y coordinate to iid; returns ``None`` if not on a row."""
 
         for iid, row_y in self._row_y.items():
             if row_y <= y < row_y + self._row_height:
@@ -326,7 +326,7 @@ class TreeCanvas(UFrame):
         return None
 
     # ------------------------------------------------------------------
-    # 内部: 可见性 / 深度
+    # Internal: visibility / depth
     # ------------------------------------------------------------------
 
     def _is_visible(self, iid: str) -> bool:
@@ -358,11 +358,11 @@ class TreeCanvas(UFrame):
             self._collect_descendants(c, out)
 
     # ------------------------------------------------------------------
-    # 内部: 重布局
+    # Internal: relayout
     # ------------------------------------------------------------------
 
     def _relayout(self) -> None:
-        """按当前可见性扁平化整棵树, 重建所有行 widget."""
+        """Flatten entire tree by current visibility, rebuild all row widgets."""
 
         for frame in self._row_frames.values():
             with contextlib.suppress(tk.TclError):
@@ -372,7 +372,7 @@ class TreeCanvas(UFrame):
         self._row_window_id.clear()
         self._canvas.delete("all")
 
-        # DFS 收集可见 (iid, depth) 序列。
+        # DFS collect visible (iid, depth) sequence.
         visible: list[tuple[str, int]] = []
 
         def walk(iid: str, depth: int) -> None:
@@ -395,14 +395,14 @@ class TreeCanvas(UFrame):
         self._update_scroll_region()
 
     def _build_row(self, iid: str, depth: int, y: int, canvas_w: int) -> int:
-        """构造一行 (三角 + 文本), 嵌入到 canvas. 返回下一行的 y."""
+        """Construct one row (triangle + text), embed into canvas. Returns next row's y."""
 
         node = self._nodes[iid]
         text = self._row_text(iid)
-        is_selected = (iid == self._selected_iid)
+        is_selected = iid == self._selected_iid
         indent = depth * self._row_indent
 
-        # 整行 Frame — 接受 click 事件, 背景色根据 state 决定。
+        # Full row Frame -- accepts click events, background color determined by state.
         frame = tk.Frame(
             self._canvas,
             bg=theme.BG_INPUT,
@@ -412,15 +412,12 @@ class TreeCanvas(UFrame):
         )
         frame.pack_propagate(False)
 
-        # 左侧三角: 内部节点画 v/>; 叶子画空白占位让文本对齐。
+        # Left triangle: internal nodes draw v/>; leaves draw blank placeholder to align text.
         if self._show_disclosure:
-            tri_text = (
-                _TRI_OPEN if node.is_open else
-                _TRI_CLOSED if node.children else
-                _TRI_BLANK
-            )
+            tri_text = _TRI_OPEN if node.is_open else _TRI_CLOSED if node.children else _TRI_BLANK
             tri = tk.Label(
-                frame, text=tri_text,
+                frame,
+                text=tri_text,
                 bg=theme.BG_INPUT,
                 fg=theme.FG_TERTIARY,
                 width=2,
@@ -435,17 +432,19 @@ class TreeCanvas(UFrame):
                     lambda e, i=iid: self._on_triangle_click(i),
                 )
 
-        # 文本标签。
+        # Text label.
         label = tk.Label(
-            frame, text=text,
-            bg=theme.BG_INPUT, fg=theme.FG_PRIMARY,
+            frame,
+            text=text,
+            bg=theme.BG_INPUT,
+            fg=theme.FG_PRIMARY,
             anchor="w",
             font=theme.LABEL_FONT,
             cursor="hand2",
         )
         label.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(2, 4))
 
-        # 事件绑到 label + frame (双保险: 点击文字或文字旁的留白都生效)。
+        # Events bound to label + frame (double insurance: clicking text or blank space beside text both work)."
         for w in (label, frame):
             w.bind("<Button-1>", lambda e, i=iid: self._on_row_press(i))
             w.bind(
@@ -455,10 +454,14 @@ class TreeCanvas(UFrame):
             w.bind("<Enter>", lambda e, i=iid: self._on_row_enter(i))
             w.bind("<Leave>", lambda e, i=iid: self._on_row_leave(i))
 
-        # 嵌入到 canvas。
+        # Embed into canvas.
         win_w = max(50, canvas_w - indent - 16)
         window_id = self._canvas.create_window(
-            indent, y, window=frame, anchor="nw", width=win_w,
+            indent,
+            y,
+            window=frame,
+            anchor="nw",
+            width=win_w,
         )
         self._row_frames[iid] = frame
         self._row_y[iid] = y
@@ -476,7 +479,7 @@ class TreeCanvas(UFrame):
         self._canvas.configure(scrollregion=(0, 0, canvas_w, max_y))
 
     def _resync_widths(self) -> None:
-        """canvas 宽度变化时, 调整已有行的嵌入宽度, 不重建 widget."""
+        """When canvas width changes, adjust existing rows' embedded width without rebuilding widgets."""
 
         canvas_w = max(1, self._canvas.winfo_width())
         for iid, window_id in self._row_window_id.items():
@@ -484,11 +487,12 @@ class TreeCanvas(UFrame):
             indent = depth * self._row_indent
             with contextlib.suppress(tk.TclError):
                 self._canvas.itemconfigure(
-                    window_id, width=max(50, canvas_w - indent - 16),
+                    window_id,
+                    width=max(50, canvas_w - indent - 16),
                 )
 
     # ------------------------------------------------------------------
-    # 内部: 绘制 (hover / selected)
+    # Internal: painting (hover / selected)
     # ------------------------------------------------------------------
 
     def _paint_row(
@@ -507,11 +511,13 @@ class TreeCanvas(UFrame):
             bg, fg = theme.BG_INPUT, theme.FG_PRIMARY
         self._safe_config(frame, bg=bg)
         for child in frame.winfo_children():
-            # isinstance 缩窄类型, 让类型检查器认得 .config(bg=, fg=)。
+            # isinstance narrows type, letting type checker recognize .config(bg=, fg=).
             if not isinstance(child, (tk.Frame, tk.Label)):
                 continue
             if isinstance(child, tk.Label) and child.cget("text") in (
-                _TRI_OPEN, _TRI_CLOSED, _TRI_BLANK,
+                _TRI_OPEN,
+                _TRI_CLOSED,
+                _TRI_BLANK,
             ):
                 self._safe_config(child, bg=bg, fg=theme.FG_TERTIARY)
             else:
@@ -519,12 +525,12 @@ class TreeCanvas(UFrame):
 
     @staticmethod
     def _safe_config(widget: tk.Misc, **kwargs: Any) -> None:
-        """包一层 ``widget.config``; 主题刷新时可能 widget 已被销毁, 异常吞掉.
+        """Wrap ``widget.config``; during theme refresh widget may be destroyed, swallow exception.
 
-        通过 ``isinstance`` 缩窄到 ``tk.Frame`` / ``tk.Label`` 后再调
-        ``.config`` — 这两个具体类的 ``config`` 接受 ``bg`` / ``fg``,
-        静态检查器能看到; 比起 ``**kwargs`` 直接调 base class 的
-        ``tk.Misc.config`` (签名太宽) 更类型安全。
+        Narrow to ``tk.Frame`` / ``tk.Label`` via ``isinstance`` before calling
+        ``.config`` — these concrete classes' ``config`` accepts ``bg`` / ``fg``,
+        static checkers can see it; more type-safe than ``**kwargs`` directly calling base class
+        ``tk.Misc.config`` (signature too broad).
         """
 
         if not isinstance(widget, (tk.Frame, tk.Label)):
@@ -533,25 +539,26 @@ class TreeCanvas(UFrame):
             widget.config(**kwargs)
 
     def _apply_selection(self, iid: str | None) -> None:
-        """更新选中状态并重绘相关行; 不触发回调也不滚动."""
+        """Update selection state and redraw related rows; doesn't trigger callback or scroll."""
 
         self._selected_iid = iid
         for rid, frame in self._row_frames.items():
             self._paint_row(
-                frame, rid,
+                frame,
+                rid,
                 is_selected=(rid == iid),
                 is_hover=(rid == self._hover_iid),
             )
 
     # ------------------------------------------------------------------
-    # 内部: 事件
+    # Internal: events
     # ------------------------------------------------------------------
 
     def _on_canvas_press(self, event: tk.Event) -> None:
         iid = self.identify_row(event.y)
         if iid is None:
             return
-        # 点击若落在"三角区" (缩进后的最左侧 16 像素), 切换展开。
+        # If click falls in "triangle zone" (leftmost 16 pixels after indent), toggle expand.
         node = self._nodes.get(iid)
         if node and node.children and self._show_disclosure:
             depth = self._depth(iid)
@@ -577,7 +584,7 @@ class TreeCanvas(UFrame):
             self._on_activate(iid)
 
     def _on_canvas_configure(self, _event: tk.Event) -> None:
-        # 防抖: 拖窗口时一连串 <Configure>, 50ms 内只刷一次。
+        # Debounce: dragging window causes a string of <Configure>, only refresh once within 50ms.
         if self._pending_width_sync:
             return
         self._pending_width_sync = True
@@ -594,7 +601,7 @@ class TreeCanvas(UFrame):
     def _on_mousewheel(self, event: tk.Event) -> None:
         if not hasattr(event, "delta") or event.delta == 0:
             return
-        # Windows / macOS: delta 是 ±120 的倍数; 一行一滚。
+        # Windows / macOS: delta is multiple of ±120; one line per scroll.
         delta = -1 if event.delta > 0 else 1
         self._canvas.yview_scroll(delta, "units")
 
@@ -617,7 +624,8 @@ class TreeCanvas(UFrame):
         frame = self._row_frames.get(iid)
         if frame is not None:
             self._paint_row(
-                frame, iid,
+                frame,
+                iid,
                 is_selected=(iid == self._selected_iid),
                 is_hover=True,
             )
@@ -629,13 +637,14 @@ class TreeCanvas(UFrame):
         frame = self._row_frames.get(iid)
         if frame is not None:
             self._paint_row(
-                frame, iid,
+                frame,
+                iid,
                 is_selected=(iid == self._selected_iid),
                 is_hover=False,
             )
 
     # ------------------------------------------------------------------
-    # 主题
+    # Theme
     # ------------------------------------------------------------------
 
     def _apply_theme(self) -> None:
@@ -643,14 +652,15 @@ class TreeCanvas(UFrame):
             super()._apply_theme()
         with contextlib.suppress(tk.TclError):
             self._canvas.config(bg=theme.BG_INPUT)
-        # UScrollBar 自己实现 _apply_theme, 直接转发即可。
+        # UScrollBar implements _apply_theme itself, just forward.
         if hasattr(self._vsb, "_apply_theme"):
             with contextlib.suppress(tk.TclError):
                 self._vsb._apply_theme()
-        # 重画所有行 — 不重建 widget, 保留选择/hover/滚动位置。
+        # Redraw all rows -- don't rebuild widgets, preserve selection/hover/scroll position.
         for iid, frame in self._row_frames.items():
             self._paint_row(
-                frame, iid,
+                frame,
+                iid,
                 is_selected=(iid == self._selected_iid),
                 is_hover=(iid == self._hover_iid),
             )

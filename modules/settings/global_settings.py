@@ -1,14 +1,14 @@
-"""``modules.settings.global_settings`` — 跨项目共享的全局设置。
+"""``modules.settings.global_settings`` — Global settings shared across projects.
 
-默认存储位置：
+Default storage locations:
 
 * Windows —— ``%APPDATA%/PythonEditor/settings.json``
-  （若 ``APPDATA`` 未设置则回退到 ``~/PythonEditor/settings.json``）。
+  (falls back to ``~/PythonEditor/settings.json`` if ``APPDATA`` is not set).
 * macOS —— ``~/Library/Application Support/PythonEditor/settings.json``
 * Linux —— ``$XDG_CONFIG_HOME/PythonEditor/settings.json``
-  （若 ``XDG_CONFIG_HOME`` 未设置则回退到 ``~/.config/PythonEditor/settings.json``）
+  (falls back to ``~/.config/PythonEditor/settings.json`` if ``XDG_CONFIG_HOME`` is not set)
 
-调用方可通过 ``path=`` 显式覆盖（测试场景）。
+Callers can explicitly override with ``path=`` (useful for testing scenarios).
 """
 
 from __future__ import annotations
@@ -25,14 +25,14 @@ _FILE_NAME = "settings.json"
 
 
 def default_global_path() -> str:
-    """返回默认的全局设置文件路径。
+    """Return the default global settings file path.
 
-    跨平台策略:
+    Cross-platform strategy:
 
-    * Windows → ``%APPDATA%\\PythonEditor\\settings.json`` (回退到 ``~``)
+    * Windows → ``%APPDATA%\\PythonEditor\\settings.json`` (fallback to ``~``)
     * macOS → ``~/Library/Application Support/PythonEditor/settings.json``
-    * 其它 → ``$XDG_CONFIG_HOME/PythonEditor/settings.json``
-            (回退到 ``~/.config/PythonEditor/settings.json``)
+    * Other → ``$XDG_CONFIG_HOME/PythonEditor/settings.json``
+            (fallback to ``~/.config/PythonEditor/settings.json``)
     """
 
     home = os.path.expanduser("~")
@@ -42,18 +42,17 @@ def default_global_path() -> str:
         return os.path.join(base, _APP_NAME, _FILE_NAME)
 
     if sys.platform == "darwin":
-        return os.path.join(
-            home, "Library", "Application Support", _APP_NAME, _FILE_NAME
-        )
+        return os.path.join(home, "Library", "Application Support", _APP_NAME, _FILE_NAME)
 
     base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(home, ".config")
     return os.path.join(base, _APP_NAME, _FILE_NAME)
 
 
 class GlobalSettings(JsonFileSettings):
-    """跨项目共享的全局设置实例。
+    """Global settings instance shared across projects.
 
-    直接通过 :class:`Settings` 接口读写，文件会在 :meth:`save` 时落盘。
+    Read/write directly through the :class:`Settings` interface; the file is persisted
+    to disk when :meth:`save` is called.
     """
 
     def __init__(
@@ -68,7 +67,6 @@ class GlobalSettings(JsonFileSettings):
             path=path,
             auto_load=auto_load,
         )
-
 
     def _resolve_path(self) -> str:
         return default_global_path()

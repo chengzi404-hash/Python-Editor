@@ -20,10 +20,10 @@ class Command:
         self.cwd = cwd
 
     def _build_option(self, key):
-        flag = self._option_aliases.get(key, key).replace('_', '-')
+        flag = self._option_aliases.get(key, key).replace("_", "-")
         if len(flag) == 1:
-            return f'-{flag}'
-        return f'--{flag}'
+            return f"-{flag}"
+        return f"--{flag}"
 
     def _append_options(self, cmd, kwargs):
         for key, value in kwargs.items():
@@ -65,18 +65,14 @@ class Command:
                 cmd=exc.cmd,
             ) from exc
         except FileNotFoundError as exc:
-            raise CommandNotFoundError(
-                f"Command not found: {self.program}"
-            ) from exc
+            raise CommandNotFoundError(f"Command not found: {self.program}") from exc
 
     def _validate_subcommand(self, subcommand):
         if not subcommand:
-            raise SubcommandNotFoundError(
-                f"Subcommand not found for '{self.program}'"
-            )
+            raise SubcommandNotFoundError(f"Subcommand not found for '{self.program}'")
 
     def __getattr__(self, name):
-        subcommand = name.replace('_', '-')
+        subcommand = name.replace("_", "-")
         self._validate_subcommand(subcommand)
 
         def method(*args, **kwargs):

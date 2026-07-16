@@ -1,8 +1,8 @@
-"""``modules.Uui.widgets.sidebar`` — VSCode 风格的侧边栏组件.
+"""``modules.Uui.widgets.sidebar`` — VSCode-style sidebar component.
 
-包含:
-- ActivityBar: 垂直图标栏 (Explorer/Debug/Git)
-- SideBar: ActivityBar + 内容面板组合
+Contains:
+- ActivityBar: vertical icon bar (Explorer/Debug/Git)
+- SideBar: ActivityBar + content panel combination
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from .icons import ICON_SIZE, draw_icon
 
 
 class ActivityBarItem(tk.Frame):
-    """单个 Activity Bar 图标按钮."""
+    """Single Activity Bar icon button."""
 
     def __init__(
         self,
@@ -28,8 +28,16 @@ class ActivityBarItem(tk.Frame):
         command: Callable[[str], None] | None = None,
         **kwargs,
     ):
-        super().__init__(parent, width=36, height=36,
-                         bg='#1e1e1e', highlightthickness=0, bd=0, takefocus=False, **kwargs)
+        super().__init__(
+            parent,
+            width=36,
+            height=36,
+            bg="#1e1e1e",
+            highlightthickness=0,
+            bd=0,
+            takefocus=False,
+            **kwargs,
+        )
         self._card_id = card_id
         self._command = command
         self._icon_name = icon_name
@@ -37,39 +45,44 @@ class ActivityBarItem(tk.Frame):
 
         self.pack_propagate(False)
 
-        # 图标画布
+        # Icon canvas
         self._canvas = tk.Canvas(
-            self, width=ICON_SIZE, height=ICON_SIZE,
-            bg='#1e1e1e', highlightthickness=0, bd=0, takefocus=False,
+            self,
+            width=ICON_SIZE,
+            height=ICON_SIZE,
+            bg="#1e1e1e",
+            highlightthickness=0,
+            bd=0,
+            takefocus=False,
         )
-        self._canvas.place(relx=0.5, rely=0.5, anchor='center')
+        self._canvas.place(relx=0.5, rely=0.5, anchor="center")
 
         self._render_icon()
 
-        # 悬停效果
-        self.bind('<Enter>', self._on_enter)
-        self.bind('<Leave>', self._on_leave)
-        self.bind('<Button-1>', self._on_click)
-        self._canvas.bind('<Button-1>', self._on_click)
+        # Hover effect
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        self.bind("<Button-1>", self._on_click)
+        self._canvas.bind("<Button-1>", self._on_click)
 
     def _render_icon(self):
-        """渲染图标."""
-        self._canvas.delete('all')
+        """Render icon."""
+        self._canvas.delete("all")
         draw_icon(self._canvas, self._icon_name, self._get_color())
 
     def _get_color(self) -> str:
         return theme.FG_PRIMARY if self._is_active else theme.FG_TERTIARY
 
     def _update_colors(self):
-        self.config(bg='#1e1e1e')
-        self._canvas.config(bg='#1e1e1e')
+        self.config(bg="#1e1e1e")
+        self._canvas.config(bg="#1e1e1e")
         self._render_icon()
 
     def _on_enter(self, _):
         if not self._is_active:
             self.config(bg=theme.BG_RAISED)
             self._canvas.config(bg=theme.BG_RAISED)
-            self._canvas.delete('all')
+            self._canvas.delete("all")
             draw_icon(self._canvas, self._icon_name, theme.FG_SECONDARY)
 
     def _on_leave(self, _):
@@ -85,7 +98,7 @@ class ActivityBarItem(tk.Frame):
 
 
 class ActivityBar(tk.Frame):
-    """垂直 Activity Bar, 包含多个图标按钮."""
+    """Vertical Activity Bar, containing multiple icon buttons."""
 
     def __init__(
         self,
@@ -94,8 +107,9 @@ class ActivityBar(tk.Frame):
         on_select: Callable[[str], None],
         **kwargs,
     ) -> None:
-        super().__init__(parent, width=36, bg=theme.BG_BASE,
-                         highlightthickness=0, takefocus=False, **kwargs)
+        super().__init__(
+            parent, width=36, bg=theme.BG_BASE, highlightthickness=0, takefocus=False, **kwargs
+        )
         self._items: dict[str, ActivityBarItem] = {}
         self._on_select = on_select
         self._active_id: str | None = None
@@ -104,13 +118,15 @@ class ActivityBar(tk.Frame):
 
         for icon_name, _tooltip, card_id in items:
             item = ActivityBarItem(
-                self, icon_name=icon_name, card_id=card_id,
+                self,
+                icon_name=icon_name,
+                card_id=card_id,
                 command=self._handle_select,
             )
             item.pack(fill=tk.X, pady=(0, 0))
             self._items[card_id] = item
 
-        # 底部占位,让图标居中
+        # Bottom spacer, to center icons
         spacer = tk.Frame(self, bg=theme.BG_BASE)
         spacer.pack(fill=tk.Y, expand=True)
 
@@ -130,9 +146,9 @@ class ActivityBar(tk.Frame):
 
 
 class SideBar(UFrame):
-    """VSCode 风格的侧边栏: ActivityBar + 内容面板.
+    """VSCode-style sidebar: ActivityBar + content panel.
 
-    用法::
+    Usage::
         sidebar = SideBar(parent, items=[
             ('explorer', 'Explorer', 'explorer'),
             ('debug', 'Debug', 'debug'),
@@ -149,7 +165,7 @@ class SideBar(UFrame):
         cards: dict[str, tk.Widget] | None = None,
         **kwargs,
     ) -> None:
-        kwargs.setdefault('variant', 'panel')
+        kwargs.setdefault("variant", "panel")
         super().__init__(parent, **kwargs)
 
         self._items = items or []
@@ -160,17 +176,19 @@ class SideBar(UFrame):
         self._build()
 
     def _build(self) -> None:
-        # 左侧 Activity Bar
+        # Left Activity Bar
         self._activity_bar = ActivityBar(
-            self, items=self._items, on_select=self._on_bar_select,
+            self,
+            items=self._items,
+            on_select=self._on_bar_select,
         )
         self._activity_bar.pack(side=tk.LEFT, fill=tk.Y)
 
-        # 右侧内容面板
+        # Right content panel
         self._content_frame = tk.Frame(self, bg=theme.BG_PANEL)
         self._content_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # 默认选中第一个卡片
+        # Default select first card
         if self._items:
             first_id = self._items[0][2]
             self.set_active(first_id)
@@ -181,11 +199,11 @@ class SideBar(UFrame):
             self._on_select(card_id)
 
     def set_active(self, card_id: str) -> None:
-        # 隐藏当前卡片
+        # Hide current card
         if self._active_card_id and self._active_card_id in self._cards:
             self._cards[self._active_card_id].pack_forget()
 
-        # 显示新卡片到内容面板
+        # Show new card in content panel
         self._active_card_id = card_id
         if card_id in self._cards:
             self._cards[card_id].pack(in_=self._content_frame, fill=tk.BOTH, expand=True)
@@ -194,7 +212,7 @@ class SideBar(UFrame):
 
     def add_card(self, card_id: str, widget: tk.Widget) -> None:
         self._cards[card_id] = widget
-        # 如果当前没有激活的卡片,激活这个
+        # If no card is currently active, activate this one
         if self._active_card_id is None:
             self.set_active(card_id)
 
@@ -206,7 +224,7 @@ class SideBar(UFrame):
 
 
 __all__ = [
-    'ActivityBar',
-    'ActivityBarItem',
-    'SideBar',
+    "ActivityBar",
+    "ActivityBarItem",
+    "SideBar",
 ]

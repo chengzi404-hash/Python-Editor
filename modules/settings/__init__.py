@@ -1,37 +1,37 @@
-"""``modules.settings`` — 统一的项目设置与全局设置接口。
+"""``modules.settings`` — Unified project settings and global settings interface.
 
-快速上手::
+Quick start::
 
     from modules.settings import (
         SettingsManager, SettingsScope,
         GlobalSettings, ProjectSettings,
     )
 
-    manager = SettingsManager()                # 默认加载全局设置
-    manager.attach_project("/path/to/proj")    # 附加项目
+    manager = SettingsManager()                # Default loads global settings
+    manager.attach_project("/path/to/proj")    # Attach project
 
-    # 全局
+    # Global
     manager.set(SettingsScope.GLOBAL, "ui.theme", "Light")
-    # 项目
+    # Project
     manager.set(SettingsScope.PROJECT, "project.python_interpreter",
                 "/usr/bin/python3")
 
-    # 取生效值(项目优先, 回退全局)
+    # Get effective value (project first, fallback to global)
     theme = manager.effective("ui.theme")
     interpreter = manager.effective("project.python_interpreter")
 
-    # 持久化(也可使用 ``with SettingsManager() as m:`` 自动保存)
+    # Persist (can also use ``with SettingsManager() as m:`` for auto-save)
     manager.save_all()
 
-公开 API:
+Public API:
 
-* :class:`SettingsManager` — 统一入口。
-* :class:`GlobalSettings` — 全局设置(``SettingsScope.GLOBAL``)。
-* :class:`ProjectSettings` — 项目设置(``SettingsScope.PROJECT``)。
-* :class:`SettingsScope` / :class:`SettingValueType` — 枚举。
-* :class:`SettingSpec` / :class:`SettingsSchema` — Schema 元信息。
+* :class:`SettingsManager` — Unified entry point.
+* :class:`GlobalSettings` — Global settings (``SettingsScope.GLOBAL``).
+* :class:`ProjectSettings` — Project settings (``SettingsScope.PROJECT``).
+* :class:`SettingsScope` / :class:`SettingValueType` — Enums.
+* :class:`SettingSpec` / :class:`SettingsSchema` — Schema metadata.
 * :data:`GLOBAL_SCHEMA` / :data:`PROJECT_SCHEMA` / :data:`SCHEMA_BY_SCOPE` —
-  默认 Schema。
+  Default Schema.
 """
 
 from __future__ import annotations

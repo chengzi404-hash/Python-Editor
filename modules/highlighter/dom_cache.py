@@ -26,12 +26,13 @@ from modules.data import cache_path
 # Data model
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class LibraryDOM:
     """Represents the publicly-visible structure of a Python library."""
 
-    name: str                      # package name, e.g. "os"
-    version: str = ""              # package version, if discoverable
+    name: str  # package name, e.g. "os"
+    version: str = ""  # package version, if discoverable
     classes: list[str] = field(default_factory=list)
     functions: list[str] = field(default_factory=list)
     submodules: list[str] = field(default_factory=list)
@@ -42,6 +43,7 @@ class LibraryDOM:
 # ──────────────────────────────────────────────────────────────────────────────
 # Cache paths
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def _cache_dir() -> str:
     return cache_path("python_libs")
@@ -56,6 +58,7 @@ def _cache_file(lib_name: str) -> str:
 # ──────────────────────────────────────────────────────────────────────────────
 # Core public API
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def get_lib_dom(lib_name: str) -> LibraryDOM | None:
     """Return cached DOM for ``lib_name``, or None if not cached."""
@@ -102,6 +105,7 @@ def get_or_load_lib_dom(lib_name: str) -> LibraryDOM | None:
 # ──────────────────────────────────────────────────────────────────────────────
 # Scanning helpers
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def _scan_library(lib_name: str) -> LibraryDOM | None:
     """Attempt to scan ``lib_name`` and return its ``LibraryDOM``."""
@@ -194,10 +198,12 @@ def _scan_library(lib_name: str) -> LibraryDOM | None:
     version = ""
     try:
         import importlib.metadata
+
         version = importlib.metadata.version(lib_name)
     except Exception:
         try:
             import importlib.metadata as m
+
             version = m.version(lib_name)
         except Exception:
             pass
@@ -226,6 +232,7 @@ def build_full_cache(progress_callback=None) -> int:
 
     # Also scan site-packages via pkgutil
     import site
+
     site_packages = site.getsitepackages()
     if hasattr(site, "getusersitepackages"):
         site_packages.append(site.getusersitepackages())
@@ -243,7 +250,8 @@ def build_full_cache(progress_callback=None) -> int:
     # Filter out private/stub packages and stdlib
     STDLIB_MODULES = set(sys.stdlib_module_names)
     to_cache = sorted(
-        n for n in seen
+        n
+        for n in seen
         if not n.startswith("_")
         and n not in STDLIB_MODULES
         and not any(p in n for p in ("tests", "test_", "_pytest", "pytest", ".venv", "venv"))

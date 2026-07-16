@@ -11,17 +11,17 @@ from .python import (
 )
 
 __all__ = [
-    'BUILTIN_ATTRS',
-    'BUILTIN_CLASSES',
-    'BUILTIN_FUNCTIONS',
-    'BUILTIN_PROPERTIES',
+    "BUILTIN_ATTRS",
+    "BUILTIN_CLASSES",
+    "BUILTIN_FUNCTIONS",
+    "BUILTIN_PROPERTIES",
     # Builtin sets
-    'KEYWORDS',
-    'CSuggestionExpert',
-    'CppSuggestionExpert',
-    'DOMScope',
-    'PythonSuggestionExpert',
-    'SuggestionBlock',
-    'SuggestionExpert',
-    'SuggestionItem',
+    "KEYWORDS",
+    "CSuggestionExpert",
+    "CppSuggestionExpert",
+    "DOMScope",
+    "PythonSuggestionExpert",
+    "SuggestionBlock",
+    "SuggestionExpert",
+    "SuggestionItem",
 ]

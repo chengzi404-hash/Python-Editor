@@ -11,13 +11,13 @@ from .npm import Npm
 from .pip import Pip
 
 __all__ = [
-    'CallError',
-    'Command',
-    'CommandExecutionError',
-    'CommandNotFoundError',
-    'Git',
-    'MissingArgumentError',
-    'Npm',
-    'Pip',
-    'SubcommandNotFoundError',
+    "CallError",
+    "Command",
+    "CommandExecutionError",
+    "CommandNotFoundError",
+    "Git",
+    "MissingArgumentError",
+    "Npm",
+    "Pip",
+    "SubcommandNotFoundError",
 ]

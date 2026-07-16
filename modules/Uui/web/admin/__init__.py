@@ -12,8 +12,9 @@ Quickstart::
         list_filter = ('published',)
         search_fields = ('title',)
 """
+
 from . import views
 from .options import ModelAdmin
 from .site import AdminSite, AlreadyRegistered, NotRegistered, site
 
-__all__ = ['AdminSite', 'AlreadyRegistered', 'ModelAdmin', 'NotRegistered', 'site', 'views']
+__all__ = ["AdminSite", "AlreadyRegistered", "ModelAdmin", "NotRegistered", "site", "views"]

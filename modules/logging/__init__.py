@@ -1,6 +1,6 @@
-"""``modules.logging`` — 统一日志模块。
+"""``modules.logging`` — Unified logging module.
 
-支持多级别日志、文件日志、控制台输出、轮转归档。
+Supports multiple log levels, file logging, console output, and rotation archiving.
 """
 
 from .logger import (

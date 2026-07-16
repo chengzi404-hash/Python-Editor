@@ -28,10 +28,19 @@ class WindowPlacement(ctypes.Structure):
 
 
 class Window(tk.Tk):
-    def __init__(self, screenName: str | None = None, baseName: str | None = None,
-                 className: str = "Tk", useTk: bool = True, sync: bool = False, use: str | None = None,
-                 title: str = "Uui Sample Window", title_font=None, debug: bool = False,
-                 custom_titlebar: bool = True) -> None:
+    def __init__(
+        self,
+        screenName: str | None = None,
+        baseName: str | None = None,
+        className: str = "Tk",
+        useTk: bool = True,
+        sync: bool = False,
+        use: str | None = None,
+        title: str = "Uui Sample Window",
+        title_font=None,
+        debug: bool = False,
+        custom_titlebar: bool = True,
+    ) -> None:
         self._custom_titlebar = custom_titlebar
         super().__init__(screenName, baseName, className, useTk, sync, use)
 
@@ -44,7 +53,7 @@ class Window(tk.Tk):
         self.update_idletasks()
 
         self._remove_title_bar()
-        if sys.platform.startswith('win'):
+        if sys.platform.startswith("win"):
             self._ensure_taskbar_button()
 
         self.drag_offset_x = 0
@@ -56,54 +65,74 @@ class Window(tk.Tk):
         self._title_frame = tk.Frame(self, bg=theme.BG_TITLE)
         self._title_frame.pack(anchor=tk.N, fill=tk.X)
 
-        self._title_frame.bind('<Button-1>', self.start_move)
-        self._title_frame.bind('<B1-Motion>', self.set_position)
+        self._title_frame.bind("<Button-1>", self.start_move)
+        self._title_frame.bind("<B1-Motion>", self.set_position)
 
         dot_size = 14
         gap = 8
         pad = 6
-        self._dot_canvas = tk.Canvas(self._title_frame, bg=theme.BG_TITLE,
-                                      highlightthickness=0, bd=0)
+        self._dot_canvas = tk.Canvas(
+            self._title_frame, bg=theme.BG_TITLE, highlightthickness=0, bd=0
+        )
         self._dot_canvas.pack(side=tk.RIGHT)
 
         self._dots: list = []
 
         def _create_dot(x, color, hover_char, command):
             y = pad
-            oval = self._dot_canvas.create_oval(x, y, x + dot_size, y + dot_size,
-                                                 fill=color, outline='')
-            htext = self._dot_canvas.create_text(x + dot_size // 2, y + dot_size // 2,
-                                                  text=hover_char, fill=theme.FG_PRIMARY,
-                                                  font=theme.ICON_FONT, state='hidden')
-            group = self._dot_canvas.create_rectangle(x - 1, y - 1, x + dot_size + 1, y + dot_size + 1,
-                                                       outline='', fill='', tags=('dot_hit',))
+            oval = self._dot_canvas.create_oval(
+                x, y, x + dot_size, y + dot_size, fill=color, outline=""
+            )
+            htext = self._dot_canvas.create_text(
+                x + dot_size // 2,
+                y + dot_size // 2,
+                text=hover_char,
+                fill=theme.FG_PRIMARY,
+                font=theme.ICON_FONT,
+                state="hidden",
+            )
+            group = self._dot_canvas.create_rectangle(
+                x - 1,
+                y - 1,
+                x + dot_size + 1,
+                y + dot_size + 1,
+                outline="",
+                fill="",
+                tags=("dot_hit",),
+            )
+
             def on_enter(e):
-                self._dot_canvas.itemconfig(oval, fill=theme.BG_TITLE, outline='')
-                self._dot_canvas.itemconfig(htext, state='normal')
+                self._dot_canvas.itemconfig(oval, fill=theme.BG_TITLE, outline="")
+                self._dot_canvas.itemconfig(htext, state="normal")
+
             def on_leave(e):
-                self._dot_canvas.itemconfig(oval, fill=color, outline='')
-                self._dot_canvas.itemconfig(htext, state='hidden')
+                self._dot_canvas.itemconfig(oval, fill=color, outline="")
+                self._dot_canvas.itemconfig(htext, state="hidden")
+
             for item in (oval, htext, group):
-                self._dot_canvas.tag_bind(item, '<Button-1>', lambda e: command())
-                self._dot_canvas.tag_bind(item, '<Enter>', on_enter)
-                self._dot_canvas.tag_bind(item, '<Leave>', on_leave)
+                self._dot_canvas.tag_bind(item, "<Button-1>", lambda e: command())
+                self._dot_canvas.tag_bind(item, "<Enter>", on_enter)
+                self._dot_canvas.tag_bind(item, "<Leave>", on_leave)
             self._dots.append((oval, htext, color))
 
         x0 = pad
-        _create_dot(x0, theme.GREEN, '=', self.maximize)
-        _create_dot(x0 + dot_size + gap, theme.YELLOW, '-', self.minimize)
-        _create_dot(x0 + 2 * (dot_size + gap), theme.RED, '\u00D7', self.destroy)
+        _create_dot(x0, theme.GREEN, "=", self.maximize)
+        _create_dot(x0 + dot_size + gap, theme.YELLOW, "-", self.minimize)
+        _create_dot(x0 + 2 * (dot_size + gap), theme.RED, "\u00d7", self.destroy)
 
-        self._dot_canvas.config(width=pad * 2 + 3 * dot_size + 2 * gap,
-                                  height=dot_size + pad * 2)
+        self._dot_canvas.config(width=pad * 2 + 3 * dot_size + 2 * gap, height=dot_size + pad * 2)
 
-        self.title_label = tk.Label(self._title_frame, text=title,
-                                    font=title_font or theme.TITLE_FONT,
-                                    bg=theme.BG_TITLE, fg=theme.FG_PRIMARY)
+        self.title_label = tk.Label(
+            self._title_frame,
+            text=title,
+            font=title_font or theme.TITLE_FONT,
+            bg=theme.BG_TITLE,
+            fg=theme.FG_PRIMARY,
+        )
         self.title_label.pack(anchor=tk.W, pady=10, padx=20)
 
-        self.title_label.bind('<Button-1>', self.start_move)
-        self.title_label.bind('<B1-Motion>', self.set_position)
+        self.title_label.bind("<Button-1>", self.start_move)
+        self.title_label.bind("<B1-Motion>", self.set_position)
 
         self._title_font = title_font
 
@@ -134,14 +163,14 @@ class Window(tk.Tk):
     def set_position(self, event):
         x = event.x_root - self.drag_offset_x
         y = event.y_root - self.drag_offset_y
-        self.geometry(f'+{x}+{y}')
+        self.geometry(f"+{x}+{y}")
 
     def maximize(self):
-        if not sys.platform.startswith('win'):
-            if self.state() == 'zoomed':
-                self.state('normal')
+        if not sys.platform.startswith("win"):
+            if self.state() == "zoomed":
+                self.state("normal")
             else:
-                self.state('zoomed')
+                self.state("zoomed")
             return
         hwnd = self.winfo_id()
         if not hwnd:
@@ -155,8 +184,8 @@ class Window(tk.Tk):
             ctypes.windll.user32.ShowWindow(hwnd, SW_SHOWMAXIMIZED)
 
     def minimize(self):
-        if not sys.platform.startswith('win'):
-            self.state('iconic')
+        if not sys.platform.startswith("win"):
+            self.state("iconic")
             return
         hwnd = self.winfo_id()
         if not hwnd:
@@ -166,7 +195,7 @@ class Window(tk.Tk):
     def title(self, *args):
         if args:
             super().title(args[0])
-            if hasattr(self, 'title_label'):
+            if hasattr(self, "title_label"):
                 self.title_label.config(text=args[0])
             return args[0]
         return super().title()
@@ -182,7 +211,8 @@ class Window(tk.Tk):
                 self._dot_canvas.itemconfig(oval, fill=color)
                 self._dot_canvas.itemconfig(htext, fill=theme.FG_PRIMARY)
             self.title_label.config(
-                bg=theme.BG_TITLE, fg=theme.FG_PRIMARY,
+                bg=theme.BG_TITLE,
+                fg=theme.FG_PRIMARY,
                 font=self._title_font or theme.TITLE_FONT,
             )
         except tk.TclError:
@@ -192,7 +222,7 @@ class Window(tk.Tk):
 if __name__ == "__main__":
     window = Window()
 
-    window.geometry('500x550+50+50')
+    window.geometry("500x550+50+50")
     window.configure(bg=theme.BG_BASE)
     window.resizable(width=True, height=True)
 

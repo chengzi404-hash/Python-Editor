@@ -27,9 +27,10 @@ class SuggestionItem:
         priority: Lower value = higher priority (appears first)
         kind: Category hint ('keyword', 'builtin', 'function', 'class', 'variable')
     """
+
     label: str
     priority: int = 0
-    kind: str = ''
+    kind: str = ""
 
 
 class SuggestionExpert(ABC):
@@ -37,9 +38,7 @@ class SuggestionExpert(ABC):
         super().__init__()
 
     @abstractmethod
-    def suggest(self, block: SuggestionBlock) -> list[SuggestionItem]:
-        ...
+    def suggest(self, block: SuggestionBlock) -> list[SuggestionItem]: ...
 
     @abstractmethod
-    def get_languange_exts(self) -> list:
-        ...
+    def get_languange_exts(self) -> list: ...
