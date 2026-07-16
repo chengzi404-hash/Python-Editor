@@ -967,7 +967,7 @@ class PythonSuggestionExpert(SuggestionExpert):
                     SuggestionItem(label=var, priority=_PRIORITY_USER_VARIABLE, kind="variable")
                 )
 
-            for sub in scope.subDOM:
+            for sub in scope.sub_dom:
                 if sub.begin <= pos < sub.end:
                     _walk(sub, pos)
                     break
@@ -1282,12 +1282,12 @@ class PythonSuggestionExpert(SuggestionExpert):
         entries = PythonSuggestionExpert._collect_entries(code)
         if not entries:
             return DOMScope(
-                begin=0, end=code.count("\n") + 1, varibles=[], functions=[], classes=[], subDOM=[]
+                begin=0, end=code.count("\n") + 1, varibles=[], functions=[], classes=[], sub_dom=[]
             )
 
         total_lines = entries[-1][4]
 
-        root = DOMScope(begin=0, end=total_lines, varibles=[], functions=[], classes=[], subDOM=[])
+        root = DOMScope(begin=0, end=total_lines, varibles=[], functions=[], classes=[], sub_dom=[])
         stack = [(root, -1)]
 
         for line_no, indent, kind, name, end in entries:
@@ -1296,7 +1296,7 @@ class PythonSuggestionExpert(SuggestionExpert):
 
             parent = stack[-1][0]
             scope = DOMScope(
-                begin=line_no, end=end, varibles=[], functions=[], classes=[], subDOM=[]
+                begin=line_no, end=end, varibles=[], functions=[], classes=[], sub_dom=[]
             )
 
             if kind == "class":
@@ -1304,7 +1304,7 @@ class PythonSuggestionExpert(SuggestionExpert):
             else:
                 parent.functions.append(name)
 
-            parent.subDOM.append(scope)
+            parent.sub_dom.append(scope)
             stack.append((scope, indent))
 
         return root
@@ -1314,7 +1314,7 @@ class PythonSuggestionExpert(SuggestionExpert):
         root = PythonSuggestionExpert._build_scope_tree(block.code)
 
         def _deepest(scope: DOMScope, pos: int) -> DOMScope:
-            for sub in scope.subDOM:
+            for sub in scope.sub_dom:
                 if sub.begin <= pos < sub.end:
                     return _deepest(sub, pos)
             return scope

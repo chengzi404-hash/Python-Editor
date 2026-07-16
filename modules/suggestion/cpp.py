@@ -377,7 +377,7 @@ class CppSuggestionExpert(SuggestionExpert):
                     SuggestionItem(label=var, priority=_PRIORITY_USER_VARIABLE, kind="variable")
                 )
 
-            for sub in scope.subDOM:
+            for sub in scope.sub_dom:
                 _walk(sub)
 
         _walk(root)
@@ -432,7 +432,7 @@ class CppSuggestionExpert(SuggestionExpert):
                 suggestions.append(
                     SuggestionItem(label=fn, priority=_PRIORITY_USER_FUNCTION, kind="function")
                 )
-            for sub in scope.subDOM:
+            for sub in scope.sub_dom:
                 _walk(sub)
 
         _walk(root)
@@ -493,12 +493,12 @@ class CppSuggestionExpert(SuggestionExpert):
         entries = CppSuggestionExpert._collect_entries(code)
         if not entries:
             return DOMScope(
-                begin=0, end=code.count("\n") + 1, varibles=[], functions=[], classes=[], subDOM=[]
+                begin=0, end=code.count("\n") + 1, varibles=[], functions=[], classes=[], sub_dom=[]
             )
 
         total_lines = entries[-1][4]
 
-        root = DOMScope(begin=0, end=total_lines, varibles=[], functions=[], classes=[], subDOM=[])
+        root = DOMScope(begin=0, end=total_lines, varibles=[], functions=[], classes=[], sub_dom=[])
         stack: list[tuple[DOMScope, int]] = [(root, -1)]
 
         for line_no, indent, kind, name, end in entries:
@@ -507,7 +507,7 @@ class CppSuggestionExpert(SuggestionExpert):
 
             parent = stack[-1][0]
             scope = DOMScope(
-                begin=line_no, end=end, varibles=[], functions=[], classes=[], subDOM=[]
+                begin=line_no, end=end, varibles=[], functions=[], classes=[], sub_dom=[]
             )
 
             if kind in ("class", "namespace"):
@@ -515,7 +515,7 @@ class CppSuggestionExpert(SuggestionExpert):
             else:
                 parent.functions.append(name)
 
-            parent.subDOM.append(scope)
+            parent.sub_dom.append(scope)
             stack.append((scope, indent))
 
         return root

@@ -37,7 +37,7 @@ class TestSuggestionItem:
 class TestDOMScope:
     def test_creation(self):
         scope = DOMScope(
-            begin=0, end=10, varibles=["x"], functions=["foo"], classes=["MyClass"], subDOM=[]
+            begin=0, end=10, varibles=["x"], functions=["foo"], classes=["MyClass"], sub_dom=[]
         )
         assert scope.begin == 0
         assert scope.end == 10
