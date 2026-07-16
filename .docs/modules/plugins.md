@@ -246,7 +246,7 @@ manager.setting(key, default)
 manager.set_setting(key, value)
 ```
 
-## `DiscoveredPlugin` `[manager.py:77]`
+## `DiscoveredPlugin` `[manager.py:70]`
 
 ```python
 @dataclass

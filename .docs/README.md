@@ -55,7 +55,7 @@ Per [`AGENTS.md`](../AGENTS.md):
 | i18n default | `zh_CN` (fallback `en_US`) |
 | Settings location (Win) | `%APPDATA%\PythonEditor\settings.json` |
 | Settings location (project) | `<root>/.pyeditor/settings.json` |
-| Plugins (global) | `~/.python_editor_plugins/` (or platform equivalent) |
+| Plugins (global) | `<config_root>/plugins/` (e.g. `%APPDATA%\PythonEditor\plugins/`) |
 | Python | `>= 3.10` |
 
 ## Module map

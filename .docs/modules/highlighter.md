@@ -68,7 +68,7 @@ schedules.
 
 | Class | File | Extensions |
 | --- | --- | --- |
-| `PythonHighlighterExpert` | `python.py:145` | `.py` |
+| `PythonHighlighterExpert` | `python.py:240` | `.py` |
 | `CcppHighlighterExpert` | `ccpp.py:86` | `.c`, `.cpp`, `.cc`, `.cxx`, `.h`, `.hpp`, `.hh` |
 | `JsonHighlighterExpert` | `json_expert.py:19` | `.json` |
 | `XmlHighlighterExpert` | `xml_expert.py:17` | `.xml`, `.html`, `.xhtml`, `.xsd`, `.xsl`, `.svg` |

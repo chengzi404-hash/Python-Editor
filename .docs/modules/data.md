@@ -18,9 +18,12 @@ from modules.data import (
 <project-root>/
 ├── data/                  # shipped with the editor
 │   ├── i18n/locales/
-│   ├── keywords/
-│   └── suggestions/{python,c,cpp}/
+│   └── suggestions/
+│       ├── python/
+│       ├── c/
+│       └── cpp/
 └── cache/                 # created on demand
+    └── python_libs/       # library DOM cache
 ```
 
 The two roots are computed from `__file__` at import time:

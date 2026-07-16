@@ -1,6 +1,6 @@
 # `main.py` — Application entry point
 
-The application is a single 3128-line module that wires every subsystem
+The application is a single 3274-line module that wires every subsystem
 together. This page documents its public surface; everything else is
 considered private.
 
@@ -16,8 +16,8 @@ $ python main.py [--custom-titlebar]
 
 | Name | Description |
 | --- | --- |
-| `HIGHLIGHT_TOKENS` `[main.py:87]` | Default `token-type → {foreground}` mapping used when no highlight theme is active. |
-| `LANG_CONFIG` `[main.py:114]` | Registry of supported languages: `Python`, `JSON`, `XML`, `YAML`, `LOG`. Each entry maps `ext`, `highlighter`, `suggestion`, `suggestion_factory`, `sample`. |
+| `HIGHLIGHT_TOKENS` `[main.py:112]` | Default `token-type → {foreground}` mapping used when no highlight theme is active. |
+| `LANG_CONFIG` `[main.py:139]` | Registry of supported languages: `Python`, `JSON`, `XML`, `YAML`, `LOG`. Each entry maps `ext`, `highlighter`, `suggestion`, `suggestion_factory`, `sample`. |
 | `THEME_NAMES` `[main.py:152]` | UI theme names known to the View menu: `['Dark', 'Light', 'Solarized Dark']`. |
 | `FONT_FAMILIES` `[main.py:153]` | Font family options in the View menu. |
 | `FONT_SIZES` `[main.py:154]` | Font size options in the View menu. |
@@ -32,7 +32,7 @@ Before anything else runs:
 
 ## Public classes
 
-### `Document` `[main.py:36]`
+### `Document` `[main.py:64]`
 
 Data model for one open file or `Untitled` document.
 
@@ -46,7 +46,7 @@ class Document:
     seq: int = 0             # Untitled counter (0 for files on disk)
 ```
 
-### `_Debouncer` `[main.py:46]`
+### `_Debouncer` `[main.py:74]`
 
 GUI-agnostic debounce scheduler. Constructed with `after(ms, cb)` and
 `cancel(id)` hooks (typically Tk's `after`/`after_cancel`).
@@ -57,7 +57,7 @@ GUI-agnostic debounce scheduler. Constructed with `after(ms, cb)` and
 | `cancel` | `() -> None` | Cancel the pending callback if any. |
 | `pending_id` | property | The ID returned by `after()`, or `None`. |
 
-### `CodeEditor` `[main.py:170]`
+### `CodeEditor` `[main.py:195]`
 
 The single application controller. Construct then call `run()`.
 
@@ -201,7 +201,7 @@ A separate `UDialog` is opened on demand and contains nested callbacks
 (`load_packages`, `install_pkg`, `do_search`, `do_install`, `uninstall_pkg`,
 `do_create`).
 
-#### `run(self) -> None` `[main.py:2852]`
+#### `run(self) -> None` `[main.py:2927]`
 
 Wraps `self.window.mainloop()`. Returns when the user closes the window.
 

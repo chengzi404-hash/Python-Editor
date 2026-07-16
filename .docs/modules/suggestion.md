@@ -74,9 +74,9 @@ fires.
 
 | Class | File | Extensions | Features |
 | --- | --- | --- | --- |
-| `PythonSuggestionExpert` | `python.py:297` | `.py` | Keywords, builtins, enclosing-scope methods (`self.*`), `from X import …`, dotted-path attribute completion via the DOM cache. |
-| `CSuggestionExpert` | `c.py:153` | `.c`, `.h` | `.` and `->` attribute access; struct / union / enum / function / typedef discovery. |
-| `CppSuggestionExpert` | `cpp.py:170` | `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hh` | All of C plus `::` scope resolution. |
+| `PythonSuggestionExpert` | `python.py:861` | `.py` | Keywords, builtins, enclosing-scope methods (`self.*`), `from X import …`, dotted-path attribute completion via the DOM cache. |
+| `CSuggestionExpert` | `c.py:239` | `.c`, `.h` | `.` and `->` attribute access; struct / union / enum / function / typedef discovery. |
+| `CppSuggestionExpert` | `cpp.py:282` | `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hh` | All of C plus `::` scope resolution. |
 
 ## Public sets (from `PythonSuggestionExpert`)
 

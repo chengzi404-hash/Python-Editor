@@ -43,8 +43,8 @@ This document describes how the major subsystems in Python Editor fit together.
   side navigation).
 
 ### 2. Plugins (`modules.plugins`)
-- Discovery scans `<user-data>/plugins/**` (global) and
-  `<project>/.pyeditor/plugins/**` (project).
+- Discovery scans `<config-root>/plugins/**` (global) and
+  `<project>/plugins/**` (project).
 - Each plugin is a directory containing `plugin.json` (manifest) and a Python
   entry point. The entry point receives a `PluginContext` and may register
   hooks, commands, languages, or read/write settings.

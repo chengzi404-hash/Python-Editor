@@ -33,8 +33,8 @@ The single source of truth for UI colors / fonts. Defined classes:
 
 | Class | Line | Notes |
 | --- | --- | --- |
-| `Theme` | `[theme.py:5]` | Base class with class-level color / font constants. |
-| `DarkTheme` | `[theme.py:58]` | The default `name='Dark'`. |
+| `Theme` | `[theme.py:6]` | Base class with class-level color / font constants. |
+| `DarkTheme` | `[theme.py:59]` | The default `name='Dark'`. |
 | `LightTheme` | `[theme.py:62]` | `name='Light'`. |
 | `SolarizedDarkTheme` | `[theme.py:~103]` | `name='Solarized Dark'`. |
 
@@ -158,7 +158,7 @@ buttons for each top-level menu. Internal helpers `_MenuItemRow` and
 
 ## Completion popup
 
-### `CompletionItem` `[editor_suggestion.py:9]`
+### `CompletionItem` `[editor_suggestion.py:11]`
 
 ```python
 @dataclass
@@ -171,7 +171,7 @@ class CompletionItem:
     priority: int = 0
 ```
 
-### `UEditorSuggestion(parent, items=(), on_select=None, *, max_visible=8, show_detail=True, show_description=True, grab_focus=False)` `[editor_suggestion.py:22]`
+### `UEditorSuggestion(parent, items=(), on_select=None, *, max_visible=8, show_detail=True, show_description=True, grab_focus=False)` `[editor_suggestion.py:24]`
 
 `tk.Toplevel`-based popup for code-completion. Only one popup is visible
 at a time (class-level `_active`).
@@ -255,11 +255,11 @@ Canvas-backed table.
 
 Vertical icon button.
 
-### `ActivityBar(parent)` `[sidebar.py:86]`
+### `ActivityBar(parent)` `[sidebar.py:100]`
 
 Container for `ActivityBarItem` instances. Holds the active selection.
 
-### `SideBar(UFrame)` `[sidebar.py:131]`
+### `SideBar(UFrame)` `[sidebar.py:148]`
 
 VSCode-style sidebar: an `ActivityBar` on the left + a content area on
 the right that swaps between cards.
@@ -297,7 +297,7 @@ class VariableInfo:
     type: str = ''
 ```
 
-#### `DebugSession` `[debug_card.py:37]`
+#### `DebugSession` `[debug_card.py:41]`
 
 `pdb`-based session controller.
 
@@ -348,7 +348,7 @@ Grouped navigation sidebar for `UProjectSettingsWindow`.
 - `parse_node_id(iid: str) -> tuple`
 - `group_keys_for_schema(schema) -> List[str]`
 
-#### `NavSelection` `[settings_nav.py:108]`
+#### `NavSelection` `[settings_nav.py:109]`
 
 ```python
 @dataclass
@@ -359,7 +359,7 @@ class NavSelection:
     label: str = ''
 ```
 
-#### `USettingsNavBar`
+#### `USettingsNavBar` `[settings_nav.py:132]`
 
 | Method | Description |
 | --- | --- |

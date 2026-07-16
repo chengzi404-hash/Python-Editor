@@ -15,7 +15,7 @@ Subprocess execution with two flavours:
 from modules.runner import RunResult, stream_command, run_blocking
 ```
 
-## `RunResult` `[runner.py:24]`
+## `RunResult` `[runner.py:27]`
 
 ```python
 @dataclass(frozen=True)
@@ -28,7 +28,7 @@ Returned to the `done_callback` of `stream_command()` and from
 `run_blocking()` via `CompletedProcess.returncode` (the latter does not
 produce a `RunResult`).
 
-## `stream_command(cmd, *, timeout_s=30.0, cwd=None, env=None, line_callback=None, done_callback=None)` `[runner.py:43]`
+## `stream_command(cmd, *, timeout_s=30.0, cwd=None, env=None, line_callback=None, done_callback=None)` `[runner.py:45]`
 
 ```python
 def stream_command(
@@ -87,7 +87,7 @@ stream_command(
 )
 ```
 
-## `run_blocking(cmd, *, timeout_s=30.0, cwd=None, env=None) -> subprocess.CompletedProcess` `[runner.py:168]`
+## `run_blocking(cmd, *, timeout_s=30.0, cwd=None, env=None) -> subprocess.CompletedProcess` `[runner.py:167]`
 
 Thin wrapper around `subprocess.run(...)` with:
 

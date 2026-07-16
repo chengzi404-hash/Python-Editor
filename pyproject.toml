@@ -80,6 +80,7 @@ warn_unused_ignores = true
 warn_no_return = true
 ignore_missing_imports = true
 plugins = []
+explicit_package_bases = true
 exclude = [
     ".venv",
     "build",

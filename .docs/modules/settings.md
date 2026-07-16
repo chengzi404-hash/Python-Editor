@@ -30,7 +30,7 @@ from modules.settings import (
 
 ## Types
 
-### `SettingsScope` `[base.py:27]`
+### `SettingsScope` `[base.py:26]`
 
 ```python
 class SettingsScope(str, Enum):
@@ -38,7 +38,7 @@ class SettingsScope(str, Enum):
     PROJECT = "project"
 ```
 
-### `SettingValueType` `[base.py:38]`
+### `SettingValueType` `[base.py:37]`
 
 ```python
 class SettingValueType(str, Enum):
@@ -52,7 +52,7 @@ class SettingValueType(str, Enum):
     BUTTON = "button"   # action button; not stored
 ```
 
-### `SettingSpec` `[base.py:53]`
+### `SettingSpec` `[base.py:51]`
 
 ```python
 @dataclass(frozen=True)
@@ -73,7 +73,7 @@ class SettingSpec:
 `validate(value)` raises `ValueError` for type mismatches or out-of-range
 numbers, and returns a normalized value otherwise.
 
-### `SettingsSchema` `[base.py:180]`
+### `SettingsSchema` `[base.py:149]`
 
 ```python
 @dataclass
@@ -88,7 +88,7 @@ class SettingsSchema:
     def defaults(self) -> Dict[str, Any]: ...
 ```
 
-### `SettingsChangeEvent` `[base.py:229]`
+### `SettingsChangeEvent` `[base.py:194]`
 
 ```python
 @dataclass
@@ -99,13 +99,13 @@ class SettingsChangeEvent:
     new: Any
 ```
 
-### `SettingsListener` `[base.py:245]`
+### `SettingsListener` `[base.py:209]`
 
 ```python
 SettingsListener = Callable[[SettingsChangeEvent], None]
 ```
 
-### `Settings` (abstract base) `[base.py:250]`
+### `Settings` (abstract base) `[base.py:212]`
 
 ```python
 class Settings(ABC):
@@ -130,6 +130,10 @@ The current on-disk JSON schema version. Bumping it is the migration signal.
 
 ### `JsonFileSettings` `[storage.py:32]`
 
+The current on-disk JSON schema version. Bumping it is the migration signal.
+
+### `JsonFileSettings` `[storage.py:32]`
+
 Thread-safe base class for both global and project settings.
 
 | Behaviour | Detail |
@@ -144,7 +148,7 @@ the constructor.
 
 ## Concrete settings classes
 
-### `GlobalSettings` `[global_settings.py:55]`
+### `GlobalSettings` `[global_settings.py:51]`
 
 JSON-backed `Settings` for the global scope.
 
@@ -155,7 +159,7 @@ JSON-backed `Settings` for the global scope.
 `default_global_path()` returns the platform-appropriate path; pass it
 to `GlobalSettings(path=...)` to override (testing).
 
-### `ProjectSettings` `[project_settings.py:31]`
+### `ProjectSettings` `[project_settings.py:29]`
 
 JSON-backed `Settings` for the project scope. Path is
 `<root>/.pyeditor/settings.json`; `default_project_path(root)` returns

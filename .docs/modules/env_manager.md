@@ -16,7 +16,7 @@ holds exactly one instance in `CodeEditor._env_manager`.
 
 ## Data model
 
-### `PythonEnvironment` `[manager.py:13]`
+### `PythonEnvironment` `[manager.py:15]`
 
 ```python
 @dataclass
@@ -36,7 +36,7 @@ class PythonEnvironment:
 
 `env_type` is informational; the manager treats all four types identically.
 
-## `EnvironmentManager` `[manager.py:60]`
+## `EnvironmentManager` `[manager.py:66]`
 
 Thread-safe (guarded by an internal `RLock`). Maintains an internal
 dictionary of environments keyed by `name`. Listeners are notified after
