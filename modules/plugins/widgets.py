@@ -162,7 +162,7 @@ class UPluginManagerWindow:
             hook_key = f"hook.{spec.name}"
             hook_desc = t(hook_key, default=spec.description)
             hooks_text._text.insert(
-                "end" if hooks_text._text.index("end-1c") == "1.0" else "end",
+                "end",
                 f"  {spec.name}({params})  — {hook_desc}\n",
             )
 

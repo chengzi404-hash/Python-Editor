@@ -1,6 +1,6 @@
 """ModelAdmin — describes how a model is presented in the admin UI."""
 
-from typing import Any
+from typing import Any, ClassVar
 
 
 class ModelAdmin:
@@ -10,14 +10,14 @@ class ModelAdmin:
     ``list_per_page`` etc. to customise the change list page.
     """
 
-    list_display: list[str] = ["__str__"]
-    list_filter: list[str] = []
-    search_fields: list[str] = []
+    list_display: ClassVar[list[str]] = ["__str__"]
+    list_filter: ClassVar[list[str]] = []
+    search_fields: ClassVar[list[str]] = []
     list_per_page: int = 25
-    ordering: list[str] = []
+    ordering: ClassVar[list[str]] = []
     fields: list[str] | None = None  # None = all fields
-    exclude: list[str] = []
-    readonly_fields: list[str] = []
+    exclude: ClassVar[list[str]] = []
+    readonly_fields: ClassVar[list[str]] = []
     date_hierarchy: str | None = None
     list_select_related: bool = False
     save_on_top: bool = False

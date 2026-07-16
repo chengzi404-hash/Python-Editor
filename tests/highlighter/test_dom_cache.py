@@ -18,7 +18,7 @@ class TestLibraryDOM:
             version="1.0",
             classes=["ClassA", "ClassB"],
             functions=["func1", "func2"],
-            submodules=["sub1", "sub2"]
+            submodules=["sub1", "sub2"],
         )
         assert len(dom.classes) == 2
         assert len(dom.functions) == 2

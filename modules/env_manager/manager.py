@@ -107,9 +107,11 @@ class EnvironmentManager:
                     ver = _probe_python(current_python)
                     is_venv = self._is_venv(current_python)
                     self._environments[key] = PythonEnvironment(
-                        name="base (current)"
-                        if not is_venv
-                        else os.path.basename(self._venv_prefix(current_python)),
+                        name=(
+                            "base (current)"
+                            if not is_venv
+                            else os.path.basename(self._venv_prefix(current_python))
+                        ),
                         python_path=current_python,
                         version=ver,
                         env_type="venv" if is_venv else "system",

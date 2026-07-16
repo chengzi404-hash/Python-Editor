@@ -17,3 +17,6 @@ cache/
 
 # Test reports
 junit.xml
+
+# Uv
+*.egg-info/

@@ -1,10 +1,11 @@
 import tkinter as tk
+from typing import ClassVar
 
 from . import theme
 
 
 class ULabel(tk.Label):
-    _VARIANT_FG_KEYS = {
+    _VARIANT_FG_KEYS: ClassVar[dict] = {
         "primary": "FG_PRIMARY",
         "secondary": "FG_SECONDARY",
         "tertiary": "FG_TERTIARY",

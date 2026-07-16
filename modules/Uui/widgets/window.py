@@ -30,10 +30,10 @@ class WindowPlacement(ctypes.Structure):
 class Window(tk.Tk):
     def __init__(
         self,
-        screenName: str | None = None,
-        baseName: str | None = None,
-        className: str = "Tk",
-        useTk: bool = True,
+        screenName: str | None = None,  # noqa: N803
+        baseName: str | None = None,  # noqa: N803
+        className: str = "Tk",  # noqa: N803
+        useTk: bool = True,  # noqa: N803
         sync: bool = False,
         use: str | None = None,
         title: str = "Uui Sample Window",

@@ -5,7 +5,7 @@ from typing import Any
 
 from .. import response
 from ..auth.decorators import staff_member_required
-from ..exceptions import Http403, Http404
+from ..exceptions import Http403Error, Http404Error
 from .site import site as default_site
 
 
@@ -16,7 +16,7 @@ def _site(request) -> Any:
 def _require_staff(request) -> None:
     s = _site(request)
     if not s.has_permission(request):
-        raise Http403("Admin access requires an active staff account.")
+        raise Http403Error("Admin access requires an active staff account.")
 
 
 def _split_path(path: str) -> list[str]:
@@ -31,9 +31,8 @@ def _find_admin(request, parts: list[str]):
     app_label = parts[0]
     model_name = parts[1] if len(parts) > 1 else None
     for _model, admin in s._registry.items():
-        if admin.app_label == app_label:
-            if model_name is None or admin.model_name == model_name:
-                return s, app_label, admin
+        if admin.app_label == app_label and (model_name is None or admin.model_name == model_name):
+            return s, app_label, admin
     return s, app_label, None
 
 
@@ -63,7 +62,7 @@ def app_index(request, app_label: str):
     s = _site(request)
     models = [a for a in s._registry.values() if a.app_label == app_label]
     if not models:
-        raise Http404(f"No app labelled {app_label!r}")
+        raise Http404Error(f"No app labelled {app_label!r}")
     context = {
         "title": f"{app_label} administration",
         "app_label": app_label,
@@ -85,9 +84,9 @@ def logout_view(request):
 def change_list(request, app_label: str, model_name: str):
     admin = _find_admin(request, [app_label, model_name])[2]
     if admin is None:
-        raise Http404(f"No model {app_label}.{model_name}")
+        raise Http404Error(f"No model {app_label}.{model_name}")
     if not admin.has_change_permission(request):
-        raise Http403("No change permission")
+        raise Http403Error("No change permission")
 
     qs = admin.get_queryset(request)
     search = request.GET.get("q", "").strip()
@@ -123,9 +122,9 @@ def change_list(request, app_label: str, model_name: str):
 def add_form(request, app_label: str, model_name: str):
     admin = _find_admin(request, [app_label, model_name])[2]
     if admin is None:
-        raise Http404(f"No model {app_label}.{model_name}")
+        raise Http404Error(f"No model {app_label}.{model_name}")
     if not admin.has_add_permission(request):
-        raise Http403("No add permission")
+        raise Http403Error("No add permission")
 
     if request.method == "POST":
         return _save_form(request, admin, None)
@@ -149,12 +148,12 @@ def add_form(request, app_label: str, model_name: str):
 def change_form(request, app_label: str, model_name: str, pk: int):
     admin = _find_admin(request, [app_label, model_name])[2]
     if admin is None:
-        raise Http404(f"No model {app_label}.{model_name}")
+        raise Http404Error(f"No model {app_label}.{model_name}")
     obj = admin.get_object(request, pk)
     if obj is None:
-        raise Http404(f"{admin.model_name} pk={pk} not found")
+        raise Http404Error(f"{admin.model_name} pk={pk} not found")
     if not admin.has_change_permission(request, obj):
-        raise Http403("No change permission")
+        raise Http403Error("No change permission")
 
     if request.method == "POST":
         action = request.POST.get("_action", "save")
@@ -181,12 +180,12 @@ def change_form(request, app_label: str, model_name: str, pk: int):
 def delete_view(request, app_label: str, model_name: str, pk: int):
     admin = _find_admin(request, [app_label, model_name])[2]
     if admin is None:
-        raise Http404(f"No model {app_label}.{model_name}")
+        raise Http404Error(f"No model {app_label}.{model_name}")
     obj = admin.get_object(request, pk)
     if obj is None:
-        raise Http404(f"{admin.model_name} pk={pk} not found")
+        raise Http404Error(f"{admin.model_name} pk={pk} not found")
     if not admin.has_delete_permission(request, obj):
-        raise Http403("No delete permission")
+        raise Http403Error("No delete permission")
 
     if request.method == "POST":
         admin.delete_model(request, obj)

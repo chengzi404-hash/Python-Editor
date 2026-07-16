@@ -1196,13 +1196,13 @@ class DesignerApp(Window):
             self._status_path.config(text=f"  {self._project_path}  ")
         else:
             self._status_path.config(text="  Untitled  ")
-        self._status_geom.config(text=f"  {self._surface_width} × {self._surface_height}  ")
+        self._status_geom.config(text=f"  {self._surface_width} x {self._surface_height}  ")
         item = self._item_by_id(self._selected_id)
         if item:
             self._status_widget.config(
                 text=f"  {item['type']}  ·  {item['name']}  ·  "
                 f"({item['x']}, {item['y']})  ·  "
-                f"{item['width']} × {item['height']}"
+                f"{item['width']} x {item['height']}"
             )
         else:
             self._status_widget.config(text="  No selection  ")

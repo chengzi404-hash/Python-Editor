@@ -22,6 +22,7 @@ Operations supported in v1:
     * rename_table
 """
 
+import contextlib
 import json
 from pathlib import Path
 from typing import Any
@@ -143,10 +144,8 @@ def generate_migration(app: str, name: str = "initial") -> dict[str, Any]:
     """
     import importlib
 
-    try:
+    with contextlib.suppress(ImportError):
         importlib.import_module(f"apps.{app}.models")
-    except ImportError:
-        pass  # built-in app (e.g. Uui.web.auth) — OK, models are already registered
 
     operations: list[dict[str, Any]] = []
     seen: list[type] = []
@@ -182,7 +181,7 @@ def generate_migration(app: str, name: str = "initial") -> dict[str, Any]:
         )
 
     return {
-        "id": f"0001_{name}" if name == "initial" else f"0001_{name}",
+        "id": f"0001_{name}",
         "app": app,
         "dependencies": [],
         "operations": operations,

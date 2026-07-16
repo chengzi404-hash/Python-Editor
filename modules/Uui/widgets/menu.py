@@ -164,6 +164,7 @@ class _MenuItemRow(tk.Frame):
                 self._dropdown._menu_bar._close_dropdown()
                 if command:
                     command()
+
         elif kind == "check":
             var = args[3]
             self.prefix.config(text="\u2713" if var.get() else "")
@@ -174,6 +175,7 @@ class _MenuItemRow(tk.Frame):
                 if command:
                     command()
                 self._dropdown._menu_bar._close_dropdown()
+
         elif kind == "radio":
             var = args[4]
             value = args[3]
@@ -184,6 +186,7 @@ class _MenuItemRow(tk.Frame):
                 if command:
                     command()
                 self._dropdown._menu_bar._close_dropdown()
+
         else:
 
             def on_click(e=None):

@@ -44,6 +44,7 @@ class TestSettingsManager:
     def test_set_global(self):
         manager = SettingsManager()
         from modules.settings.base import SettingsScope
+
         manager.set(SettingsScope.GLOBAL, "editor.tab_size", 8)
         result = manager.get(SettingsScope.GLOBAL, "editor.tab_size")
         assert result == 8
@@ -51,6 +52,7 @@ class TestSettingsManager:
     def test_effective_global_only(self):
         manager = SettingsManager()
         from modules.settings.base import SettingsScope
+
         manager.set(SettingsScope.GLOBAL, "editor.tab_size", 8)
         result = manager.effective("editor.tab_size")
         assert result == 8
@@ -58,6 +60,7 @@ class TestSettingsManager:
     def test_effective_project_overrides_global(self, temp_dir):
         manager = SettingsManager()
         from modules.settings.base import SettingsScope
+
         manager.set(SettingsScope.GLOBAL, "editor.tab_size", 4)
         manager.attach_project(temp_dir)
         manager.set(SettingsScope.PROJECT, "project.tab_size", 8)
@@ -67,6 +70,7 @@ class TestSettingsManager:
     def test_effective_fallback_to_global(self, temp_dir):
         manager = SettingsManager()
         from modules.settings.base import SettingsScope
+
         manager.set(SettingsScope.GLOBAL, "editor.tab_size", 4)
         manager.attach_project(temp_dir)
         result = manager.effective("editor.tab_size")
@@ -75,6 +79,7 @@ class TestSettingsManager:
     def test_reset_global(self):
         manager = SettingsManager()
         from modules.settings.base import SettingsScope
+
         manager.set(SettingsScope.GLOBAL, "editor.tab_size", 8)
         manager.reset(SettingsScope.GLOBAL, "editor.tab_size")
         result = manager.get(SettingsScope.GLOBAL, "editor.tab_size")
@@ -83,14 +88,17 @@ class TestSettingsManager:
     def test_add_listener(self):
         manager = SettingsManager()
         events = []
+
         def listener(event):
             events.append(event)
+
         manager.add_listener(listener)
         assert len(manager._user_listeners) == 1
 
     def test_save_all(self, temp_dir):
         manager = SettingsManager()
         from modules.settings.base import SettingsScope
+
         manager.set(SettingsScope.GLOBAL, "editor.tab_size", 8)
         manager.attach_project(temp_dir)
         manager.set(SettingsScope.PROJECT, "project.tab_size", 8)
@@ -99,6 +107,7 @@ class TestSettingsManager:
     def test_context_manager(self, temp_dir):
         from modules.settings.base import SettingsScope
         from modules.settings.global_settings import GlobalSettings
+
         settings_path = os.path.join(temp_dir, "settings.json")
         gs1 = GlobalSettings(path=settings_path)
         with SettingsManager(global_settings=gs1) as manager:

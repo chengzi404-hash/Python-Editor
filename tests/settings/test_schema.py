@@ -91,12 +91,16 @@ class TestSettingSpec:
             spec.validate("true")
 
     def test_validate_choice_valid(self):
-        spec = SettingSpec(key="test", type=SettingValueType.CHOICE, default="a", choices=("a", "b", "c"))
+        spec = SettingSpec(
+            key="test", type=SettingValueType.CHOICE, default="a", choices=("a", "b", "c")
+        )
         result = spec.validate("b")
         assert result == "b"
 
     def test_validate_choice_invalid(self):
-        spec = SettingSpec(key="test", type=SettingValueType.CHOICE, default="a", choices=("a", "b", "c"))
+        spec = SettingSpec(
+            key="test", type=SettingValueType.CHOICE, default="a", choices=("a", "b", "c")
+        )
         with pytest.raises(ValueError):
             spec.validate("d")
 
@@ -161,10 +165,7 @@ class TestSettingsSchema:
 class TestSettingsChangeEvent:
     def test_creation(self):
         event = SettingsChangeEvent(
-            scope=SettingsScope.GLOBAL,
-            key="test.key",
-            old="old_value",
-            new="new_value"
+            scope=SettingsScope.GLOBAL, key="test.key", old="old_value", new="new_value"
         )
         assert event.scope == SettingsScope.GLOBAL
         assert event.key == "test.key"

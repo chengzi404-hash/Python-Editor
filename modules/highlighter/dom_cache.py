@@ -248,12 +248,12 @@ def build_full_cache(progress_callback=None) -> int:
             pass
 
     # Filter out private/stub packages and stdlib
-    STDLIB_MODULES = set(sys.stdlib_module_names)
+    stdlib_modules = set(sys.stdlib_module_names)
     to_cache = sorted(
         n
         for n in seen
         if not n.startswith("_")
-        and n not in STDLIB_MODULES
+        and n not in stdlib_modules
         and not any(p in n for p in ("tests", "test_", "_pytest", "pytest", ".venv", "venv"))
     )
 

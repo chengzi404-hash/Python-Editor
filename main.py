@@ -919,7 +919,7 @@ class CodeEditor:
                 t(f"menu.language.{lang}"),
                 value=lang,
                 variable=self._lang_locale_var(),
-                command=lambda l=lang: self._set_language_locale(l),
+                command=lambda lang_arg=lang: self._set_language_locale(lang_arg),
             )
         lang_locale_sub.add_separator()
         lang_locale_sub.add_command(
@@ -1252,55 +1252,50 @@ class CodeEditor:
         """
         chunk_size = 64 * 1024  # 64 KiB
         try:
-            f = open(path, encoding="utf-8", errors="replace")
+            with open(path, encoding="utf-8", errors="replace") as f:
+                self._stream_epoch += 1
+                my_epoch = self._stream_epoch
+                self._large_file_mode = True
+                self._editor._text.config(state="disabled")
+                accumulated: list[str] = []
+
+                def insert_chunk() -> None:
+                    if my_epoch != self._stream_epoch:
+                        return
+                    try:
+                        chunk = f.read(chunk_size)
+                    except OSError as e:
+                        self._editor._text.config(state="normal")
+                        self._large_file_mode = False
+                        messagebox.showerror(
+                            t("dialog.title.read_failed"), str(e), parent=self.window
+                        )
+                        self._status_label.config(text=t("status.read_failed"))
+                        return
+
+                    if not chunk:
+                        self._editor._text.config(state="normal")
+                        self._large_file_mode = False
+                        self._status_label.config(
+                            text=t("status.opened", name=os.path.basename(path))
+                        )
+                        if doc_id in self._documents:
+                            self._documents[doc_id].content = "".join(accumulated)
+                        with contextlib.suppress(tk.TclError):
+                            self._last_emit_code = self._editor.get("1.0", "end-1c")
+                        self._emit(HookEvents.EDITOR_FILE_OPENED, path)
+                        return
+
+                    accumulated.append(chunk)
+                    self._editor._text.insert(self._editor._text.index("end-1c"), chunk)
+                    self.window.after(1, insert_chunk)
+
+                self.window.after(1, insert_chunk)
         except OSError as e:
             messagebox.showerror(t("dialog.title.open_failed"), str(e), parent=self.window)
             self._large_file_mode = False
             self._editor._text.config(state="normal")
             self._status_label.config(text=t("status.open_failed"))
-            return
-
-        self._stream_epoch += 1
-        my_epoch = self._stream_epoch
-        self._large_file_mode = True
-        self._editor._text.config(state="disabled")
-        accumulated: list[str] = []
-
-        def insert_chunk() -> None:
-            if my_epoch != self._stream_epoch:
-                with contextlib.suppress(Exception):
-                    f.close()
-                return
-            try:
-                chunk = f.read(chunk_size)
-            except OSError as e:
-                with contextlib.suppress(Exception):
-                    f.close()
-                self._editor._text.config(state="normal")
-                self._large_file_mode = False
-                messagebox.showerror(t("dialog.title.read_failed"), str(e), parent=self.window)
-                self._status_label.config(text=t("status.read_failed"))
-                return
-
-            if not chunk:
-                with contextlib.suppress(Exception):
-                    f.close()
-                self._editor._text.config(state="normal")
-                self._large_file_mode = False
-                self._status_label.config(text=t("status.opened", name=os.path.basename(path)))
-                # Update document content
-                if doc_id in self._documents:
-                    self._documents[doc_id].content = "".join(accumulated)
-                with contextlib.suppress(tk.TclError):
-                    self._last_emit_code = self._editor.get("1.0", "end-1c")
-                self._emit(HookEvents.EDITOR_FILE_OPENED, path)
-                return
-
-            accumulated.append(chunk)
-            self._editor._text.insert(self._editor._text.index("end-1c"), chunk)
-            self.window.after(1, insert_chunk)
-
-        self.window.after(1, insert_chunk)
 
     @staticmethod
     def _human_size(nbytes: int) -> str:
@@ -1576,7 +1571,7 @@ class CodeEditor:
         code = self._editor.get("1.0", "end-1c")
         cursor = self._editor._text.index(tk.INSERT)
         line, col = map(int, cursor.split("."))
-        position = sum(len(l) + 1 for l in code.split("\n")[: line - 1]) + col
+        position = sum(len(line_text) + 1 for line_text in code.split("\n")[: line - 1]) + col
         block = SuggestionBlock(code=code, position=position)
         suggestions = self._suggestion_expert.suggest(block)
 
@@ -2872,9 +2867,11 @@ class CodeEditor:
                             self._append_output(f"\n[Exit code: {result.returncode}]\n")
                         self._output._text.config(state="disabled")
                         self._status_label.config(
-                            text=t("status.timeout")
-                            if result.timed_out
-                            else t("status.run_complete"),
+                            text=(
+                                t("status.timeout")
+                                if result.timed_out
+                                else t("status.run_complete")
+                            ),
                         )
                         with contextlib.suppress(OSError):
                             os.unlink(temp_path)
@@ -2986,9 +2983,11 @@ class CodeEditor:
             env_names = list(envs.keys())
             current_name = self._env_manager.current_name or (env_names[0] if env_names else "")
             env_var = tk.StringVar(
-                value=current_name
-                if current_name in env_names
-                else (env_names[0] if env_names else "")
+                value=(
+                    current_name
+                    if current_name in env_names
+                    else (env_names[0] if env_names else "")
+                )
             )
             env_combo = UComboBox(top, values=env_names, textvariable=env_var, select_first=False)
             env_combo.pack(side=tk.LEFT, padx=5)
@@ -3028,7 +3027,7 @@ class CodeEditor:
             btn_frame.pack(fill=tk.X, padx=10, pady=5)
 
             def install_pkg():
-                PKPYPI_MIRROR = "https://mirrors.tuna.tsinghua.edu.cn/pypi"
+                pypi_mirror = "https://mirrors.tuna.tsinghua.edu.cn/pypi"
                 selected = env_var.get()
 
                 inst_dlg = UDialog(
@@ -3094,7 +3093,7 @@ class CodeEditor:
                             final_pkg = sel.get("Name", "")
                     if not final_pkg:
                         return
-                    err = self._env_manager.install_package(final_pkg, selected, PKPYPI_MIRROR)
+                    err = self._env_manager.install_package(final_pkg, selected, pypi_mirror)
                     inst_dlg.destroy()
                     if err:
                         message_box.showerror(

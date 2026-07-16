@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+from typing import ClassVar
 
 from .exceptions import (
     CommandExecutionError,
@@ -10,8 +11,8 @@ from .exceptions import (
 
 
 class Command:
-    _option_aliases = {}
-    _required_args = {}
+    _option_aliases: ClassVar[dict] = {}
+    _required_args: ClassVar[dict] = {}
 
     def __init__(self, program, cwd=None):
         if shutil.which(program) is None:

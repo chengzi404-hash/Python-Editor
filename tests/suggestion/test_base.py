@@ -8,7 +8,7 @@ class MockSuggestionExpert(SuggestionExpert):
         return []
 
     def get_languange_exts(self):
-        return ['mock']
+        return ["mock"]
 
 
 class TestSuggestionBlock:
@@ -31,12 +31,14 @@ class TestSuggestionItem:
 
     def test_default_kind(self):
         item = SuggestionItem(label="print")
-        assert item.kind == ''
+        assert item.kind == ""
 
 
 class TestDOMScope:
     def test_creation(self):
-        scope = DOMScope(begin=0, end=10, varibles=["x"], functions=["foo"], classes=["MyClass"], subDOM=[])
+        scope = DOMScope(
+            begin=0, end=10, varibles=["x"], functions=["foo"], classes=["MyClass"], subDOM=[]
+        )
         assert scope.begin == 0
         assert scope.end == 10
         assert "x" in scope.varibles
@@ -51,4 +53,4 @@ class TestSuggestionExpert:
 
     def test_mock_expert(self):
         expert = MockSuggestionExpert()
-        assert expert.get_languange_exts() == ['mock']
+        assert expert.get_languange_exts() == ["mock"]

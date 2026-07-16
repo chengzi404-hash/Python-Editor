@@ -8,38 +8,38 @@ class UWebError(Exception):
     default_message = "Internal server error"
 
 
-class Http404(UWebError):
+class Http404Error(UWebError):
     status_code = 404
     default_message = "Not found"
 
 
-class Http405(UWebError):
+class Http405Error(UWebError):
     status_code = 405
     default_message = "Method not allowed"
 
 
-class Http400(UWebError):
+class Http400Error(UWebError):
     status_code = 400
     default_message = "Bad request"
 
 
-class Http403(UWebError):
+class Http403Error(UWebError):
     status_code = 403
     default_message = "Forbidden"
 
 
-class Http500(UWebError):
+class Http500Error(UWebError):
     status_code = 500
     default_message = "Server error"
 
 
-class ImproperlyConfigured(UWebError):
+class ImproperlyConfiguredError(UWebError):
     """Raised when the application is misconfigured."""
 
     default_message = "Improperly configured"
 
 
-class AppRegistryNotReady(UWebError):
+class AppRegistryNotReadyError(UWebError):
     """Raised when apps are accessed before the registry is ready."""
 
     default_message = "Apps are not loaded yet"

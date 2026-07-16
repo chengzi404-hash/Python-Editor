@@ -24,7 +24,7 @@ class TestPythonSuggestionExpert:
     def test_get_language_exts(self):
         expert = PythonSuggestionExpert()
         exts = expert.get_languange_exts()
-        assert 'py' in exts
+        assert "py" in exts
 
     def test_suggest_empty_code(self):
         expert = PythonSuggestionExpert()

@@ -3,7 +3,7 @@
 from typing import Any
 
 from .app import get_application
-from .exceptions import ImproperlyConfigured
+from .exceptions import ImproperlyConfiguredError
 
 
 def make_server(
@@ -54,7 +54,7 @@ def serve(
     try:
         from waitress import serve as _waitress_serve
     except ImportError as exc:
-        raise ImproperlyConfigured(
+        raise ImproperlyConfiguredError(
             "waitress is required for `web serve`; install via `pip install waitress`"
         ) from exc
     app = get_application(settings).wsgi()

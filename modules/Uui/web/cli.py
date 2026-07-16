@@ -563,9 +563,9 @@ def cmd_bench(args: argparse.Namespace) -> int:
         for u in urls[:5]:
             urllib.request.urlopen(u).read()
 
-        N = args.requests
+        n = args.requests
         timings = []
-        for i in range(N):
+        for i in range(n):
             u = urls[i % len(urls)]
             t0 = time.perf_counter()
             urllib.request.urlopen(u).read()
@@ -577,7 +577,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
         rps = 1000.0 / mean
         uui_mean = mean
         print(
-            f"  Uui.web:  N={N}  mean={mean:.3f}ms  p50={p50:.3f}ms  p99={p99:.3f}ms  rps={rps:.0f}"
+            f"  Uui.web:  N={n}  mean={mean:.3f}ms  p50={p50:.3f}ms  p99={p99:.3f}ms  rps={rps:.0f}"
         )
     finally:
         srv.shutdown()
@@ -612,7 +612,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
             for u in urls2[:5]:
                 urllib.request.urlopen(u).read()
             timings = []
-            for i in range(N):
+            for i in range(n):
                 u = urls2[i % len(urls2)]
                 t0 = time.perf_counter()
                 urllib.request.urlopen(u).read()
@@ -623,7 +623,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
             p99 = timings[int(len(timings) * 0.99)]
             rps = 1000.0 / mean
             print(
-                f"  Flask:    N={N}  mean={mean:.3f}ms  p50={p50:.3f}ms  p99={p99:.3f}ms  rps={rps:.0f}"
+                f"  Flask:    N={n}  mean={mean:.3f}ms  p50={p50:.3f}ms  p99={p99:.3f}ms  rps={rps:.0f}"
             )
             ratio = uui_mean / mean
             verdict = "PASS" if ratio < 0.6 else "INFO"
@@ -634,7 +634,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
     return 0
 
 
-def _bench_flask(N: int) -> int:
+def _bench_flask(n: int) -> int:
     try:
         from flask import Flask, Response
     except ImportError:
@@ -671,7 +671,7 @@ def _bench_flask(N: int) -> int:
             urllib.request.urlopen(u).read()
 
         timings = []
-        for i in range(N):
+        for i in range(n):
             u = urls[i % len(urls)]
             t0 = time.perf_counter()
             urllib.request.urlopen(u).read()
@@ -682,7 +682,7 @@ def _bench_flask(N: int) -> int:
         p99 = timings[int(len(timings) * 0.99)]
         rps = 1000.0 / mean
         print(
-            f"  Flask:    N={N}  mean={mean:.3f}ms  p50={p50:.3f}ms  p99={p99:.3f}ms  rps={rps:.0f}"
+            f"  Flask:    N={n}  mean={mean:.3f}ms  p50={p50:.3f}ms  p99={p99:.3f}ms  rps={rps:.0f}"
         )
     finally:
         srv.shutdown()

@@ -18,6 +18,7 @@ class TestProjectSettings:
     def test_scope(self, temp_dir):
         settings = ProjectSettings(root=temp_dir, auto_load=False)
         from modules.settings.base import SettingsScope
+
         assert settings.scope == SettingsScope.PROJECT
 
     def test_default_project_path(self, temp_dir):

@@ -102,9 +102,9 @@ class QuerySet:
         clone = self.filter(**kwargs)
         rows = clone._fetch()
         if not rows:
-            from ..exceptions import Http404
+            from ..exceptions import Http404Error
 
-            raise Http404(f"{self._model.__name__} matching query does not exist")
+            raise Http404Error(f"{self._model.__name__} matching query does not exist")
         if len(rows) > 1:
             raise ValueError(f"get() returned {len(rows)} rows; expected 1")
         return rows[0]

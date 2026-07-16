@@ -7,7 +7,7 @@ from collections.abc import Iterable, Iterator
 from http.client import responses as _status_text
 from typing import Any
 
-from .exceptions import ImproperlyConfigured
+from .exceptions import ImproperlyConfiguredError
 
 _STATUS_TEXT = _status_text
 
@@ -157,9 +157,9 @@ def file(
     attachment_name: str | None = None,
 ) -> UResponse:
     if not os.path.isfile(path):
-        from .exceptions import Http404
+        from .exceptions import Http404Error
 
-        raise Http404(f"No such file: {path}")
+        raise Http404Error(f"No such file: {path}")
     ctype, _ = mimetypes.guess_type(path)
     ctype = ctype or "application/octet-stream"
 
@@ -233,7 +233,7 @@ def _settings_from_request() -> Any:
 
     if _GLOBAL_APP is not None:
         return _GLOBAL_APP.settings
-    raise ImproperlyConfigured(
+    raise ImproperlyConfiguredError(
         "render() needs a UWSGIApp context. Set Uui.web.app._GLOBAL_APP or pass request.settings."
     )
 
@@ -246,7 +246,7 @@ def _get_template_backend(settings: Any) -> Any:
     backends = getattr(settings, "TEMPLATES", None) or _tpl.DEFAULT_TEMPLATES
     cfg = backends[0] if backends else None
     if cfg is None:
-        raise ImproperlyConfigured("No TEMPLATES configured")
+        raise ImproperlyConfiguredError("No TEMPLATES configured")
     backend_path = cfg.get("BACKEND", "Uui.web.templates.Jinja2Backend")
     if backend_path not in _tpl._BACKEND_CACHE:
         mod_path, _, attr = backend_path.rpartition(".")

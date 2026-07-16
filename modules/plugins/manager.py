@@ -167,10 +167,8 @@ class PluginManager(PluginHostAPI):
             if not os.path.isdir(sub):
                 continue
             init_py = os.path.join(sub, "__init__.py")
-            if not os.path.isfile(init_py):
-                # Also compatible with manifest.py + plugin.py style, see _load_module
-                if not os.path.isfile(os.path.join(sub, "plugin.py")):
-                    continue
+            if not os.path.isfile(init_py) and not os.path.isfile(os.path.join(sub, "plugin.py")):
+                continue
             out.append(
                 DiscoveredPlugin(
                     manifest=self._peek_manifest(sub),
@@ -309,14 +307,12 @@ class PluginManager(PluginHostAPI):
         editor = self._editor
         if editor is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             editor._settings.set(
                 editor._settings.global_settings.scope,  # type: ignore[attr-defined]
                 f"plugins.{plugin_id}.enabled",
                 enabled,
             )
-        except Exception:
-            pass
 
     # ------------------------------------------------------------------
     # Load / Unload individual plugin
@@ -431,14 +427,10 @@ class PluginManager(PluginHostAPI):
                 if getattr(cmd, "plugin_id", None) == record.manifest.id:
                     self._shortcuts.pop(sc, None)
         # Commands: let editor rebuild menu
-        try:
+        with contextlib.suppress(Exception):
             editor._refresh_plugin_menu()  # type: ignore[attr-defined]
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             editor._refresh_plugin_languages()  # type: ignore[attr-defined]
-        except Exception:
-            pass
 
     def _unload_one(self, plugin_id: str) -> None:
         with self._lock:
@@ -548,18 +540,14 @@ class PluginManager(PluginHostAPI):
                     )
                 else:
                     self._shortcuts[cmd.shortcut] = cmd
-                    try:
+                    with contextlib.suppress(Exception):
                         editor.window.bind(  # type: ignore[attr-defined]
                             self._tk_shortcut(cmd.shortcut),
                             lambda e, c=cmd: self._safe_invoke(c),
                             add="+",
                         )
-                    except Exception:
-                        pass
-        try:
+        with contextlib.suppress(Exception):
             editor._add_plugin_command(record, cmd)  # type: ignore[attr-defined]
-        except Exception:
-            pass
 
     def register_language(self, plugin_id: str, contrib: LanguageContribution) -> None:
         with self._lock:
@@ -575,28 +563,22 @@ class PluginManager(PluginHostAPI):
         editor = self._editor
         if editor is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             editor._add_plugin_language(plugin_id, contrib)  # type: ignore[attr-defined]
-        except Exception:
-            pass
 
     def _install_language(self, record: _PluginRecord, contrib: LanguageContribution) -> None:
         editor = self._editor
         if editor is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             editor._add_plugin_language(record.manifest.id, contrib)  # type: ignore[attr-defined]
-        except Exception:
-            pass
 
     def append_output(self, text: str) -> None:
         editor = self._editor
         if editor is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             editor._append_output(text)  # type: ignore[attr-defined]
-        except Exception:
-            pass
 
     def setting(self, key: str, default: Any = None) -> Any:
         editor = self._editor
@@ -611,14 +593,12 @@ class PluginManager(PluginHostAPI):
         editor = self._editor
         if editor is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             editor._settings.set(  # type: ignore[attr-defined]
                 editor._settings.global_settings.scope,  # type: ignore[attr-defined]
                 key,
                 value,
             )
-        except Exception:
-            pass
 
     # ------------------------------------------------------------------
     # Event dispatch

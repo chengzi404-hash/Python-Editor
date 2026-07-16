@@ -172,7 +172,7 @@ class TabBar(tk.Frame):
             self._canvas.create_text(
                 close_x,
                 close_y,
-                text="×",
+                text="x",
                 fill=str(theme.FG_TERTIARY),
                 font=("Segoe UI", 10, "bold"),
                 tags=("tab", f"close_{tab_id}"),

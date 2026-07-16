@@ -20,6 +20,7 @@ class TestGlobalSettings:
     def test_scope(self):
         settings = GlobalSettings(auto_load=False)
         from modules.settings.base import SettingsScope
+
         assert settings.scope == SettingsScope.GLOBAL
 
     def test_get_default_value(self):

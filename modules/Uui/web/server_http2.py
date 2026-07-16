@@ -42,12 +42,12 @@ except ImportError:  # pragma: no cover
 
 import contextlib
 
-from .exceptions import ImproperlyConfigured
+from .exceptions import ImproperlyConfiguredError
 
 
 def _h2_config(settings: Any) -> "h2.config.H2Configuration":
     if not H2_AVAILABLE:
-        raise ImproperlyConfigured(
+        raise ImproperlyConfiguredError(
             "HTTP/2 requires the `h2` package; install with `pip install h2 hpack hyperframe`"
         )
     return h2.config.H2Configuration(
@@ -350,7 +350,7 @@ class _H2Connection:
         elif isinstance(event, h2.events.PingReceived):
             pass
         elif isinstance(event, h2.events.ConnectionTerminated):
-            raise _H2Closed()
+            raise _H2ClosedError()
 
     def _on_headers(self, event: "h2.events.RequestReceived") -> None:
         stream = _H2Stream(event.stream_id)
@@ -422,7 +422,7 @@ class _H2Connection:
                     )
                 ):
                     break
-        except _H2Closed:
+        except _H2ClosedError:
             pass
         except (ConnectionResetError, BrokenPipeError, OSError):
             pass
@@ -443,7 +443,7 @@ class _H2Connection:
                 self.sock.close()
 
 
-class _H2Closed(Exception):
+class _H2ClosedError(Exception):
     pass
 
 

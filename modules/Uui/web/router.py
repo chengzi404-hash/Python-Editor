@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from .exceptions import Http404, ImproperlyConfigured
+from .exceptions import Http404Error, ImproperlyConfiguredError
 
 PathConverter = tuple[str, Callable[[str], Any]]
 
@@ -35,14 +35,14 @@ def _compile_pattern(pattern: str) -> tuple[Any, list[str], dict[str, Callable[[
         if ch == "<":
             end = pattern.find(">", i)
             if end == -1:
-                raise ImproperlyConfigured(f"Unterminated converter in {pattern!r}")
+                raise ImproperlyConfiguredError(f"Unterminated converter in {pattern!r}")
             inner = pattern[i + 1 : end]
             if ":" in inner:
                 cname, pname = inner.split(":", 1)
             else:
                 cname, pname = "str", inner
             if cname not in CONVERTERS:
-                raise ImproperlyConfigured(f"Unknown converter {cname!r}")
+                raise ImproperlyConfiguredError(f"Unknown converter {cname!r}")
             regex_part, parser = CONVERTERS[cname]
             parts.append(f"(?P<{pname}>{regex_part})")
             param_names.append(pname)
@@ -141,7 +141,7 @@ class URLRouter:
             self._include_routes.append((r.module, sub))
             return
         if not isinstance(r, Route):
-            raise ImproperlyConfigured(
+            raise ImproperlyConfiguredError(
                 f"urlconf item must be Route or Include, got {type(r).__name__}"
             )
         compiled, params, converters = _compile_pattern(r.pattern)
@@ -160,7 +160,7 @@ class URLRouter:
             path = "/" + path
         if self.prefix:
             if not path.startswith(self.prefix + "/") and path != self.prefix:
-                raise Http404(f"{path!r} not under prefix {self.prefix!r}")
+                raise Http404Error(f"{path!r} not under prefix {self.prefix!r}")
             sub_path = path[len(self.prefix) :] or "/"
         else:
             sub_path = path
@@ -190,10 +190,10 @@ class URLRouter:
         for _module_name, sub in self._include_routes:
             try:
                 return sub.resolve(path)
-            except Http404:
+            except Http404Error:
                 continue
 
-        raise Http404(f"No route matches {path!r}")
+        raise Http404Error(f"No route matches {path!r}")
 
 
 _INCLUDE_CACHE: dict[str, "URLRouter"] = {}
@@ -208,10 +208,10 @@ def _load_include(include: Include, *, prefix: str, namespace: str | None) -> "U
     try:
         module = importlib.import_module(include.module)
     except ImportError as exc:
-        raise ImproperlyConfigured(f"Could not import URLconf '{include.module}': {exc}")
+        raise ImproperlyConfiguredError(f"Could not import URLconf '{include.module}': {exc}")
     urlpatterns = getattr(module, "urlpatterns", None)
     if urlpatterns is None:
-        raise ImproperlyConfigured(f"Module '{include.module}' has no urlpatterns")
+        raise ImproperlyConfiguredError(f"Module '{include.module}' has no urlpatterns")
     sub = URLRouter(urlpatterns, prefix=prefix, namespace=namespace)
     _INCLUDE_CACHE[key] = sub
     return sub

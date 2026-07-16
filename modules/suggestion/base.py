@@ -15,7 +15,7 @@ class DOMScope:
     varibles: list
     functions: list
     classes: list
-    subDOM: "list[DOMScope]"
+    sub_dom: "list[DOMScope]"
 
 
 @dataclass

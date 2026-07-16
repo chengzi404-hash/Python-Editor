@@ -105,7 +105,7 @@ class UScrollBar(tk.Frame):
             frame_kw["height"] = width
         super().__init__(parent, **frame_kw)
         # Fixed Frame size: avoid pack propagation (pack_propagate defaults True) letting Canvas's
-        # default 1×1 requested size expand Frame, causing width/height to be ignored.
+        # default 1x1 requested size expand Frame, causing width/height to be ignored.
         self.pack_propagate(False)
 
         # --- Internal Canvas (drawing area) ---

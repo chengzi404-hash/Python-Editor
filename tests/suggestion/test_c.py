@@ -15,8 +15,8 @@ class TestCSuggestionExpert:
     def test_get_language_exts(self):
         expert = CSuggestionExpert()
         exts = expert.get_languange_exts()
-        assert 'c' in exts
-        assert 'h' in exts
+        assert "c" in exts
+        assert "h" in exts
 
     def test_suggest_empty_code(self):
         expert = CSuggestionExpert()
@@ -59,7 +59,7 @@ struct AnotherStruct {
         SuggestionBlock(code=code, position=0)
         classes = []
         for _, _, kind, name, _ in CSuggestionExpert._collect_entries(code):
-            if kind in ('class', 'typedef'):
+            if kind in ("class", "typedef"):
                 classes.append(name)
         assert "MyStruct" in classes
         assert "AnotherStruct" in classes
@@ -77,7 +77,7 @@ void another_function() {
         SuggestionBlock(code=code, position=0)
         functions = []
         for _, _, kind, name, _ in CSuggestionExpert._collect_entries(code):
-            if kind == 'function':
+            if kind == "function":
                 functions.append(name)
         assert "my_function" in functions
         assert "another_function" in functions

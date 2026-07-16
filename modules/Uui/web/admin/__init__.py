@@ -15,6 +15,13 @@ Quickstart::
 
 from . import views
 from .options import ModelAdmin
-from .site import AdminSite, AlreadyRegistered, NotRegistered, site
+from .site import AdminSite, AlreadyRegisteredError, NotRegisteredError, site
 
-__all__ = ["AdminSite", "AlreadyRegistered", "ModelAdmin", "NotRegistered", "site", "views"]
+__all__ = [
+    "AdminSite",
+    "AlreadyRegisteredError",
+    "ModelAdmin",
+    "NotRegisteredError",
+    "site",
+    "views",
+]

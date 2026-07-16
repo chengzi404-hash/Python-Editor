@@ -15,8 +15,8 @@ class TestCppSuggestionExpert:
     def test_get_language_exts(self):
         expert = CppSuggestionExpert()
         exts = expert.get_languange_exts()
-        assert 'cpp' in exts
-        assert 'hpp' in exts
+        assert "cpp" in exts
+        assert "hpp" in exts
 
     def test_suggest_empty_code(self):
         expert = CppSuggestionExpert()
@@ -50,7 +50,7 @@ class AnotherClass {
         SuggestionBlock(code=code, position=0)
         classes = []
         for _, _, kind, name, _ in CppSuggestionExpert._collect_entries(code):
-            if kind == 'class':
+            if kind == "class":
                 classes.append(name)
         assert "MyClass" in classes
         assert "AnotherClass" in classes
@@ -60,7 +60,7 @@ class AnotherClass {
         code = "int my_function() {}"
         SuggestionBlock(code=code, position=0)
         entries = CppSuggestionExpert._collect_entries(code)
-        function_entries = [name for _, _, kind, name, _ in entries if kind == 'function']
+        function_entries = [name for _, _, kind, name, _ in entries if kind == "function"]
         assert len(function_entries) >= 0
 
     def test_suggest_namespace(self):
@@ -73,6 +73,6 @@ namespace my_namespace {
         SuggestionBlock(code=code, position=0)
         classes = []
         for _, _, kind, name, _ in CppSuggestionExpert._collect_entries(code):
-            if kind == 'namespace':
+            if kind == "namespace":
                 classes.append(name)
         assert "my_namespace" in classes

@@ -1,11 +1,13 @@
+from typing import ClassVar
+
 from ._command import Command
 
 
 class Git(Command):
-    _option_aliases = {
+    _option_aliases: ClassVar[dict] = {
         "empty": "allow-empty",
     }
-    _required_args = {
+    _required_args: ClassVar[dict] = {
         "commit": ("message",),
     }
 

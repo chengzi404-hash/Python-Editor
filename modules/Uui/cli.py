@@ -340,7 +340,7 @@ def _prompt(question: str, default: str = "", *, required: bool = False, validat
     while True:
         try:
             raw = input(
-                "  " + _c(_C.YELLOW, "? ") + question + _c(_C.DIM, suffix) + _c(_C.YELLOW, " › ")
+                "  " + _c(_C.YELLOW, "? ") + question + _c(_C.DIM, suffix) + _c(_C.YELLOW, " > ")
             )
         except EOFError:
             return default
@@ -366,7 +366,7 @@ def _prompt_choice(question: str, choices: list, default=None, *, index_from: in
         default = choices[0]
     print("  " + _c(_C.YELLOW, "? ") + question)
     for i, choice in enumerate(choices, index_from):
-        marker = "›" if choice == default else " "
+        marker = ">" if choice == default else " "
         line = "     " + _c(_C.CYAN if choice == default else _C.GRAY, marker) + f" {i}) {choice}"
         print(line)
     while True:
@@ -375,7 +375,7 @@ def _prompt_choice(question: str, choices: list, default=None, *, index_from: in
                 "  "
                 + _c(_C.YELLOW, "  choice")
                 + _c(_C.DIM, f" [{default}]")
-                + _c(_C.YELLOW, " › ")
+                + _c(_C.YELLOW, " > ")
             )
         except EOFError:
             return default
@@ -402,7 +402,7 @@ def _prompt_yes_no(question: str, default: bool = True) -> bool:
                 + _c(_C.YELLOW, "? ")
                 + question
                 + _c(_C.DIM, f" {suffix}")
-                + _c(_C.YELLOW, " › ")
+                + _c(_C.YELLOW, " > ")
             )
         except EOFError:
             return default

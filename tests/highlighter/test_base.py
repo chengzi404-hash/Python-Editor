@@ -8,7 +8,7 @@ class MockHighlighter(HighlighterExpert):
         return block
 
     def get_languange_exts(self) -> list:
-        return ['mock']
+        return ["mock"]
 
 
 class TestHighlightToken:
@@ -39,7 +39,7 @@ class TestHighlighterExpert:
 
     def test_mock_highlighter(self):
         highlighter = MockHighlighter()
-        assert highlighter.get_languange_exts() == ['mock']
+        assert highlighter.get_languange_exts() == ["mock"]
         block = HighlightBlock(code="test")
         result = highlighter.highlight(block)
         assert result.code == "test"

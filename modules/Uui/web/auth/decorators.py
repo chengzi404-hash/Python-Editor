@@ -19,9 +19,9 @@ def login_required(view_func: Callable) -> Callable:
             if request.method == "GET":
                 next_url = request.full_path
                 return redirect(f"/login/?next={_q(next_url)}", status=302)
-            from ..exceptions import Http403
+            from ..exceptions import Http403Error
 
-            raise Http403("Authentication required")
+            raise Http403Error("Authentication required")
         return view_func(request, *args, **kwargs)
 
     return wrapper
@@ -35,13 +35,13 @@ def permission_required(perm: str) -> Callable:
         def wrapper(request, *args, **kwargs):
             user = getattr(request, "user", None)
             if user is None or not getattr(user, "is_authenticated", False):
-                from ..exceptions import Http403
+                from ..exceptions import Http403Error
 
-                raise Http403("Authentication required")
+                raise Http403Error("Authentication required")
             if not user.has_perm(perm):
-                from ..exceptions import Http403
+                from ..exceptions import Http403Error
 
-                raise Http403(f"Permission denied: {perm!r}")
+                raise Http403Error(f"Permission denied: {perm!r}")
             return view_func(request, *args, **kwargs)
 
         return wrapper
@@ -56,13 +56,13 @@ def staff_member_required(view_func: Callable) -> Callable:
     def wrapper(request, *args, **kwargs):
         user = getattr(request, "user", None)
         if user is None or not getattr(user, "is_authenticated", False):
-            from ..exceptions import Http403
+            from ..exceptions import Http403Error
 
-            raise Http403("Authentication required")
+            raise Http403Error("Authentication required")
         if not (getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)):
-            from ..exceptions import Http403
+            from ..exceptions import Http403Error
 
-            raise Http403("Staff access required")
+            raise Http403Error("Staff access required")
         return view_func(request, *args, **kwargs)
 
     return wrapper

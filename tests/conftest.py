@@ -36,7 +36,7 @@ def sample_c_file(temp_dir):
     """Create a sample C file for testing."""
     path = os.path.join(temp_dir, "sample.c")
     with open(path, "w", encoding="utf-8") as f:
-        f.write("#include <stdio.h>\n\nint main() {\n    printf(\"Hello\\n\");\n    return 0;\n}\n")
+        f.write('#include <stdio.h>\n\nint main() {\n    printf("Hello\\n");\n    return 0;\n}\n')
     return path
 
 
@@ -45,5 +45,7 @@ def sample_cpp_file(temp_dir):
     """Create a sample C++ file for testing."""
     path = os.path.join(temp_dir, "sample.cpp")
     with open(path, "w", encoding="utf-8") as f:
-        f.write("#include <iostream>\n\nint main() {\n    std::cout << \"Hello\" << std::endl;\n    return 0;\n}\n")
+        f.write(
+            '#include <iostream>\n\nint main() {\n    std::cout << "Hello" << std::endl;\n    return 0;\n}\n'
+        )
     return path

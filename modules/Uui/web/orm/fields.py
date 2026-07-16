@@ -180,7 +180,7 @@ class ForeignKey(Field):
 
     def __init__(self, to, on_delete: str = "CASCADE", **kwargs) -> None:
         kwargs.setdefault("null", False)
-        self.to = to if not isinstance(to, str) else to
+        self.to = to
         self.on_delete = on_delete
         super().__init__(**kwargs)
         self._related_name: str | None = None

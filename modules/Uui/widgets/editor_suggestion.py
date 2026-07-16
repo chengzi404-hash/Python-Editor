@@ -345,20 +345,14 @@ class UEditorSuggestion(tk.Toplevel):
             bg = theme.BLUE if selected else theme.BG_PANEL
             widgets, main_label, detail_label = self._row_widgets_map.get(row, ([row], None, None))
             for w in widgets:
-                try:
+                with contextlib.suppress(tk.TclError):
                     w.config(bg=bg)  # type: ignore
-                except tk.TclError:
-                    pass
             if main_label is not None:
-                try:
+                with contextlib.suppress(tk.TclError):
                     main_label.config(fg=theme.FG_PRIMARY)  # type: ignore
-                except tk.TclError:
-                    pass
             if detail_label is not None:
-                try:
+                with contextlib.suppress(tk.TclError):
                     detail_label.config(fg=theme.FG_PRIMARY if selected else theme.FG_SECONDARY)  # type: ignore
-                except tk.TclError:
-                    pass
         self._update_footer()
 
     def _update_footer(self) -> None:
@@ -420,20 +414,14 @@ class UEditorSuggestion(tk.Toplevel):
         for row in self._row_widgets:
             widgets, main_label, detail_label = self._row_widgets_map.get(row, ([row], None, None))
             for w in widgets:
-                try:
+                with contextlib.suppress(tk.TclError):
                     w.config(bg=theme.BG_PANEL)  # type: ignore
-                except tk.TclError:
-                    pass
             if main_label is not None:
-                try:
+                with contextlib.suppress(tk.TclError):
                     main_label.config(fg=theme.FG_PRIMARY)  # type: ignore
-                except tk.TclError:
-                    pass
             if detail_label is not None:
-                try:
+                with contextlib.suppress(tk.TclError):
                     detail_label.config(fg=theme.FG_SECONDARY)  # type: ignore
-                except tk.TclError:
-                    pass
         self._refresh_selection()
 
 

@@ -71,9 +71,9 @@ class ModelMeta(type):
 
         cls = super().__new__(mcs, name, bases, attrs)
         cls._meta = meta_dict  # type: ignore[attr-defined]
-        from .query import QuerySet as _QS
+        from .query import QuerySet
 
-        cls.objects = _QS(cls)  # type: ignore[arg-type,attr-defined]
+        cls.objects = QuerySet(cls)  # type: ignore[arg-type,attr-defined]
 
         model_path = f"{cls.__module__}.{name}"
         _models[model_path] = cls  # type: ignore[arg-type]

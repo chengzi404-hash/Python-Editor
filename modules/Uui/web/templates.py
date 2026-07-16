@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .exceptions import ImproperlyConfigured
+from .exceptions import ImproperlyConfiguredError
 
 _BACKEND_CACHE: dict[str, "TemplateBackend"] = {}
 
@@ -42,7 +42,7 @@ class Jinja2Backend(TemplateBackend):
         try:
             import jinja2
         except ImportError as exc:
-            raise ImproperlyConfigured(
+            raise ImproperlyConfiguredError(
                 "jinja2 is required for the default template backend; install via `pip install jinja2`"
             ) from exc
         self.jinja2 = jinja2
@@ -93,5 +93,5 @@ class Jinja2Backend(TemplateBackend):
         try:
             tmpl = self.env.get_template(template_name)
         except self.jinja2.TemplateNotFound:
-            raise ImproperlyConfigured(f"Template not found: {template_name}")
+            raise ImproperlyConfiguredError(f"Template not found: {template_name}")
         return tmpl.render(**context)

@@ -91,8 +91,10 @@ class TestTranslator:
     def test_add_listener(self):
         translator = Translator()
         calls = []
+
         def listener(lang):
             calls.append(lang)
+
         translator.add_listener(listener)
         translator.set_language("zh_CN")
         assert "zh_CN" in calls
@@ -100,8 +102,10 @@ class TestTranslator:
     def test_remove_listener(self):
         translator = Translator()
         calls = []
+
         def listener(lang):
             calls.append(lang)
+
         translator.add_listener(listener)
         translator.remove_listener(listener)
         translator.set_language("zh_CN")

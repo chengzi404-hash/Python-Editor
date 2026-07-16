@@ -3,7 +3,7 @@ import os
 import re
 
 from modules.data import suggestions_path
-from modules.highlighter.dom_cache import cache_exists, get_lib_dom
+from modules.highlighter.dom_cache import LibraryDOM, cache_exists, get_lib_dom
 from modules.i18n import get_translator
 
 from .base import DOMScope, SuggestionBlock, SuggestionExpert, SuggestionItem

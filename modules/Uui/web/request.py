@@ -94,7 +94,7 @@ class URequest:
         return self.headers.get(name.lower(), default)
 
     @property
-    def GET(self) -> dict[str, object]:
+    def get(self) -> dict[str, object]:
         return dict(parse_qs(self._environ.get("QUERY_STRING", ""), keep_blank_values=True))
 
     def query(self, key: str, default: str | None = None) -> str | None:
@@ -112,7 +112,7 @@ class URequest:
         return self._body
 
     @property
-    def POST(self) -> dict[str, object]:
+    def post(self) -> dict[str, object]:
         return self.form
 
     @property

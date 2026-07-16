@@ -11,7 +11,7 @@ class TestPythonHighlighter:
 
     def test_get_language_exts(self):
         expert = PythonHighlighterExpert()
-        assert 'py' in expert.get_languange_exts()
+        assert "py" in expert.get_languange_exts()
 
     def test_highlight_empty_string(self):
         expert = PythonHighlighterExpert()

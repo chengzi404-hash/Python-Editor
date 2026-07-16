@@ -33,7 +33,7 @@ class TestStreamCommand:
             [sys.executable, "-c", "print('hello')"],
             line_callback=on_line,
             done_callback=on_done,
-            timeout_s=5.0
+            timeout_s=5.0,
         )
 
         proc.wait(timeout=10)
@@ -57,7 +57,7 @@ class TestStreamCommand:
             [sys.executable, "-c", "import sys; sys.stderr.write('error\\n')"],
             line_callback=on_line,
             done_callback=on_done,
-            timeout_s=5.0
+            timeout_s=5.0,
         )
 
         proc.wait(timeout=10)
@@ -73,9 +73,7 @@ class TestStreamCommand:
             done_result.append(result)
 
         proc, thread = stream_command(
-            [sys.executable, "-c", "raise ValueError('test')"],
-            done_callback=on_done,
-            timeout_s=5.0
+            [sys.executable, "-c", "raise ValueError('test')"], done_callback=on_done, timeout_s=5.0
         )
 
         proc.wait(timeout=10)
@@ -93,7 +91,7 @@ class TestStreamCommand:
         proc, thread = stream_command(
             [sys.executable, "-c", "import time; time.sleep(10)"],
             done_callback=on_done,
-            timeout_s=1.0
+            timeout_s=1.0,
         )
 
         proc.wait(timeout=15)
@@ -119,8 +117,6 @@ class TestRunBlocking:
 
     def test_with_cwd(self, temp_dir):
         result = run_blocking(
-            [sys.executable, "-c", "import os; print(os.getcwd())"],
-            cwd=temp_dir,
-            timeout_s=5.0
+            [sys.executable, "-c", "import os; print(os.getcwd())"], cwd=temp_dir, timeout_s=5.0
         )
         assert result.returncode == 0

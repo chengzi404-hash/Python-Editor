@@ -269,19 +269,12 @@ _FUNC_PATTERN = re.compile(
 )
 
 _NAMESPACE_PATTERN = re.compile(
-    r"^[ \t]*"
-    r"namespace\s+"
-    r"([A-Za-z_][A-Za-z0-9_]*)"
-    r"(?:\s*\{)?",
+    r"^[ \t]*" r"namespace\s+" r"([A-Za-z_][A-Za-z0-9_]*)" r"(?:\s*\{)?",
     re.MULTILINE,
 )
 
 _ENUM_PATTERN = re.compile(
-    r"^[ \t]*"
-    r"enum\s+"
-    r"(?:class\s+)?"
-    r"([A-Za-z_][A-Za-z0-9_]*)"
-    r"(?:\s*\{)?",
+    r"^[ \t]*" r"enum\s+" r"(?:class\s+)?" r"([A-Za-z_][A-Za-z0-9_]*)" r"(?:\s*\{)?",
     re.MULTILINE,
 )
 

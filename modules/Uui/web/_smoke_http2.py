@@ -12,6 +12,7 @@ import socket
 import sys
 import threading
 import time
+from typing import ClassVar
 
 sys.path.insert(0, "D:/Code")
 
@@ -134,13 +135,13 @@ def main():
 
     class _Settings:
         DEBUG = False
-        ALLOWED_HOSTS = ["*"]
-        INSTALLED_APPS = []
+        ALLOWED_HOSTS: ClassVar[list] = ["*"]
+        INSTALLED_APPS: ClassVar[list] = []
         ROOT_URLCONF = None
-        TEMPLATES = [
+        TEMPLATES: ClassVar[list] = [
             {"BACKEND": "Uui.web.templates.Jinja2Backend", "DIRS": [], "APP_DIRS": "templates"}
         ]
-        DATABASES = {}
+        DATABASES: ClassVar[dict] = {}
         SECRET_KEY = "test"
         HTTP2_MAX_FRAME_SIZE = 16384
         HTTP2_MAX_CONCURRENT_STREAMS = 100

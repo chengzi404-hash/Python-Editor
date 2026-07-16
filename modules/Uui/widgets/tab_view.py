@@ -46,8 +46,8 @@ class UTabView(tk.Frame):
 
         for w in (btn, lbl):
             w.bind("<Button-1>", lambda e, tid=tab_id: self.select(tid))
-            w.bind("<Enter>", lambda e, b=btn, l=lbl: self._on_tab_enter(b, l))
-            w.bind("<Leave>", lambda e, b=btn, l=lbl: self._on_tab_leave(b, l, tab_id))
+            w.bind("<Enter>", lambda e, b=btn, lbl_arg=lbl: self._on_tab_enter(b, lbl_arg))
+            w.bind("<Leave>", lambda e, b=btn, lbl_arg=lbl: self._on_tab_leave(b, lbl_arg, tab_id))
 
         content_frame = tk.Frame(self._content, bg=theme.BG_PANEL)
         self._tabs[tab_id] = content_frame

@@ -13,12 +13,12 @@ The CLI lives in :mod:`Uui.web.cli`.
 
 from .app import UWSGIApp, get_application, get_settings
 from .exceptions import (
-    Http400,
-    Http403,
-    Http404,
-    Http405,
-    Http500,
-    ImproperlyConfigured,
+    Http400Error,
+    Http403Error,
+    Http404Error,
+    Http405Error,
+    Http500Error,
+    ImproperlyConfiguredError,
     UWebError,
 )
 from .request import URequest
@@ -35,12 +35,12 @@ from .response import (
 from .router import URLRouter, clear_url_caches, include, path
 
 __all__ = [
-    "Http400",
-    "Http403",
-    "Http404",
-    "Http405",
-    "Http500",
-    "ImproperlyConfigured",
+    "Http400Error",
+    "Http403Error",
+    "Http404Error",
+    "Http405Error",
+    "Http500Error",
+    "ImproperlyConfiguredError",
     "URLRouter",
     "URequest",
     "UResponse",

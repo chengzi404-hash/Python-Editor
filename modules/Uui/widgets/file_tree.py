@@ -200,9 +200,8 @@ class UFileTree(UFrame):
         files = []
         for e in entries:
             name = e.name
-            if name.startswith(".") and name not in (".gitignore", ".env"):
-                if e.is_dir():
-                    continue
+            if name.startswith(".") and name not in (".gitignore", ".env") and e.is_dir():
+                continue
             try:
                 is_dir = e.is_dir(follow_symlinks=False)
             except OSError:

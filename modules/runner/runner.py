@@ -104,11 +104,8 @@ def stream_command(
                     pass
                 return
             for line in stream:
-                try:
+                with contextlib.suppress(Exception):
                     line_callback(name, line)
-                except Exception:
-                    # Listener exception should not affect subsequent line delivery; nor kill the thread.
-                    pass
         except (ValueError, OSError):
             # When process externally closes the stream, iter raises ValueError; treat as end.
             pass

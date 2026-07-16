@@ -9,6 +9,7 @@ import os
 import sys
 import threading
 from enum import IntEnum
+from typing import ClassVar
 
 
 class LogLevel(IntEnum):
@@ -96,7 +97,7 @@ class _Handler(logging.Handler):
 class Logger:
     """Unified log wrapper: writes to file + console + in-memory ring buffer simultaneously."""
 
-    _instances: dict[str, Logger] = {}
+    _instances: ClassVar[dict[str, Logger]] = {}
 
     def __init__(self, name: str):
         self.name = name

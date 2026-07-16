@@ -222,11 +222,8 @@ class LineNumberCanvas(tk.Frame):
         self._redraw()
 
     def _redraw(self) -> None:
-        try:
+        with contextlib.suppress(tk.TclError):
             self._do_redraw()
-        except tk.TclError:
-            # Widget destroyed; common during window close event residuals.
-            pass
 
     def _do_redraw(self) -> None:
         text = self._text
@@ -393,7 +390,7 @@ def font_metrics(font) -> tuple:
         char_w = max(4, int(fnt.measure("0")))
         line_h = max(10, int(fnt.metrics("linespace")))
     except Exception:
-        # Fallback: assume 10pt monospace ≈ 6 × 13 pixels
+        # Fallback: assume 10pt monospace ≈ 6 x 13 pixels
         try:
             size = int(font[1]) if isinstance(font, tuple) and len(font) >= 2 else 10
         except Exception:

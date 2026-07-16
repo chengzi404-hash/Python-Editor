@@ -5,7 +5,7 @@ import os
 from collections.abc import Callable, Mapping
 from typing import Any, Optional
 
-from .exceptions import Http400, Http403, Http404, ImproperlyConfigured
+from .exceptions import Http400Error, Http403Error, Http404Error, ImproperlyConfiguredError
 from .request import URequest
 from .response import UResponse, error
 from .router import URLRouter, clear_url_caches
@@ -20,7 +20,7 @@ def get_settings(module_path: str | None = None) -> Any:
     if module_path is None:
         module_path = os.environ.get("UUI_SETTINGS")
     if module_path is None:
-        raise ImproperlyConfigured(
+        raise ImproperlyConfiguredError(
             'UUI_SETTINGS env var must be set to a settings module (e.g. "config")'
         )
     if module_path in _SETTINGS_CACHE:
@@ -28,7 +28,7 @@ def get_settings(module_path: str | None = None) -> Any:
     try:
         mod = importlib.import_module(module_path)
     except ImportError as exc:
-        raise ImproperlyConfigured(f"Could not import settings '{module_path}': {exc}")
+        raise ImproperlyConfiguredError(f"Could not import settings '{module_path}': {exc}")
     _SETTINGS_CACHE[module_path] = mod
     return mod
 
@@ -66,12 +66,12 @@ class UWSGIApp:
     def _init_router(self) -> None:
         urlconf = getattr(self.settings, "ROOT_URLCONF", None)
         if not urlconf:
-            raise ImproperlyConfigured("settings.ROOT_URLCONF must be set")
+            raise ImproperlyConfiguredError("settings.ROOT_URLCONF must be set")
         clear_url_caches()
         module = importlib.import_module(urlconf)
         urlpatterns = getattr(module, "urlpatterns", None)
         if urlpatterns is None:
-            raise ImproperlyConfigured(f"URLconf '{urlconf}' has no urlpatterns")
+            raise ImproperlyConfiguredError(f"URLconf '{urlconf}' has no urlpatterns")
         self._router = URLRouter(urlpatterns)
 
     def add_middleware(self, mw_class: Callable) -> None:
@@ -83,18 +83,18 @@ class UWSGIApp:
         try:
             request = URequest(environ)
             return self._handle(request, start_response)
-        except Http404 as exc:
+        except Http404Error as exc:
             return self._handle_404(exc, start_response)
-        except Http403 as exc:
+        except Http403Error as exc:
             return _respond(start_response, error(403, str(exc)))
-        except Http400 as exc:
+        except Http400Error as exc:
             return _respond(start_response, error(400, str(exc)))
         except Exception as exc:
             return self._handle_exception(exc, start_response)
 
     def _handle(self, request: URequest, start_response: Callable) -> list[bytes]:
         if self._router is None:
-            raise ImproperlyConfigured("Router not initialised")
+            raise ImproperlyConfiguredError("Router not initialised")
         view, kwargs, _ns = self._router.resolve(request.path)
         result = view(request, **kwargs)
         if isinstance(result, UResponse):
@@ -105,7 +105,7 @@ class UWSGIApp:
             return _respond(start_response, UResponse(bytes(result)))
         if hasattr(result, "__iter__"):
             return _respond(start_response, UResponse(result))
-        raise ImproperlyConfigured(f"View returned unexpected type: {type(result).__name__}")
+        raise ImproperlyConfiguredError(f"View returned unexpected type: {type(result).__name__}")
 
     def _handle_exception(self, exc: Exception, start_response: Callable) -> list[bytes]:
         if getattr(self.settings, "DEBUG", False):
@@ -113,7 +113,7 @@ class UWSGIApp:
             return _respond(start_response, _debug_error(exc, tb))
         return _respond(start_response, error(500, str(exc)))
 
-    def _handle_404(self, exc: Http404, start_response: Callable) -> list[bytes]:
+    def _handle_404(self, exc: Http404Error, start_response: Callable) -> list[bytes]:
         if getattr(self.settings, "DEBUG", False):
             return _respond(start_response, error(404, str(exc)))
         try:
@@ -150,7 +150,7 @@ def _import(path: str) -> Any:
         module = importlib.import_module(module_path)
         return getattr(module, attr)
     except Exception as exc:
-        raise ImproperlyConfigured(f"Could not import '{path}': {exc}")
+        raise ImproperlyConfiguredError(f"Could not import '{path}': {exc}")
 
 
 def _respond(start_response: Callable, response: UResponse) -> list[bytes]:

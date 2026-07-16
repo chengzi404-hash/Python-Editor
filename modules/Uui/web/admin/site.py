@@ -5,11 +5,11 @@ from typing import Any
 from .options import ModelAdmin
 
 
-class AlreadyRegistered(Exception):
+class AlreadyRegisteredError(Exception):
     pass
 
 
-class NotRegistered(Exception):
+class NotRegisteredError(Exception):
     pass
 
 
@@ -24,7 +24,7 @@ class AdminSite:
     def register(self, model: type, admin_class: type | None = None) -> None:
         admin_class = admin_class or ModelAdmin
         if model in self._registry:
-            raise AlreadyRegistered(f"{model.__name__} is already registered")
+            raise AlreadyRegisteredError(f"{model.__name__} is already registered")
         if not issubclass(model, __import__("Uui.web.orm", fromlist=["Model"]).Model):
             raise TypeError(f"{model.__name__} is not a Model")
         instance = admin_class(model, self)
@@ -32,7 +32,7 @@ class AdminSite:
 
     def unregister(self, model: type) -> None:
         if model not in self._registry:
-            raise NotRegistered(f"{model.__name__} is not registered")
+            raise NotRegisteredError(f"{model.__name__} is not registered")
         del self._registry[model]
 
     def is_registered(self, model: type) -> bool:
