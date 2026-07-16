@@ -1,33 +1,34 @@
-"""``modules.plugins.manager`` — 插件加载/卸载/事件分发。
+"""``modules.plugins.manager`` — Plugin loading/unloading/event dispatch.
 
-主要职责
-========
+Main responsibilities
+====================
 
-* :class:`PluginManager` 持有所有已加载插件 + 钩子订阅 + 命令 + 语言贡献。
-* ``discover_*`` 系列方法扫描磁盘上的插件目录, 生成候选列表。
-* ``load_all`` / ``unload_all`` / ``load_project`` 控制激活生命周期。
-* :meth:`emit` 把钩子事件分发给所有订阅者, 单个回调异常被吞掉并 log。
+* :class:`PluginManager` holds all loaded plugins + hook subscriptions + commands + language contributions.
+* ``discover_*`` methods scan plugin directories on disk, generating candidate lists.
+* ``load_all`` / ``unload_all`` / ``load_project`` control the activation lifecycle.
+* :meth:`emit` dispatches hook events to all subscribers; single callback exceptions are swallowed and logged.
 
-作用域
-======
+Scope
+=====
 
-* ``scope == "system"`` 的插件从全局插件目录加载, 编辑器启动即生效,
-  关闭前一直保留; 用户在插件管理窗口里**禁用**也只是不再触发事件,
-  命令/语言可选择是否一并清理。
-* ``scope == "global"`` 的插件默认也是从全局插件目录加载, 但
-  ``load_project(root)`` 会把项目级 ``<root>/plugins/`` 目录里的
-  ``"global"`` 插件按需加载, 切项目时由 ``unload_project`` 清掉。
+* Plugins with ``scope == "system"`` are loaded from the global plugin directory, take effect on editor startup,
+  and persist until shutdown; users **disabling** in the plugin manager window only stops event triggering,
+  commands/languages can optionally be cleaned up.
+* Plugins with ``scope == "global"`` are also loaded from the global plugin directory by default, but
+  ``load_project(root)`` loads ``"global"`` plugins from project-level ``<root>/plugins/`` on demand,
+  switched projects are cleared by ``unload_project``.
 
-启用 / 禁用
-===========
+Enable / Disable
+================
 
-每个插件在 settings.json 中有 ``plugins.<id>.enabled`` 键, 默认 True。
-``emit`` 时只调用 enabled 的订阅者; 命令注册时已经按 enabled 过滤。
-禁用时仅注销命令 / 语言, 插件对象保留以便重新启用时不用重新 import。
+Each plugin has ``plugins.<id>.enabled`` key in settings.json, default True.
+``emit`` only calls enabled subscribers; command registration is already filtered by enabled.
+Disabling only unregisters commands/languages; plugin object is retained so re-enabling doesn't require re-import.
 """
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import importlib.util
 import logging
@@ -54,20 +55,20 @@ _log = logging.getLogger("modules.plugins")
 
 @dataclass
 class _PluginRecord:
-    """一个已加载插件的运行时状态。"""
+    """Runtime state of a loaded plugin."""
 
     manifest: PluginManifest
     module: Any
     ctx: PluginContext
-    location: str  # 来自的目录, 用于在 UI 里展示
+    location: str  # directory of origin, for UI display
     scope: str  # "system" / "project"
     enabled: bool = True
-    error: str | None = None  # 加载/注册失败时记录, UI 显示
+    error: str | None = None  # recorded on load/register failure, for UI display
 
 
 @dataclass
 class DiscoveredPlugin:
-    """磁盘上发现但尚未加载的插件描述, 用于 UI 展示与按需 enable。"""
+    """Description of a plugin discovered on disk but not yet loaded, for UI display and on-demand enable."""
 
     manifest: PluginManifest
     location: str
@@ -75,11 +76,11 @@ class DiscoveredPlugin:
 
 
 class PluginManager(PluginHostAPI):
-    """插件管理器, 单例使用。
+    """Plugin manager, used as singleton.
 
-    构造时不需要 Tk, 但 :meth:`attach_editor` 之后命令才会真的渲染到菜单里。
-    大多数方法都是线程安全的 (内部用 ``self._lock`` 串行化关键操作);
-    钩子回调本身假设由 Tk 主线程调用 (与编辑器其它回调一致)。
+    Tk is not required at construction, but commands only actually render in the menu after :meth:`attach_editor`.
+    Most methods are thread-safe (internally use ``self._lock`` to serialize critical operations);
+    hook callbacks themselves are assumed to be called from the Tk main thread (same as other editor callbacks).
     """
 
     def __init__(
@@ -99,30 +100,31 @@ class PluginManager(PluginHostAPI):
         self._global_plugins_dir = global_plugins_dir or self._default_global_dir()
 
     # ------------------------------------------------------------------
-    # 默认路径
+    # Default paths
     # ------------------------------------------------------------------
 
     @staticmethod
     def _default_global_dir() -> str:
-        """默认全局插件目录: ``<config_root>/plugins/``。
+        """Default global plugin directory: ``<config_root>/plugins/``.
 
-        复用 settings 的路径策略, 保证与 settings.json 同根, 方便用户找。
+        Reuses settings path strategy, ensures same root as settings.json for easy user location.
         """
 
         from modules.settings.global_settings import default_global_path
+
         settings_path = default_global_path()
         base = os.path.dirname(settings_path)
         return os.path.join(base, "plugins")
 
     # ------------------------------------------------------------------
-    # 编辑器绑定 (延迟, 因为 PluginManager 在 CodeEditor.__init__ 中先构造)
+    # Editor binding (delayed, because PluginManager is constructed before CodeEditor.__init__)
     # ------------------------------------------------------------------
 
     def attach_editor(self, editor: Any) -> None:
-        """把 :class:`CodeEditor` 实例挂到 manager 上, 之后才能注册命令到菜单。
+        """Attach :class:`CodeEditor` instance to manager, only then can commands be registered to menu.
 
-        之所以延迟: :class:`CodeEditor` 在创建 :class:`PluginManager` 时
-        菜单栏还没建好, 等 ``_build_menubar()`` 之后再调一次更安全。
+        Reason for delay: :class:`CodeEditor` menu bar isn't built yet when :class:`PluginManager`
+        is created; safer to call again after ``_build_menubar()``.
         """
 
         with self._lock:
@@ -133,23 +135,23 @@ class PluginManager(PluginHostAPI):
             self._editor = None
 
     # ------------------------------------------------------------------
-    # 目录扫描
+    # Directory scanning
     # ------------------------------------------------------------------
 
     def discover_global(self) -> list[DiscoveredPlugin]:
-        """扫描全局插件目录, 返回发现列表 (不执行 import)。"""
+        """Scan global plugin directory, return discovery list (no import executed)."""
 
         return self._discover_dir(self._global_plugins_dir, scope="system")
 
     def discover_project(self, root: str) -> list[DiscoveredPlugin]:
-        """扫描项目级 ``<root>/plugins/`` 目录。"""
+        """Scan project-level ``<root>/plugins/`` directory."""
 
         if not root:
             return []
         return self._discover_dir(os.path.join(root, "plugins"), scope="project")
 
     def _discover_dir(self, directory: str, *, scope: str) -> list[DiscoveredPlugin]:
-        """通用目录扫描: 每个直接子目录视作一个插件 (有 ``__init__.py`` 才算)。"""
+        """Generic directory scan: each immediate subdirectory is treated as a plugin (only if it has ``__init__.py``)."""
 
         if not directory or not os.path.isdir(directory):
             return []
@@ -166,7 +168,7 @@ class PluginManager(PluginHostAPI):
                 continue
             init_py = os.path.join(sub, "__init__.py")
             if not os.path.isfile(init_py):
-                # 也兼容 manifest.py + plugin.py 风格, 见 _load_module
+                # Also compatible with manifest.py + plugin.py style, see _load_module
                 if not os.path.isfile(os.path.join(sub, "plugin.py")):
                     continue
             out.append(
@@ -180,50 +182,49 @@ class PluginManager(PluginHostAPI):
 
     @staticmethod
     def _peek_manifest(directory: str) -> PluginManifest:
-        """只读 manifest, 不执行 register。失败则返回一个占位 manifest。
+        """Read-only manifest, no register executed. Returns a placeholder manifest on failure.
 
-        占位 manifest 用目录名当 id, 保证 UI 仍能展示一个不可加载的插件,
-        让用户知道"这里有个插件但它坏了"。
+        Placeholder manifest uses directory name as id, ensures UI can still display a non-loadable plugin,
+        letting user know "there's a plugin here but it's broken".
         """
 
-        # _load_module 用了独立 spec, 这里也用临时 spec 避免污染 sys.modules
+        # _load_module uses independent spec, here also use temp spec to avoid polluting sys.modules
         spec = importlib.util.spec_from_file_location(
-            "_plugin_peek", os.path.join(directory, "__init__.py"),
+            "_plugin_peek",
+            os.path.join(directory, "__init__.py"),
         )
         if spec is None or spec.loader is None:
             return PluginManifest(
                 id=os.path.basename(directory),
                 name=os.path.basename(directory),
-                description="(无法读取 manifest)",
+                description="(cannot read manifest)",
             )
-        module = importlib.util.module_from_spec(spec)
+        module = importlib.module_from_spec(spec)
         try:
             spec.loader.exec_module(module)
         except Exception:
             return PluginManifest(
                 id=os.path.basename(directory),
                 name=os.path.basename(directory),
-                description="(无法读取 manifest)",
+                description="(cannot read manifest)",
             )
         manifest = getattr(module, "MANIFEST", None)
         if not isinstance(manifest, PluginManifest):
             return PluginManifest(
                 id=os.path.basename(directory),
                 name=os.path.basename(directory),
-                description="(MANIFEST 未定义或类型错误)",
+                description="(MANIFEST undefined or type error)",
             )
         return manifest
 
     # ------------------------------------------------------------------
-    # 加载 / 卸载
+    # Load / Unload
     # ------------------------------------------------------------------
 
     def load_global_plugins(self) -> None:
-        """扫描并加载全局插件目录中所有 enabled 的插件。"""
+        """Scan and load all enabled plugins in the global plugin directory."""
 
-        self._discovered = {
-            d.manifest.id: d for d in self.discover_global()
-        }
+        self._discovered = {d.manifest.id: d for d in self.discover_global()}
         for plugin_id, d in list(self._discovered.items()):
             if d.scope != "system":
                 continue
@@ -232,7 +233,7 @@ class PluginManager(PluginHostAPI):
             self._load_one(d)
 
     def load_project_plugins(self, root: str) -> None:
-        """附加项目时调用: 扫描 ``<root>/plugins/`` 并加载 enabled 的项目级插件。"""
+        """Called when attaching project: scan ``<root>/plugins/`` and load enabled project-level plugins."""
 
         with self._lock:
             self._project_root = root
@@ -242,12 +243,10 @@ class PluginManager(PluginHostAPI):
             self._load_one(d)
 
     def unload_project_plugins(self) -> None:
-        """卸载当前项目的所有项目级插件, 不动系统级插件。"""
+        """Unload all project-level plugins for current project, leave system-level plugins alone."""
 
         with self._lock:
-            project_ids = [
-                pid for pid, rec in self._plugins.items() if rec.scope == "project"
-            ]
+            project_ids = [pid for pid, rec in self._plugins.items() if rec.scope == "project"]
         for pid in project_ids:
             self._unload_one(pid)
         with self._lock:
@@ -260,7 +259,7 @@ class PluginManager(PluginHostAPI):
             self._unload_one(pid)
 
     def enable(self, plugin_id: str) -> None:
-        """启用一个**已发现但未启用**的插件。"""
+        """Enable a **discovered but not enabled** plugin."""
 
         with self._lock:
             discovered = self._discovered.get(plugin_id)
@@ -271,7 +270,7 @@ class PluginManager(PluginHostAPI):
         if record is None and discovered is not None:
             self._load_one(discovered)
         elif record is not None:
-            # 已加载过, 同步 record.enabled 标志 + 重新注册命令和语言
+            # Already loaded, sync record.enabled flag + re-register commands and languages
             record.enabled = True
             self._activate_record(record)
 
@@ -282,9 +281,9 @@ class PluginManager(PluginHostAPI):
             self._deactivate_record(record)
 
     def reload(self, plugin_id: str) -> None:
-        """重新加载插件 (重新 import + 重新调用 register)。
+        """Reload plugin (re-import + re-call register).
 
-        用于开发调试: 修改插件源码后无需重启编辑器。
+        For development debugging: no need to restart editor after modifying plugin source.
         """
 
         with self._lock:
@@ -294,12 +293,14 @@ class PluginManager(PluginHostAPI):
         location = record.location
         scope = record.scope
         self._unload_one(plugin_id)
-        # 清掉 sys.modules 里旧 module, 避免 importlib 命中缓存
+        # Clear old module from sys.modules, avoid importlib hitting cache
         for mod_name in list(sys.modules.keys()):
             if mod_name == plugin_id or mod_name.endswith(f".{plugin_id}"):
                 sys.modules.pop(mod_name, None)
         discovered = DiscoveredPlugin(
-            manifest=record.manifest, location=location, scope=scope,
+            manifest=record.manifest,
+            location=location,
+            scope=scope,
         )
         self._discovered[plugin_id] = discovered
         self._load_one(discovered)
@@ -318,11 +319,11 @@ class PluginManager(PluginHostAPI):
             pass
 
     # ------------------------------------------------------------------
-    # 单个插件的加载 / 卸载
+    # Load / Unload individual plugin
     # ------------------------------------------------------------------
 
     def _load_one(self, discovered: DiscoveredPlugin) -> None:
-        """执行 ``importlib`` + 调 ``register``, 失败时记录到 ``_plugins`` 的 error 字段."""
+        """Execute ``importlib`` + call ``register``, on failure record to ``_plugins`` error field."""
 
         with self._lock:
             if discovered.manifest.id in self._plugins:
@@ -351,9 +352,12 @@ class PluginManager(PluginHostAPI):
         enabled = True
         if editor is not None:
             try:
-                enabled = bool(editor._settings.effective(  # type: ignore[attr-defined]
-                    f"plugins.{manifest.id}.enabled", True,
-                ))
+                enabled = bool(
+                    editor._settings.effective(  # type: ignore[attr-defined]
+                        f"plugins.{manifest.id}.enabled",
+                        True,
+                    )
+                )
             except Exception:
                 enabled = True
 
@@ -380,45 +384,43 @@ class PluginManager(PluginHostAPI):
         try:
             register = getattr(module, "register", None)
             if not callable(register):
-                raise PluginLoadError(
-                    f"plugin {manifest.id!r} 缺少 register(ctx) 函数"
-                )
+                raise PluginLoadError(f"plugin {manifest.id!r} missing register(ctx) function")
             register(ctx)
         except Exception as exc:
             tb = traceback.format_exc(limit=3)
             _log.warning("plugin register failed: %s\n%s", exc, tb)
-            record.error = f"register 失败: {type(exc).__name__}: {exc}"
+            record.error = f"register failed: {type(exc).__name__}: {exc}"
             record.enabled = False
             return
 
-        # 命令 / 语言挂到 UI
+        # Commands / languages attached to UI
         self._activate_record(record)
 
     def _activate_record(self, record: _PluginRecord) -> None:
-        """把 record 里的命令 / 语言贡献同步到 UI。"""
+        """Sync commands / language contributions from record to UI."""
 
         editor = self._editor
         if editor is None:
             return
-        # 命令: 加到菜单
+        # Commands: add to menu
         with self._lock:
             commands = list(record.ctx._commands)
         for cmd in commands:
             self._install_command(record, cmd)
-        # 语言: 加到 LANG_CONFIG + 下拉框
+        # Languages: add to LANG_CONFIG + dropdown
         with self._lock:
             languages = list(record.ctx._languages)
         for lang in languages:
             self._install_language(record, lang)
 
     def _deactivate_record(self, record: _PluginRecord) -> None:
-        """移除命令 / 语言; 保留 ctx 与模块引用以便重新激活。"""
+        """Remove commands / languages; retain ctx and module references for reactivation."""
 
         editor = self._editor
         if editor is None:
             return
         with self._lock:
-            # 找出属于该 plugin_id 的命令/语言, 反向移除
+            # Find commands/languages belonging to this plugin_id, remove in reverse
             self._commands = [c for c in self._commands if c.plugin_id != record.manifest.id]
             self._languages = [
                 (pid, lc) for (pid, lc) in self._languages if pid != record.manifest.id
@@ -428,7 +430,7 @@ class PluginManager(PluginHostAPI):
                 cmd = self._shortcuts[sc]
                 if getattr(cmd, "plugin_id", None) == record.manifest.id:
                     self._shortcuts.pop(sc, None)
-        # 命令: 让 editor 重建菜单
+        # Commands: let editor rebuild menu
         try:
             editor._refresh_plugin_menu()  # type: ignore[attr-defined]
         except Exception:
@@ -443,25 +445,23 @@ class PluginManager(PluginHostAPI):
             record = self._plugins.pop(plugin_id, None)
         if record is None:
             return
-        # 先调 plugin 自己的 unregister 钩子 (如果有)
+        # First call plugin's own unregister hook (if any)
         for cb in record.ctx._unregister_callbacks:
-            try:
+            with contextlib.suppress(Exception):
                 cb()
-            except Exception:
-                pass
-        # 再清 UI
+        # Then clear UI
         self._deactivate_record(record)
-        # 清掉 sys.modules
+        # Clear sys.modules
         for mod_name in list(sys.modules.keys()):
             if mod_name == plugin_id or mod_name.endswith(f".{plugin_id}"):
                 sys.modules.pop(mod_name, None)
 
     @staticmethod
     def _import_module(directory: str, plugin_id: str) -> Any:
-        """从 ``directory`` 用 importlib 动态 import。
+        """Dynamically import from ``directory`` using importlib.
 
-        优先 ``__init__.py``, 否则 ``plugin.py``。模块名 = ``plugin_id``,
-        存进 ``sys.modules[plugin_id]`` 方便 ``from <plugin_id> import ...``。
+        Prefer ``__init__.py``, otherwise ``plugin.py``. Module name = ``plugin_id``,
+        stored in ``sys.modules[plugin_id]`` for convenience of ``from <plugin_id> import ...``.
         """
 
         init_py = os.path.join(directory, "__init__.py")
@@ -472,14 +472,14 @@ class PluginManager(PluginHostAPI):
             path = plugin_py
         else:
             raise PluginLoadError(
-                f"插件目录 {directory!r} 既没有 __init__.py 也没有 plugin.py"
+                f"plugin directory {directory!r} has neither __init__.py nor plugin.py"
             )
         spec = importlib.util.spec_from_file_location(plugin_id, path)
         if spec is None or spec.loader is None:
-            raise PluginLoadError(f"无法为 {path!r} 构造 importlib spec")
+            raise PluginLoadError(f"cannot construct importlib spec for {path!r}")
         module = importlib.util.module_from_spec(spec)
         sys.modules[plugin_id] = module
-        # 把插件目录加进 sys.path, 方便插件内 import 兄弟模块
+        # Add plugin directory to sys.path, convenient for plugin internal import of sibling modules
         parent = os.path.dirname(directory)
         added = False
         if parent not in sys.path:
@@ -489,10 +489,8 @@ class PluginManager(PluginHostAPI):
             spec.loader.exec_module(module)
         finally:
             if added:
-                try:
+                with contextlib.suppress(ValueError):
                     sys.path.remove(parent)
-                except ValueError:
-                    pass
         return module
 
     @staticmethod
@@ -500,15 +498,15 @@ class PluginManager(PluginHostAPI):
         manifest = getattr(module, "MANIFEST", None)
         if isinstance(manifest, PluginManifest):
             return manifest
-        # 没有 MANIFEST 时退化: 用目录名作 id + name
+        # Fallback when no MANIFEST: use directory name as id + name
         return PluginManifest(
             id=fallback.manifest.id or os.path.basename(fallback.location),
             name=fallback.manifest.name or os.path.basename(fallback.location),
-            description="(插件未声明 MANIFEST)",
+            description="(plugin did not declare MANIFEST)",
         )
 
     # ------------------------------------------------------------------
-    # PluginHostAPI — 供 PluginContext 调用
+    # PluginHostAPI — for PluginContext to call
     # ------------------------------------------------------------------
 
     def register_hook(self, sub: _HookSubscription) -> None:
@@ -516,20 +514,18 @@ class PluginManager(PluginHostAPI):
             self._hooks.append(sub)
 
     def register_command(self, cmd: Any) -> None:
-        """ctx.add_command 时调用: 校验冲突 + 写入 _commands + 安装到 editor。
+        """Called on ctx.add_command: check conflicts + write to _commands + install to editor.
 
-        ``_install_command`` 由编辑器菜单系统按 ``menu`` 分组渲染。
+        ``_install_command`` is rendered by editor menu system grouped by ``menu``.
         """
 
         with self._lock:
-            # 同 plugin 内重复 label 视为重复注册, 忽略
-            if any(
-                c.plugin_id == cmd.plugin_id and c.label == cmd.label
-                for c in self._commands
-            ):
+            # Duplicate label within same plugin is treated as duplicate registration, ignore
+            if any(c.plugin_id == cmd.plugin_id and c.label == cmd.label for c in self._commands):
                 _log.warning(
-                    "plugin %r 重复注册命令 %r, 已忽略",
-                    cmd.plugin_id, cmd.label,
+                    "plugin %r duplicate command registration %r, ignored",
+                    cmd.plugin_id,
+                    cmd.label,
                 )
                 return
             self._commands.append(cmd)
@@ -546,8 +542,9 @@ class PluginManager(PluginHostAPI):
             with self._lock:
                 if cmd.shortcut in self._shortcuts:
                     _log.warning(
-                        "plugin %r 的快捷键 %r 已被占用, 已忽略",
-                        cmd.plugin_id, cmd.shortcut,
+                        "plugin %r shortcut %r already taken, ignored",
+                        cmd.plugin_id,
+                        cmd.shortcut,
                     )
                 else:
                     self._shortcuts[cmd.shortcut] = cmd
@@ -566,11 +563,12 @@ class PluginManager(PluginHostAPI):
 
     def register_language(self, plugin_id: str, contrib: LanguageContribution) -> None:
         with self._lock:
-            # 同 plugin 重复注册同名语言 → 忽略
+            # Same plugin re-registering same language name → ignore
             if any(pid == plugin_id and c.name == contrib.name for pid, c in self._languages):
                 _log.warning(
-                    "plugin %r 重复注册语言 %r, 已忽略",
-                    plugin_id, contrib.name,
+                    "plugin %r duplicate language registration %r, ignored",
+                    plugin_id,
+                    contrib.name,
                 )
                 return
             self._languages.append((plugin_id, contrib))
@@ -616,20 +614,21 @@ class PluginManager(PluginHostAPI):
         try:
             editor._settings.set(  # type: ignore[attr-defined]
                 editor._settings.global_settings.scope,  # type: ignore[attr-defined]
-                key, value,
+                key,
+                value,
             )
         except Exception:
             pass
 
     # ------------------------------------------------------------------
-    # 事件分发
+    # Event dispatch
     # ------------------------------------------------------------------
 
     def emit(self, hook: str, *args: Any, **kwargs: Any) -> None:
-        """触发 ``hook``, 串行调用所有 enabled 插件的订阅者。
+        """Trigger ``hook``, call all enabled plugin subscribers serially.
 
-        抛异常的回调被吞掉, 但会 log error 到 output + logging,
-        避免单个坏插件拖垮整个事件链。
+        Callbacks that raise exceptions are swallowed, but errors are logged to output + logging,
+        preventing a single bad plugin from breaking the entire event chain.
         """
 
         with self._lock:
@@ -647,11 +646,14 @@ class PluginManager(PluginHostAPI):
             tb = traceback.format_exc(limit=3)
             _log.warning("plugin command failed: %s\n%s", exc, tb)
             self.append_output(
-                f"[ERROR] [{cmd.plugin_id}] 命令 {cmd.label!r} 执行失败: {exc}\n"
+                f"[ERROR] [{cmd.plugin_id}] command {cmd.label!r} execution failed: {exc}\n"
             )
 
     def _safe_invoke_handler(
-        self, sub: _HookSubscription, args: tuple, kwargs: dict,
+        self,
+        sub: _HookSubscription,
+        args: tuple,
+        kwargs: dict,
     ) -> None:
         try:
             sub.callback(*args, **kwargs)
@@ -659,11 +661,11 @@ class PluginManager(PluginHostAPI):
             tb = traceback.format_exc(limit=3)
             _log.warning("plugin hook %s failed: %s\n%s", sub.hook, exc, tb)
             self.append_output(
-                f"[ERROR] [{sub.plugin_id}] 钩子 {sub.hook!r} 回调失败: {exc}\n"
+                f"[ERROR] [{sub.plugin_id}] hook {sub.hook!r} callback failed: {exc}\n"
             )
 
     # ------------------------------------------------------------------
-    # 查询 API (供 UI 用)
+    # Query API (for UI use)
     # ------------------------------------------------------------------
 
     def list_loaded(self) -> list[_PluginRecord]:
@@ -684,7 +686,7 @@ class PluginManager(PluginHostAPI):
 
     @staticmethod
     def _tk_shortcut(spec: str) -> str:
-        """``Ctrl+Shift+H`` → ``<Control-Shift-H>`` (Tk 风格)。"""
+        """``Ctrl+Shift+H`` → ``<Control-Shift-H>`` (Tk style)."""
 
         parts = [p.strip() for p in spec.split("+") if p.strip()]
         if not parts:

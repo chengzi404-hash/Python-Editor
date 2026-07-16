@@ -1,10 +1,10 @@
-"""``modules.runner`` — 子进程执行与输出采集.
+"""``modules.runner`` — Subprocess execution and output collection.
 
-公开 API:
+Public API:
 
-* :class:`RunResult` —— 进程结束结果。
-* :func:`stream_command` —— 异步流式执行 + 行回调。
-* :func:`run_blocking` —— 同步 ``subprocess.run`` 包装, 在流式关闭时使用。
+* :class:`RunResult` — Process exit result.
+* :func:`stream_command` — Async streaming execution + line callback.
+* :func:`run_blocking` — Synchronous ``subprocess.run`` wrapper, used when streaming is disabled.
 """
 
 from .runner import RunResult, run_blocking, stream_command

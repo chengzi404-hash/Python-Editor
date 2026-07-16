@@ -1,17 +1,18 @@
-"""``modules.settings.storage`` — 基于 JSON 文件的设置持久化基类。
+"""``modules.settings.storage`` — JSON file-based settings persistence base class.
 
-为了避免 :class:`~modules.settings.global_settings.GlobalSettings` 和
-:class:`~modules.settings.project_settings.ProjectSettings` 在 json I/O 与线程安全
-方面重复实现，本文件提供了一个抽象基类 :class:`JsonFileSettings`。
+To avoid :class:`~modules.settings.global_settings.GlobalSettings` and
+:class:`~modules.settings.project_settings.ProjectSettings` duplicating implementations
+for json I/O and thread safety, this file provides an abstract base class :class:`JsonFileSettings`.
 
-* 数据存储为单个 JSON 对象 ``{"version": 1, "values": {...}}``。
-* 所有 IO 操作通过 :class:`threading.RLock` 串行化，支持跨线程安全使用。
-* :meth:`save` 写入临时文件再 ``os.replace``，避免半写状态被读到。
-* :meth:`load` 容忍磁盘缺失或格式错误（回退到默认值）。
+* Data is stored as a single JSON object ``{"version": 1, "values": {...}}``.
+* All IO operations are serialized via :class:`threading.RLock` for cross-thread safe usage.
+* :meth:`save` writes to a temporary file then ``os.replace`` to avoid reading half-written state.
+* :meth:`load` tolerates missing disk files or format errors (falls back to defaults).
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tempfile
@@ -29,9 +30,9 @@ CURRENT_VERSION = 1
 
 
 class JsonFileSettings(Settings):
-    """基于 JSON 文件的 :class:`Settings` 基类。
+    """JSON file-based :class:`Settings` base class.
 
-    子类只需要实现 :meth:`_resolve_path` 来告知"数据写到哪里"。
+    Subclasses only need to implement :meth:`_resolve_path` to tell "where to write data".
     """
 
     def __init__(
@@ -46,8 +47,8 @@ class JsonFileSettings(Settings):
         self._lock = threading.RLock()
         self._path: str | None = path
         self._values: dict[str, Any] = {}
-        # 旁路存储: 插件专属键 (plugins.<id>.*) 不走 schema 校验,
-        # 因为插件 id 是动态的、schema 注册时还未知。
+        # Bypass storage: plugin-specific keys (plugins.<id>.*) do not go through schema validation,
+        # because plugin IDs are dynamic and unknown at schema registration time.
         self._extras: dict[str, Any] = {}
 
         if self._path is not None and auto_load:
@@ -57,21 +58,19 @@ class JsonFileSettings(Settings):
                 self._values = {}
                 self._extras = {}
 
-
     def _resolve_path(self) -> str:
-        """子类必须返回当前应使用的 JSON 文件绝对路径。
+        """Subclass must return the absolute path of the JSON file to use.
 
-        当构造时显式传入了 ``path``，将直接使用该路径；
-        否则调用本方法懒加载解析（例如基于用户主目录 / 项目目录）。
+        When ``path`` is explicitly passed at construction, that path is used directly;
+        otherwise this method is called lazily (e.g., based on user home / project directory).
         """
 
         raise NotImplementedError(
-            "JsonFileSettings subclass must implement _resolve_path() "
-            "or pass path=... explicitly."
+            "JsonFileSettings subclass must implement _resolve_path() or pass path=... explicitly."
         )
 
     def _ensure_parent_dir(self, path: str) -> None:
-        """确保 ``path`` 的父目录存在。默认 ``os.makedirs(..., exist_ok=True)``。"""
+        """Ensure the parent directory of ``path`` exists. Default ``os.makedirs(..., exist_ok=True)``."""
 
         parent = os.path.dirname(path)
         if parent:
@@ -79,24 +78,22 @@ class JsonFileSettings(Settings):
 
     @property
     def path(self) -> str:
-        """返回当前文件路径（懒解析）。"""
+        """Return the current file path (lazily resolved)."""
 
         if self._path is None:
             self._path = self._resolve_path()
         return self._path
 
-
     def _raw_default(self, key: str) -> Any:
         spec = self.spec(key)
         return spec.default if spec is not None else None
 
-
     @staticmethod
     def _is_plugin_key(key: str) -> bool:
-        """判断 ``key`` 是否属于插件命名空间 (``plugins.<id>.*``)。
+        """Check whether ``key`` belongs to the plugin namespace (``plugins.<id>.*``).
 
-        该命名空间允许任意字符串 id, 不走 schema 校验, 由插件系统
-        自行保证值的合理性。
+        This namespace allows arbitrary string IDs, bypasses schema validation,
+        and relies on the plugin system to ensure value correctness.
         """
 
         if not isinstance(key, str) or not key:
@@ -114,8 +111,8 @@ class JsonFileSettings(Settings):
             return default
 
     def set(self, key: str, value: Any) -> None:
-        # 插件命名空间: 走 _extras 旁路, 不校验 schema, 但仍然发事件
-        # 让 PluginContext.set_setting 之外的监听者也能感知。
+        # Plugin namespace: goes through _extras bypass, no schema validation, but still fires events
+        # so listeners other than PluginContext.set_setting can also perceive changes.
         if self._is_plugin_key(key):
             with self._lock:
                 old = self._extras.get(key)
@@ -133,9 +130,7 @@ class JsonFileSettings(Settings):
 
         spec = self.spec(key)
         if spec is None:
-            raise KeyError(
-                f"unknown setting key in scope={self.scope.value!r}: {key!r}"
-            )
+            raise KeyError(f"unknown setting key in scope={self.scope.value!r}: {key!r}")
         coerced = spec.validate(value)
 
         with self._lock:
@@ -157,7 +152,7 @@ class JsonFileSettings(Settings):
             return key in self._values or key in self._extras
 
     def all(self) -> dict[str, Any]:
-        """所有键的当前值，缺失字段填充默认值。"""
+        """All keys' current values, missing fields filled with defaults."""
 
         with self._lock:
             result: dict[str, Any] = {}
@@ -202,7 +197,7 @@ class JsonFileSettings(Settings):
                 self._notify(event)
                 return
             if key not in self._values:
-                return  # 已经是默认状态,无需重置
+                return  # Already at default state, no need to reset
             old = self._values.pop(key)
             new = self._raw_default(key)
             event = SettingsChangeEvent(
@@ -212,7 +207,6 @@ class JsonFileSettings(Settings):
                 new=new,
             )
             self._notify(event)
-
 
     def save(self) -> None:
         path = self.path
@@ -233,16 +227,12 @@ class JsonFileSettings(Settings):
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False, indent=2)
                 f.flush()
-                try:
+                with contextlib.suppress(OSError, AttributeError):
                     os.fsync(f.fileno())
-                except (OSError, AttributeError):
-                    pass
             os.replace(tmp_path, path)
         except Exception:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
-            except OSError:
-                pass
             raise
 
     def load(self) -> None:

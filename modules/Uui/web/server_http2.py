@@ -13,6 +13,7 @@ The WSGI app itself is unchanged — the server adapts the HTTP/2 streams
 into WSGI environ dicts and translates the WSGI response back into
 HTTP/2 frames.
 """
+
 import socket
 import ssl
 import sys
@@ -34,64 +35,88 @@ try:
     import h2.connection
     import h2.events
     import h2.exceptions
+
     H2_AVAILABLE = True
 except ImportError:  # pragma: no cover
     H2_AVAILABLE = False
 
+import contextlib
+
 from .exceptions import ImproperlyConfigured
 
 
-def _h2_config(settings: Any) -> 'h2.config.H2Configuration':
+def _h2_config(settings: Any) -> "h2.config.H2Configuration":
     if not H2_AVAILABLE:
         raise ImproperlyConfigured(
-            'HTTP/2 requires the `h2` package; install with `pip install h2 hpack hyperframe`'
+            "HTTP/2 requires the `h2` package; install with `pip install h2 hpack hyperframe`"
         )
     return h2.config.H2Configuration(
         client_side=False,
-        header_encoding='utf-8',
+        header_encoding="utf-8",
     )
 
 
-
 _STATUS_REASONS = {
-    200: 'OK', 201: 'Created', 202: 'Accepted', 204: 'No Content',
-    301: 'Moved Permanently', 302: 'Found', 303: 'See Other',
-    304: 'Not Modified', 307: 'Temporary Redirect', 308: 'Permanent Redirect',
-    400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden',
-    404: 'Not Found', 405: 'Method Not Allowed', 408: 'Request Timeout',
-    409: 'Conflict', 410: 'Gone', 411: 'Length Required',
-    413: 'Payload Too Large', 414: 'URI Too Long',
-    418: "I'm a teapot", 422: 'Unprocessable Entity',
-    429: 'Too Many Requests', 500: 'Internal Server Error',
-    501: 'Not Implemented', 502: 'Bad Gateway', 503: 'Service Unavailable',
-    504: 'Gateway Timeout',
+    200: "OK",
+    201: "Created",
+    202: "Accepted",
+    204: "No Content",
+    301: "Moved Permanently",
+    302: "Found",
+    303: "See Other",
+    304: "Not Modified",
+    307: "Temporary Redirect",
+    308: "Permanent Redirect",
+    400: "Bad Request",
+    401: "Unauthorized",
+    403: "Forbidden",
+    404: "Not Found",
+    405: "Method Not Allowed",
+    408: "Request Timeout",
+    409: "Conflict",
+    410: "Gone",
+    411: "Length Required",
+    413: "Payload Too Large",
+    414: "URI Too Long",
+    418: "I'm a teapot",
+    422: "Unprocessable Entity",
+    429: "Too Many Requests",
+    500: "Internal Server Error",
+    501: "Not Implemented",
+    502: "Bad Gateway",
+    503: "Service Unavailable",
+    504: "Gateway Timeout",
 }
 
 
 def _build_http2_headers(status: str, headers: list[tuple[str, str]]) -> list[tuple[bytes, bytes]]:
     try:
-        code = int(status.split(' ', 1)[0])
+        code = int(status.split(" ", 1)[0])
     except (TypeError, ValueError):
         code = 200
-    reason = _STATUS_REASONS.get(code, '')
-    out: list[tuple[bytes, bytes]] = [(b':status', str(code).encode('ascii'))]
+    reason = _STATUS_REASONS.get(code, "")
+    out: list[tuple[bytes, bytes]] = [(b":status", str(code).encode("ascii"))]
     if reason:
-        out.append((b'reason', reason.encode('ascii')))
+        out.append((b"reason", reason.encode("ascii")))
     for k, v in headers:
         if isinstance(k, str):
-            kl = k.lower().encode('ascii')
+            kl = k.lower().encode("ascii")
         else:
             kl = k.lower()
-        if kl in (b'connection', b'keep-alive', b'proxy-connection',
-                  b'transfer-encoding', b'upgrade'):
+        if kl in (
+            b"connection",
+            b"keep-alive",
+            b"proxy-connection",
+            b"transfer-encoding",
+            b"upgrade",
+        ):
             continue
-        if kl == b'length':
-            kl = b'content-length'
-        if not kl.startswith(b':'):
-            value = v.encode('latin-1', 'replace') if isinstance(v, str) else v
+        if kl == b"length":
+            kl = b"content-length"
+        if not kl.startswith(b":"):
+            value = v.encode("latin-1", "replace") if isinstance(v, str) else v
             out.append((kl, value))
     return out
-
 
 
 def _consume_app_iter(app_iter: Any, chunks: list[bytes], max_bytes: int) -> int:
@@ -101,13 +126,13 @@ def _consume_app_iter(app_iter: Any, chunks: list[bytes], max_bytes: int) -> int
     try:
         for piece in app_iter:
             if isinstance(piece, str):
-                piece = piece.encode('utf-8')
+                piece = piece.encode("utf-8")
             elif isinstance(piece, bytearray):
                 piece = bytes(piece)
             if not isinstance(piece, bytes):
                 continue
             if total + len(piece) > max_bytes:
-                piece = piece[:max_bytes - total]
+                piece = piece[: max_bytes - total]
             if not piece:
                 continue
             chunks.append(piece)
@@ -115,43 +140,40 @@ def _consume_app_iter(app_iter: Any, chunks: list[bytes], max_bytes: int) -> int
             if total >= max_bytes:
                 break
     finally:
-        close = getattr(app_iter, 'close', None)
+        close = getattr(app_iter, "close", None)
         if close is not None:
-            try:
+            with contextlib.suppress(Exception):
                 close()
-            except Exception:
-                pass
     return total
-
 
 
 class _H2Stream:
     """Coordinates one HTTP/2 stream through the WSGI app."""
 
     __slots__ = (
-        'environ',
-        'pushed',
-        'request_body',
-        'request_headers',
-        'request_method',
-        'request_path',
-        'response_chunks',
-        'response_headers',
-        'response_started',
-        'response_status',
-        'stream_id',
-        'trailers',
-        'wsgi_result',
+        "environ",
+        "pushed",
+        "request_body",
+        "request_headers",
+        "request_method",
+        "request_path",
+        "response_chunks",
+        "response_headers",
+        "response_started",
+        "response_status",
+        "stream_id",
+        "trailers",
+        "wsgi_result",
     )
 
     def __init__(self, stream_id: int) -> None:
         self.stream_id = stream_id
-        self.request_method: str = ''
-        self.request_path: str = ''
+        self.request_method: str = ""
+        self.request_path: str = ""
         self.request_headers: list[tuple[bytes, bytes]] = []
-        self.request_body: bytes = b''
+        self.request_body: bytes = b""
         self.response_started: bool = False
-        self.response_status: str = '200 OK'
+        self.response_status: str = "200 OK"
         self.response_headers: list[tuple[str, str]] = []
         self.response_chunks: list[bytes] = []
         self.wsgi_result: Any = None
@@ -163,19 +185,20 @@ class _H2Stream:
         if data:
             self.request_body += data
 
-    def start_response(self, status: str, headers: list[tuple[str, str]],
-                       exc_info: Any = None) -> Callable[[bytes], None]:
+    def start_response(
+        self, status: str, headers: list[tuple[str, str]], exc_info: Any = None
+    ) -> Callable[[bytes], None]:
         self.response_status = status
         merged: list[tuple[str, str]] = []
         for k, v in headers:
             kl = k.lower()
-            if kl == 'set-cookie':
+            if kl == "set-cookie":
                 merged.append((k, v))
             else:
                 found = False
                 for i, (mk, mv) in enumerate(merged):
                     if mk.lower() == kl:
-                        merged[i] = (mk, mv + ', ' + v)
+                        merged[i] = (mk, mv + ", " + v)
                         found = True
                         break
                 if not found:
@@ -186,13 +209,11 @@ class _H2Stream:
 
     def finish_response(self, app_iter: Any, max_bytes: int) -> None:
         if not self.response_started:
-            self.start_response('500 Internal Server Error',
-                                [('content-type', 'text/plain')])
+            self.start_response("500 Internal Server Error", [("content-type", "text/plain")])
         _consume_app_iter(app_iter, self.response_chunks, max_bytes)
 
     def build_headers(self) -> list[tuple[bytes, bytes]]:
         return _build_http2_headers(self.response_status, self.response_headers)
-
 
 
 class _H2Connection:
@@ -209,8 +230,7 @@ class _H2Connection:
         if out:
             self.sock.sendall(out)
 
-
-    def _send(self, data: bytes = b'') -> None:
+    def _send(self, data: bytes = b"") -> None:
         if data:
             self.sock.sendall(data)
         out = self.h2.data_to_send()
@@ -218,7 +238,7 @@ class _H2Connection:
             self.sock.sendall(out)
 
     def _recv_exact(self, n: int) -> bytes:
-        buf = b''
+        buf = b""
         while len(buf) < n:
             chunk = self.sock.recv(n - len(buf))
             if not chunk:
@@ -227,16 +247,13 @@ class _H2Connection:
         return buf
 
     def _read_some(self) -> bytes:
-        try:
+        with contextlib.suppress(Exception):
             self.sock.settimeout(0.5)
-        except Exception:
-            pass
         try:
             data = self.sock.recv(65535)
         except (TimeoutError, BlockingIOError, OSError):
-            return b''
-        return data or b''
-
+            return b""
+        return data or b""
 
     def _dispatch_stream(self, stream: _H2Stream) -> None:
         environ = self._build_environ(stream)
@@ -244,52 +261,51 @@ class _H2Connection:
         try:
             result = self.wsgi_app(environ, stream.start_response)
         except Exception:
-            stream.start_response('500 Internal Server Error',
-                                  [('content-type', 'text/plain')])
-            stream.response_chunks.append(b'Internal server error\n')
+            stream.start_response("500 Internal Server Error", [("content-type", "text/plain")])
+            stream.response_chunks.append(b"Internal server error\n")
             result = iter(())
         stream.wsgi_result = result
-        max_bytes = int(getattr(self.settings, 'HTTP2_MAX_FRAME_SIZE', 16384)) * 16
+        max_bytes = int(getattr(self.settings, "HTTP2_MAX_FRAME_SIZE", 16384)) * 16
         stream.finish_response(result, max_bytes)
         self._send_response(stream)
 
     def _build_environ(self, stream: _H2Stream) -> dict:
-        method = stream.request_method or 'GET'
-        path = stream.request_path or '/'
-        if '?' in path:
-            path, _, qs = path.partition('?')
+        method = stream.request_method or "GET"
+        path = stream.request_path or "/"
+        if "?" in path:
+            path, _, qs = path.partition("?")
         else:
-            qs = ''
+            qs = ""
         env = {
-            'REQUEST_METHOD': method,
-            'SCRIPT_NAME': '',
-            'PATH_INFO': path,
-            'QUERY_STRING': qs,
-            'SERVER_NAME': 'localhost',
-            'SERVER_PORT': '443',
-            'SERVER_PROTOCOL': 'HTTP/2.0',
-            'wsgi.version': (1, 0),
-            'wsgi.url_scheme': 'https' if self._is_tls() else 'http',
-            'wsgi.input': _StreamInput(stream.request_body),
-            'wsgi.errors': sys.stderr,
-            'wsgi.multithread': True,
-            'wsgi.multiprocess': False,
-            'wsgi.run_once': False,
+            "REQUEST_METHOD": method,
+            "SCRIPT_NAME": "",
+            "PATH_INFO": path,
+            "QUERY_STRING": qs,
+            "SERVER_NAME": "localhost",
+            "SERVER_PORT": "443",
+            "SERVER_PROTOCOL": "HTTP/2.0",
+            "wsgi.version": (1, 0),
+            "wsgi.url_scheme": "https" if self._is_tls() else "http",
+            "wsgi.input": _StreamInput(stream.request_body),
+            "wsgi.errors": sys.stderr,
+            "wsgi.multithread": True,
+            "wsgi.multiprocess": False,
+            "wsgi.run_once": False,
         }
         for k, v in stream.request_headers:
             kl = k.lower()
-            if kl.startswith(b':'):
+            if kl.startswith(b":"):
                 continue
-            name = 'HTTP_' + kl.decode('latin-1').upper().replace('-', '_')
-            value = v.decode('latin-1')
+            name = "HTTP_" + kl.decode("latin-1").upper().replace("-", "_")
+            value = v.decode("latin-1")
             env[name] = value
-        if method in ('POST', 'PUT', 'PATCH'):
-            env['CONTENT_LENGTH'] = str(len(stream.request_body))
-        env['http2.stream_id'] = stream.stream_id
+        if method in ("POST", "PUT", "PATCH"):
+            env["CONTENT_LENGTH"] = str(len(stream.request_body))
+        env["http2.stream_id"] = stream.stream_id
         return env
 
     def _is_tls(self) -> bool:
-        return getattr(self.sock, '_h2_is_tls', False)
+        return getattr(self.sock, "_h2_is_tls", False)
 
     def _send_response(self, stream: _H2Stream) -> None:
         h2_stream = self.h2.streams.get(stream.stream_id)
@@ -297,11 +313,11 @@ class _H2Connection:
             return
         headers = stream.build_headers()
         self.h2.send_headers(stream.stream_id, headers)
-        max_frame = int(getattr(self.settings, 'HTTP2_MAX_FRAME_SIZE', 16384))
+        max_frame = int(getattr(self.settings, "HTTP2_MAX_FRAME_SIZE", 16384))
         for chunk in stream.response_chunks:
             i = 0
             while i < len(chunk):
-                self.h2.send_data(stream.stream_id, chunk[i:i + max_frame])
+                self.h2.send_data(stream.stream_id, chunk[i : i + max_frame])
                 i += max_frame
         if stream.trailers:
             for k, v in stream.trailers:
@@ -310,13 +326,10 @@ class _H2Connection:
             self.h2.end_stream(stream.stream_id)
         out = self.h2.data_to_send()
         if out:
-            try:
+            with contextlib.suppress(BrokenPipeError, ConnectionResetError, OSError):
                 self.sock.sendall(out)
-            except (BrokenPipeError, ConnectionResetError, OSError):
-                pass
 
-
-    def _handle_event(self, event: 'h2.events.Event') -> None:
+    def _handle_event(self, event: "h2.events.Event") -> None:
         if isinstance(event, h2.events.RequestReceived):
             self._on_headers(event)
         elif isinstance(event, h2.events.DataReceived):
@@ -329,7 +342,7 @@ class _H2Connection:
             stream = self.streams.get(event.stream_id)
             if stream and stream.wsgi_result is not None:
                 try:
-                    close = getattr(stream.wsgi_result, 'close', None)
+                    close = getattr(stream.wsgi_result, "close", None)
                     if close:
                         close()
                 except Exception:
@@ -339,25 +352,25 @@ class _H2Connection:
         elif isinstance(event, h2.events.ConnectionTerminated):
             raise _H2Closed()
 
-    def _on_headers(self, event: 'h2.events.RequestReceived') -> None:
+    def _on_headers(self, event: "h2.events.RequestReceived") -> None:
         stream = _H2Stream(event.stream_id)
         for k, v in event.headers:
             if isinstance(k, str):
-                k_bytes = k.lower().encode('ascii')  # type: ignore[union-attr]
+                k_bytes = k.lower().encode("ascii")  # type: ignore[union-attr]
             else:
                 k_bytes = k.lower()
             if isinstance(v, str):
-                v_bytes = v.encode('latin-1', 'replace')
+                v_bytes = v.encode("latin-1", "replace")
             else:
                 v_bytes = v
-            if k_bytes == b':method':
-                stream.request_method = v_bytes.decode('latin-1', 'replace')
-            elif k_bytes == b':path':
-                stream.request_path = v_bytes.decode('latin-1', 'replace')
-            elif k_bytes == b':scheme':
+            if k_bytes == b":method":
+                stream.request_method = v_bytes.decode("latin-1", "replace")
+            elif k_bytes == b":path":
+                stream.request_path = v_bytes.decode("latin-1", "replace")
+            elif k_bytes == b":scheme":
                 pass  # captured via environ
-            elif k_bytes == b':authority':
-                stream.request_headers.append((b'host', v_bytes))
+            elif k_bytes == b":authority":
+                stream.request_headers.append((b"host", v_bytes))
             else:
                 stream.request_headers.append((k_bytes, v_bytes))
         self.streams[event.stream_id] = stream
@@ -365,17 +378,17 @@ class _H2Connection:
             return
         self._dispatch_stream(stream)
 
-    def _on_data(self, event: 'h2.events.DataReceived') -> None:
+    def _on_data(self, event: "h2.events.DataReceived") -> None:
         stream = self.streams.get(event.stream_id)
         if stream is None:
             return
         data = event.data
         if isinstance(data, str):
-            data = data.encode('latin-1', 'replace')
+            data = data.encode("latin-1", "replace")
         stream.add_request_data(data)
         self.h2.acknowledge_received_data(event.flow_controlled_length, event.stream_id)
 
-    def _on_stream_ended(self, event: 'h2.events.StreamEnded') -> None:
+    def _on_stream_ended(self, event: "h2.events.StreamEnded") -> None:
         stream = self.streams.get(event.stream_id)
         if stream is None:
             return
@@ -399,11 +412,15 @@ class _H2Connection:
                 for ev in events:
                     self._handle_event(ev)
                 self._send()
-                if (not self.h2.open_inbound_streams and not self.h2.open_outbound_streams
-                        and self.h2.state_machine.state in (
-                            h2.connection.ConnectionState.IDLE,
-                            h2.connection.ConnectionState.CLOSED,
-                        )):
+                if (
+                    not self.h2.open_inbound_streams
+                    and not self.h2.open_outbound_streams
+                    and self.h2.state_machine.state
+                    in (
+                        h2.connection.ConnectionState.IDLE,
+                        h2.connection.ConnectionState.CLOSED,
+                    )
+                ):
                     break
         except _H2Closed:
             pass
@@ -411,18 +428,19 @@ class _H2Connection:
             pass
         finally:
             try:
-                if (not self.h2.open_inbound_streams and not self.h2.open_outbound_streams
-                        and self.h2.state_machine.state != h2.connection.ConnectionState.CLOSED):
+                if (
+                    not self.h2.open_inbound_streams
+                    and not self.h2.open_outbound_streams
+                    and self.h2.state_machine.state != h2.connection.ConnectionState.CLOSED
+                ):
                     self.h2.close_connection()
                     remaining = self.h2.data_to_send()
                     if remaining:
                         self.sock.sendall(remaining)
             except Exception:
                 pass
-            try:
+            with contextlib.suppress(Exception):
                 self.sock.close()
-            except Exception:
-                pass
 
 
 class _H2Closed(Exception):
@@ -437,17 +455,17 @@ class _StreamInput:
     def read(self, n: int = -1) -> bytes:
         if n < 0 or n > len(self._buf) - self._pos:
             n = len(self._buf) - self._pos
-        chunk = self._buf[self._pos:self._pos + n]
+        chunk = self._buf[self._pos : self._pos + n]
         self._pos += n
         return chunk
 
     def readline(self) -> bytes:
-        idx = self._buf.find(b'\n', self._pos)
+        idx = self._buf.find(b"\n", self._pos)
         if idx < 0:
-            chunk = self._buf[self._pos:]
+            chunk = self._buf[self._pos :]
             self._pos = len(self._buf)
             return chunk
-        chunk = self._buf[self._pos:idx + 1]
+        chunk = self._buf[self._pos : idx + 1]
         self._pos = idx + 1
         return chunk
 
@@ -455,8 +473,7 @@ class _StreamInput:
         return iter([self.read()])
 
 
-
-_HTTP2_PREFACE = b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'
+_HTTP2_PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
 
 class HybridRequestHandler:
@@ -476,66 +493,58 @@ class HybridRequestHandler:
         self.h1_handler = WSGIRequestHandler  # fallback
         self.h1_handler.wsgi_app = wsgi_app  # type: ignore[attr-defined]
 
-    def __call__(self, request: 'socket.socket', client_address: Any, server: Any) -> None:
-        alpn = getattr(request, 'selected_alpn_protocol', lambda: None)()
-        if alpn and alpn.startswith('h2'):
+    def __call__(self, request: "socket.socket", client_address: Any, server: Any) -> None:
+        alpn = getattr(request, "selected_alpn_protocol", lambda: None)()
+        if alpn and alpn.startswith("h2"):
             self._serve_h2(request, client_address, server)
             return
-        if alpn and alpn == 'http/1.1':
-            try:
+        if alpn and alpn == "http/1.1":
+            with contextlib.suppress(Exception):
                 request.settimeout(None)
-            except Exception:
-                pass
             self.h1_handler(request, client_address, server)
             return
 
-        try:
+        with contextlib.suppress(Exception):
             request.settimeout(2.0)
-        except Exception:
-            pass
         try:
             head = self._peek(request, len(_HTTP2_PREFACE))
         except (TimeoutError, OSError):
-            head = b''
+            head = b""
         if head.startswith(_HTTP2_PREFACE):
-            try:
+            with contextlib.suppress(Exception):
                 request.settimeout(None)
-            except Exception:
-                pass
             self._serve_h2(request, client_address, server)
             return
-        if (head.startswith(b'GET ') or head.startswith(b'POST ') or
-                head.startswith(b'PUT ') or head.startswith(b'DELETE ') or
-                head.startswith(b'HEAD ') or head.startswith(b'OPTIONS ')):
-            try:
+        if (
+            head.startswith(b"GET ")
+            or head.startswith(b"POST ")
+            or head.startswith(b"PUT ")
+            or head.startswith(b"DELETE ")
+            or head.startswith(b"HEAD ")
+            or head.startswith(b"OPTIONS ")
+        ):
+            with contextlib.suppress(Exception):
                 request.settimeout(None)
-            except Exception:
-                pass
             self.h1_handler(request, client_address, server)
             return
-        try:
+        with contextlib.suppress(Exception):
             request.close()
-        except Exception:
-            pass
 
     @staticmethod
-    def _peek(sock: 'socket.socket', n: int) -> bytes:
+    def _peek(sock: "socket.socket", n: int) -> bytes:
         data = sock.recv(n, socket.MSG_PEEK)
         if not data:
-            return b''
+            return b""
         return data[:n]
 
-    def _serve_h2(self, request: 'socket.socket', client_address: Any, server: Any) -> None:
+    def _serve_h2(self, request: "socket.socket", client_address: Any, server: Any) -> None:
         try:
             request.settimeout(None)
             conn = _H2Connection(request, self.settings, self.wsgi_app)
             conn.serve()
         except Exception:
-            try:
+            with contextlib.suppress(Exception):
                 request.close()
-            except Exception:
-                pass
-
 
 
 class H2WSGIServer(ThreadingMixIn, WSGIServer):
@@ -544,8 +553,13 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, server_address: tuple[str, int], wsgi_app: Callable,
-                 settings: Any, ssl_context: ssl.SSLContext | None = None) -> None:
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        wsgi_app: Callable,
+        settings: Any,
+        ssl_context: ssl.SSLContext | None = None,
+    ) -> None:
         self.settings = settings
         self._wsgi_app = wsgi_app
         self._ssl_context = ssl_context
@@ -563,14 +577,14 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
             self.setup_environ()
         except Exception:
             self.base_environ = {
-                'SERVER_NAME': 'localhost',
-                'GATEWAY_INTERFACE': 'CGI/1.1',
-                'SERVER_PROTOCOL': 'HTTP/1.1',
-                'wsgi.version': (1, 0),
-                'wsgi.errors': sys.stderr,
-                'wsgi.multithread': True,
-                'wsgi.multiprocess': False,
-                'wsgi.run_once': False,
+                "SERVER_NAME": "localhost",
+                "GATEWAY_INTERFACE": "CGI/1.1",
+                "SERVER_PROTOCOL": "HTTP/1.1",
+                "wsgi.version": (1, 0),
+                "wsgi.errors": sys.stderr,
+                "wsgi.multithread": True,
+                "wsgi.multiprocess": False,
+                "wsgi.run_once": False,
             }
 
     def get_request(self) -> tuple[socket.socket, Any]:
@@ -591,10 +605,8 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
             pass
         finally:
             self._is_shut_down.set()
-            try:
+            with contextlib.suppress(Exception):
                 self.server_close()
-            except Exception:
-                pass
 
     def _serve_forever(self) -> None:
         while not self._is_shut_down.is_set():
@@ -609,8 +621,7 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
             request, client_address = self.get_request()
         except (TimeoutError, OSError):
             return
-        t = threading.Thread(target=self.process_request_thread,
-                             args=(request, client_address))
+        t = threading.Thread(target=self.process_request_thread, args=(request, client_address))
         t.daemon = True
         t.start()
 
@@ -618,23 +629,24 @@ class H2WSGIServer(ThreadingMixIn, WSGIServer):
         try:
             self.finish_request(request, client_address)
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 request.close()
-            except Exception:
-                pass
 
     def shutdown(self) -> None:
         self._is_shut_down.set()
-        try:
+        with contextlib.suppress(Exception):
             self.socket.close()
-        except Exception:
-            pass
 
 
-
-def run_http2(host: str, port: int, settings: Any,
-              ssl_certfile: str = '', ssl_keyfile: str = '',
-              alpn_h2: bool = True, prior_knowledge: bool = True) -> None:
+def run_http2(
+    host: str,
+    port: int,
+    settings: Any,
+    ssl_certfile: str = "",
+    ssl_keyfile: str = "",
+    alpn_h2: bool = True,
+    prior_knowledge: bool = True,
+) -> None:
     """Start a server that supports HTTP/1.1 + HTTP/2 on the given host/port.
 
     If ``ssl_certfile`` and ``ssl_keyfile`` are provided, the server listens
@@ -642,6 +654,7 @@ def run_http2(host: str, port: int, settings: Any,
     on cleartext and serves h2c (HTTP/1.1 Upgrade + prior-knowledge).
     """
     from .app import get_application
+
     app = get_application(settings)
     wsgi = app.wsgi()
 
@@ -650,26 +663,25 @@ def run_http2(host: str, port: int, settings: Any,
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(certfile=ssl_certfile, keyfile=ssl_keyfile)
         if alpn_h2:
-            try:
-                ctx.set_alpn_protocols(['h2', 'http/1.1'])
-            except (AttributeError, NotImplementedError):
-                pass
+            with contextlib.suppress(AttributeError, NotImplementedError):
+                ctx.set_alpn_protocols(["h2", "http/1.1"])
         ssl_ctx = ctx
 
     server = H2WSGIServer((host, port), wsgi, settings, ssl_context=ssl_ctx)
-    scheme = 'https' if ssl_ctx else 'http'
-    print(f'  Uui.web HTTP/1.1+HTTP/2 server listening on {scheme}://{host}:{port}/', flush=True)
+    scheme = "https" if ssl_ctx else "http"
+    print(f"  Uui.web HTTP/1.1+HTTP/2 server listening on {scheme}://{host}:{port}/", flush=True)
     if ssl_ctx:
-        print('  (ALPN: h2, http/1.1)', flush=True)
+        print("  (ALPN: h2, http/1.1)", flush=True)
     else:
-        print('  (h2c via Upgrade + prior-knowledge; for production, use --ssl-cert / --ssl-key)', flush=True)
-    print('  (use Ctrl+C to stop)', flush=True)
+        print(
+            "  (h2c via Upgrade + prior-knowledge; for production, use --ssl-cert / --ssl-key)",
+            flush=True,
+        )
+    print("  (use Ctrl+C to stop)", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
-        try:
+        with contextlib.suppress(Exception):
             server.server_close()
-        except Exception:
-            pass

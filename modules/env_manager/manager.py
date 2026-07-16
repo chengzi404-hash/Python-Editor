@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import shutil
@@ -14,45 +15,50 @@ from dataclasses import dataclass, field
 class PythonEnvironment:
     name: str
     python_path: str
-    version: str = ''
-    env_type: str = 'venv'  # 'venv' | 'conda' | 'system' | 'custom'
-    prefix: str = ''
+    version: str = ""
+    env_type: str = "venv"  # 'venv' | 'conda' | 'system' | 'custom'
+    prefix: str = ""
     packages: dict[str, str] = field(default_factory=dict)
 
     @property
     def display_name(self) -> str:
         parts = [self.name]
         if self.version:
-            parts.append(f'Python {self.version}')
-        return ' — '.join(parts)
+            parts.append(f"Python {self.version}")
+        return " — ".join(parts)
 
 
 def _probe_python(path: str) -> str:
     try:
         r = subprocess.run(
-            [path, '--version'],
-            capture_output=True, text=True, timeout=5,
+            [path, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
     except Exception:
-        return ''
-    out = (r.stdout or r.stderr or '').strip()
-    if out.lower().startswith('python '):
+        return ""
+    out = (r.stdout or r.stderr or "").strip()
+    if out.lower().startswith("python "):
         out = out[7:]
-    m = re.search(r'\d+\.\d+(?:\.\d+)?', out)
-    return m.group(0) if m else ''
+    m = re.search(r"\d+\.\d+(?:\.\d+)?", out)
+    return m.group(0) if m else ""
 
 
 def _list_packages(python_path: str) -> dict[str, str]:
     try:
         r = subprocess.run(
-            [python_path, '-m', 'pip', 'list', '--format=json'],
-            capture_output=True, text=True, timeout=30,
+            [python_path, "-m", "pip", "list", "--format=json"],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if r.returncode != 0:
             return {}
         import json
+
         items = json.loads(r.stdout)
-        return {item['name']: item['version'] for item in items}
+        return {item["name"]: item["version"] for item in items}
     except Exception:
         return {}
 
@@ -73,19 +79,15 @@ class EnvironmentManager:
 
     def remove_listener(self, callback: Callable[[str], None]) -> None:
         with self._lock:
-            try:
+            with contextlib.suppress(ValueError):
                 self._listeners.remove(callback)
-            except ValueError:
-                pass
 
     def _notify(self, env_name: str) -> None:
         with self._lock:
             listeners = list(self._listeners)
         for cb in listeners:
-            try:
+            with contextlib.suppress(Exception):
                 cb(env_name)
-            except Exception:
-                pass
 
     # ── scan / detect ─────────────────────────────────────────────────
 
@@ -105,15 +107,17 @@ class EnvironmentManager:
                     ver = _probe_python(current_python)
                     is_venv = self._is_venv(current_python)
                     self._environments[key] = PythonEnvironment(
-                        name='base (current)' if not is_venv else os.path.basename(self._venv_prefix(current_python)),
+                        name="base (current)"
+                        if not is_venv
+                        else os.path.basename(self._venv_prefix(current_python)),
                         python_path=current_python,
                         version=ver,
-                        env_type='venv' if is_venv else 'system',
+                        env_type="venv" if is_venv else "system",
                         prefix=self._venv_prefix(current_python),
                     )
 
             # 2. System pythons (python, python3)
-            for name in ('python', 'python3', 'py'):
+            for name in ("python", "python3", "py"):
                 path = shutil.which(name)
                 if not path:
                     continue
@@ -122,11 +126,11 @@ class EnvironmentManager:
                     continue
                 seen.add(resolved)
                 ver = _probe_python(resolved)
-                self._environments[f'python ({ver})'] = PythonEnvironment(
-                    name=f'python ({ver})',
+                self._environments[f"python ({ver})"] = PythonEnvironment(
+                    name=f"python ({ver})",
                     python_path=resolved,
                     version=ver,
-                    env_type='system',
+                    env_type="system",
                 )
 
             # 3. Common venv locations
@@ -149,16 +153,16 @@ class EnvironmentManager:
 
     def _scan_venv_dirs(self, seen: set) -> None:
         candidates = [
-            os.path.join(os.getcwd(), '.venv'),
-            os.path.join(os.getcwd(), 'venv'),
-            os.path.join(os.getcwd(), '.env'),
+            os.path.join(os.getcwd(), ".venv"),
+            os.path.join(os.getcwd(), "venv"),
+            os.path.join(os.getcwd(), ".env"),
         ]
         parent = os.path.dirname(os.getcwd())
         if parent:
-            candidates.append(os.path.join(parent, '.venv'))
+            candidates.append(os.path.join(parent, ".venv"))
         conda_defaults = [
-            os.path.expanduser('~/anaconda3/envs'),
-            os.path.expanduser('~/miniconda3/envs'),
+            os.path.expanduser("~/anaconda3/envs"),
+            os.path.expanduser("~/miniconda3/envs"),
         ]
         for d in conda_defaults:
             if os.path.isdir(d):
@@ -170,30 +174,33 @@ class EnvironmentManager:
                         if resolved and resolved not in seen:
                             seen.add(resolved)
                             ver = _probe_python(resolved)
-                            self._environments[f'conda: {env_name}'] = PythonEnvironment(
-                                name=f'conda: {env_name}',
+                            self._environments[f"conda: {env_name}"] = PythonEnvironment(
+                                name=f"conda: {env_name}",
                                 python_path=resolved,
                                 version=ver,
-                                env_type='conda',
+                                env_type="conda",
                                 prefix=env_dir,
                             )
 
     def _scan_conda(self, seen: set) -> None:
-        conda_path = shutil.which('conda')
+        conda_path = shutil.which("conda")
         if not conda_path:
             return
         try:
             r = subprocess.run(
-                [conda_path, 'env', 'list', '--json'],
-                capture_output=True, text=True, timeout=15,
+                [conda_path, "env", "list", "--json"],
+                capture_output=True,
+                text=True,
+                timeout=15,
             )
             if r.returncode != 0:
                 return
             import json
+
             data = json.loads(r.stdout)
-            envs = data.get('envs', [])
+            envs = data.get("envs", [])
             for env_dir in envs:
-                if env_dir == 'base':
+                if env_dir == "base":
                     continue
                 py = self._find_python_in_venv(env_dir)
                 if not py:
@@ -204,11 +211,11 @@ class EnvironmentManager:
                 seen.add(resolved)
                 env_name = os.path.basename(env_dir)
                 ver = _probe_python(resolved)
-                self._environments[f'conda: {env_name}'] = PythonEnvironment(
-                    name=f'conda: {env_name}',
+                self._environments[f"conda: {env_name}"] = PythonEnvironment(
+                    name=f"conda: {env_name}",
                     python_path=resolved,
                     version=ver,
-                    env_type='conda',
+                    env_type="conda",
                     prefix=env_dir,
                 )
         except Exception:
@@ -250,42 +257,46 @@ class EnvironmentManager:
         env.packages = packages
         return packages
 
-    def install_package(self, package: str, name: str | None = None,
-                        mirror: str = '') -> str:
+    def install_package(self, package: str, name: str | None = None, mirror: str = "") -> str:
         env = self._get_env(name)
         if not env:
-            return 'Environment not found'
+            return "Environment not found"
         try:
-            cmd = [env.python_path, '-m', 'pip', 'install', package]
+            cmd = [env.python_path, "-m", "pip", "install", package]
             if mirror:
-                cmd.extend(['-i', mirror])
+                cmd.extend(["-i", mirror])
             r = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=120,
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
             if r.returncode == 0:
                 env.packages = _list_packages(env.python_path)
-                return ''
-            return (r.stderr or r.stdout or 'Install failed').strip()
+                return ""
+            return (r.stderr or r.stdout or "Install failed").strip()
         except subprocess.TimeoutExpired:
-            return 'Install timed out'
+            return "Install timed out"
         except Exception as e:
             return str(e)
 
     def uninstall_package(self, package: str, name: str | None = None) -> str:
         env = self._get_env(name)
         if not env:
-            return 'Environment not found'
+            return "Environment not found"
         try:
             r = subprocess.run(
-                [env.python_path, '-m', 'pip', 'uninstall', package, '-y'],
-                capture_output=True, text=True, timeout=60,
+                [env.python_path, "-m", "pip", "uninstall", package, "-y"],
+                capture_output=True,
+                text=True,
+                timeout=60,
             )
             if r.returncode == 0:
                 env.packages = _list_packages(env.python_path)
-                return ''
-            return (r.stderr or r.stdout or 'Uninstall failed').strip()
+                return ""
+            return (r.stderr or r.stdout or "Uninstall failed").strip()
         except subprocess.TimeoutExpired:
-            return 'Uninstall timed out'
+            return "Uninstall timed out"
         except Exception as e:
             return str(e)
 
@@ -307,14 +318,16 @@ class EnvironmentManager:
         matching.sort(key=lambda n: (0 if n.lower().startswith(q) else 1, n))
         results: list[dict[str, str]] = []
         for name in matching[:50]:
-            ver, summary = '', ''
+            ver, summary = "", ""
             if len(results) < 15:
                 ver, summary = self._fetch_package_info(name)
-            results.append({
-                'name': name,
-                'version': ver,
-                'summary': summary[:200] if summary else '',
-            })
+            results.append(
+                {
+                    "name": name,
+                    "version": ver,
+                    "summary": summary[:200] if summary else "",
+                }
+            )
         return results
 
     _package_names_cache: list[str] | None = None
@@ -324,11 +337,12 @@ class EnvironmentManager:
             return self._package_names_cache
         import re
         import urllib.request
-        url = 'https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/'
+
+        url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/"
         req = urllib.request.Request(url)
-        req.add_header('User-Agent', 'PythonEditor/1.0')
+        req.add_header("User-Agent", "PythonEditor/1.0")
         with urllib.request.urlopen(req, timeout=30) as resp:
-            html = resp.read().decode('utf-8', errors='replace')
+            html = resp.read().decode("utf-8", errors="replace")
         names = re.findall(r'<a\s+href="[^"]*">([^<]+)</a>', html)
         EnvironmentManager._package_names_cache = names
         return names
@@ -336,48 +350,52 @@ class EnvironmentManager:
     def _fetch_package_info(self, name: str) -> tuple:
         import json
         import urllib.request
+
         try:
-            url = f'https://pypi.org/pypi/{name}/json'
+            url = f"https://pypi.org/pypi/{name}/json"
             req = urllib.request.Request(url)
-            req.add_header('User-Agent', 'PythonEditor/1.0')
+            req.add_header("User-Agent", "PythonEditor/1.0")
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode())
-            info = data.get('info', {})
-            return info.get('version', ''), info.get('summary', '')
+            info = data.get("info", {})
+            return info.get("version", ""), info.get("summary", "")
         except Exception:
-            return '', ''
+            return "", ""
 
     # ── create environment ────────────────────────────────────────────
 
-    def create_venv(self, path: str, python_path: str | None = None,
-                    name: str | None = None) -> str:
+    def create_venv(
+        self, path: str, python_path: str | None = None, name: str | None = None
+    ) -> str:
         python = python_path or sys.executable
         if os.path.isdir(path):
-            return f'Directory already exists: {path}'
+            return f"Directory already exists: {path}"
         try:
             r = subprocess.run(
-                [python, '-m', 'venv', path],
-                capture_output=True, text=True, timeout=60,
+                [python, "-m", "venv", path],
+                capture_output=True,
+                text=True,
+                timeout=60,
             )
             if r.returncode != 0:
-                return (r.stderr or 'venv creation failed').strip()
+                return (r.stderr or "venv creation failed").strip()
             py = self._find_python_in_venv(path)
             if not py:
-                return 'Failed to find python in created venv'
+                return "Failed to find python in created venv"
             resolved = self._resolve_python(py)
-            ver = _probe_python(resolved) if resolved else ''
+            ver = _probe_python(resolved) if resolved else ""
             env_name = name or os.path.basename(path)
             with self._lock:
                 self._environments[env_name] = PythonEnvironment(
                     name=env_name,
                     python_path=resolved or py,
                     version=ver,
-                    env_type='venv',
+                    env_type="venv",
                     prefix=path,
                 )
-            return ''
+            return ""
         except subprocess.TimeoutExpired:
-            return 'venv creation timed out'
+            return "venv creation timed out"
         except Exception as e:
             return str(e)
 
@@ -400,7 +418,7 @@ class EnvironmentManager:
     @staticmethod
     def _make_key(path: str) -> str:
         ver = _probe_python(path)
-        return f'python {ver}' if ver else os.path.basename(path)
+        return f"python {ver}" if ver else os.path.basename(path)
 
     @staticmethod
     def _is_venv(python_path: str) -> bool:
@@ -410,7 +428,7 @@ class EnvironmentManager:
             real = os.path.realpath(python_path)
             for _ in range(5):
                 parent = os.path.dirname(real)
-                if os.path.isdir(os.path.join(parent, 'pyvenv.cfg')):
+                if os.path.isdir(os.path.join(parent, "pyvenv.cfg")):
                     return True
                 if parent == real:
                     break
@@ -425,24 +443,24 @@ class EnvironmentManager:
         real = os.path.realpath(python_path)
         for _ in range(5):
             parent = os.path.dirname(real)
-            if os.path.isfile(os.path.join(parent, 'pyvenv.cfg')):
+            if os.path.isfile(os.path.join(parent, "pyvenv.cfg")):
                 return parent
             if parent == real:
                 break
             real = parent
-        return ''
+        return ""
 
     @staticmethod
     def _find_python_in_venv(venv_dir: str) -> str | None:
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             candidates = [
-                os.path.join(venv_dir, 'Scripts', 'python.exe'),
-                os.path.join(venv_dir, 'bin', 'python.exe'),
+                os.path.join(venv_dir, "Scripts", "python.exe"),
+                os.path.join(venv_dir, "bin", "python.exe"),
             ]
         else:
             candidates = [
-                os.path.join(venv_dir, 'bin', 'python'),
-                os.path.join(venv_dir, 'bin', 'python3'),
+                os.path.join(venv_dir, "bin", "python"),
+                os.path.join(venv_dir, "bin", "python3"),
             ]
         for c in candidates:
             if os.path.isfile(c):

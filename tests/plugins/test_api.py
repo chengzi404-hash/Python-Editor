@@ -141,7 +141,7 @@ class TestPluginContext:
     def test_is_enabled(self):
         host = MockHost()
         ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
-        assert ctx.is_enabled() == True
+        assert ctx.is_enabled()
 
     def test_log(self):
         host = MockHost()

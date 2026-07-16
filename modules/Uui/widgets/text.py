@@ -1,3 +1,4 @@
+import contextlib
 import tkinter as tk
 from typing import Literal
 
@@ -7,37 +8,52 @@ from .scrollbar import UScrollBar
 
 
 class UText(tk.Frame):
-    def __init__(self, parent, width: int = 40, height: int = 10,
-                 wrap: Literal['none', 'char', 'word'] = 'word', font=None,
-                 show_line_numbers: bool = False, **kwargs):
-        bg = kwargs.pop('bg', theme.BG_BASE)
+    def __init__(
+        self,
+        parent,
+        width: int = 40,
+        height: int = 10,
+        wrap: Literal["none", "char", "word"] = "word",
+        font=None,
+        show_line_numbers: bool = False,
+        **kwargs,
+    ):
+        bg = kwargs.pop("bg", theme.BG_BASE)
         super().__init__(parent, bg=bg, highlightthickness=0, bd=0, **kwargs)
 
         self._show_line_numbers = show_line_numbers
         self._line_numbers: LineNumberCanvas | None = None
 
         self._text = tk.Text(
-            self, width=width, height=height,
-            bg=theme.BG_INPUT, fg=theme.FG_PRIMARY,
+            self,
+            width=width,
+            height=height,
+            bg=theme.BG_INPUT,
+            fg=theme.FG_PRIMARY,
             insertbackground=theme.FG_PRIMARY,
             selectbackground=theme.BLUE,
             selectforeground=theme.FG_PRIMARY,
-            relief='flat', highlightthickness=1,
+            relief="flat",
+            highlightthickness=1,
             highlightcolor=theme.BORDER_FOCUS,
             highlightbackground=theme.BORDER,
-            bd=0, font=font or theme.MONO_FONT,
+            bd=0,
+            font=font or theme.MONO_FONT,
             wrap=wrap,
             undo=True,
-            padx=8, pady=8,
+            padx=8,
+            pady=8,
         )
-        # 收口到 :class:`UScrollBar` — 主题色、autohide 行为都集中维护。
+        # Unified at :class:`UScrollBar` — theme colors and autohide behavior are centrally maintained.
         self._scroll = UScrollBar(
-            self, orient='vertical', command=self._text.yview,
+            self,
+            orient="vertical",
+            command=self._text.yview,
         )
         self._text.config(yscrollcommand=self._on_yview)
 
-        # 布局顺序 (从左到右): gutter (可选) | text | scrollbar。
-        # 行号栏必须在 text 之前 pack, 否则切语言时重构布局顺序会很乱。
+        # Layout order (left to right): gutter (optional) | text | scrollbar.
+        # Line number bar must be packed before text, otherwise switching languages will mess up layout order.
         if show_line_numbers:
             self._line_numbers = LineNumberCanvas(self._text)
             self._line_numbers.pack(side=tk.LEFT, fill=tk.Y)
@@ -54,59 +70,54 @@ class UText(tk.Frame):
         self._text.delete(*args)
 
     def clear(self):
-        self._text.delete('1.0', tk.END)
+        self._text.delete("1.0", tk.END)
 
     def see(self, index):
         self._text.see(index)
 
     def config(self, **kwargs):
         cnf = dict(kwargs)
-        if 'state' in cnf:
-            self._text.config(state=cnf.pop('state'))
+        if "state" in cnf:
+            self._text.config(state=cnf.pop("state"))
         super().config(**cnf)
 
     def _on_yview(self, *args):
-        """text 的 yscrollcommand 钩子: 同时驱动滚动条 + 行号栏.
+        """Hook for text's yscrollcommand: drives both scrollbar and line number bar.
 
-        :class:`LineNumberCanvas` 也会在自身 yscrollcommand 钩子里调用
-        我们的 set; 这里只关心"行号栏没启用时也要把滚动事件给 scrollbar"。
+        :class:`LineNumberCanvas` also calls our set in its own yscrollcommand hook;
+        here we only care about "when line number bar is disabled, still forward scroll events to scrollbar".
         """
 
         self._scroll.set(*args)
         if self._line_numbers is not None:
-            # 让行号栏跟一次重画; 内部已经做了防抖, 重复触发也无副作用。
-            try:
+            # Trigger line number bar redraw; debouncing is already internal, duplicate triggers have no side effect.
+            with contextlib.suppress(tk.TclError):
                 self._line_numbers.redraw()
-            except tk.TclError:
-                pass
 
     def _apply_theme(self):
         try:
-            bg = self.master.cget('bg')
+            bg = self.master.cget("bg")
             if bg:
                 self.config(bg=bg)
         except Exception:
             self.config(bg=theme.BG_BASE)
         self._text.config(
-            bg=theme.BG_INPUT, fg=theme.FG_PRIMARY,
+            bg=theme.BG_INPUT,
+            fg=theme.FG_PRIMARY,
             insertbackground=theme.FG_PRIMARY,
             selectbackground=theme.BLUE,
             selectforeground=theme.FG_PRIMARY,
             highlightcolor=theme.BORDER_FOCUS,
             highlightbackground=theme.BORDER,
         )
-        # UScrollBar 自己实现 _apply_theme, 转发即可 (troughcolor /
-        # activebackground 跟随, bg 仅在未显式指定时跟随)。
+        # UScrollBar implements _apply_theme itself, just forward (troughcolor /
+        # activebackground follow, bg only follows when not explicitly set).
         if hasattr(self._scroll, "_apply_theme"):
-            try:
+            with contextlib.suppress(Exception):
                 self._scroll._apply_theme()
-            except Exception:
-                pass
-        # 行号栏: 颜色 + 重画一次。
+        # Line number bar: colors + one redraw.
         if self._line_numbers is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._line_numbers._apply_theme()
-            except Exception:
-                pass
 
     configure = config  # type: ignore[assignment]

@@ -1,13 +1,13 @@
-"""``modules.settings.schema`` — 默认的全局 / 项目 Schema。
+"""``modules.settings.schema`` — Default global / project schemas.
 
-集中维护本编辑器**内置**的全部设置项元信息：
+Centrally maintains all **built-in** setting metadata for this editor:
 
-* :data:`GLOBAL_SCHEMA` —— 跨项目共享的全局设置（主题、字体、自动保存等）。
-* :data:`PROJECT_SCHEMA` —— 仅作用于当前打开项目的设置（解释器、入口文件、checkers）。
-* :data:`SCHEMA_BY_SCOPE` —— 按作用域聚合，方便直接索引。
+* :data:`GLOBAL_SCHEMA` —— Global settings shared across projects (theme, font, auto-save, etc.).
+* :data:`PROJECT_SCHEMA` —— Settings that only apply to the currently opened project (interpreter, entry file, checkers).
+* :data:`SCHEMA_BY_SCOPE` —— Aggregated by scope for easy direct indexing.
 
-第三方或用户自定义的设置项，可使用 :class:`SettingsSchema` 自行组装，
-然后在创建 :class:`Settings` 时传入自定义 schema。
+Third-party or user-defined settings can use :class:`SettingsSchema` to assemble custom schemas,
+then pass them to :class:`Settings` when creating it.
 """
 
 from __future__ import annotations
@@ -26,8 +26,8 @@ GLOBAL_SPECS: tuple = (
         key="ui.theme",
         type=SettingValueType.CHOICE,
         default="Dark",
-        label="界面主题",
-        description="界面主题。",
+        label="Interface Theme",
+        description="Interface theme.",
         choices=("Dark", "Light", "Solarized Dark"),
         scope=SettingsScope.GLOBAL,
     ),
@@ -35,8 +35,8 @@ GLOBAL_SPECS: tuple = (
         key="ui.highlight_theme",
         type=SettingValueType.CHOICE,
         default="Default Dark",
-        label="代码高亮主题",
-        description="语法高亮配色方案。",
+        label="Code Highlight Theme",
+        description="Syntax highlighting color scheme.",
         choices=("Default Dark", "Default Light", "Solarized Dark"),
         scope=SettingsScope.GLOBAL,
     ),
@@ -44,7 +44,7 @@ GLOBAL_SPECS: tuple = (
         key="ui.highlight_theme_marketplace",
         type=SettingValueType.BUTTON,
         default=None,
-        label="浏览高亮主题市场...",
+        label="Browse Highlight Themes...",
         description="",
         scope=SettingsScope.GLOBAL,
     ),
@@ -52,16 +52,16 @@ GLOBAL_SPECS: tuple = (
         key="ui.font_family",
         type=SettingValueType.STRING,
         default="Consolas",
-        label="编辑器字体",
-        description="等宽字体名。",
+        label="Editor Font",
+        description="Monospace font name.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="ui.font_size",
         type=SettingValueType.INTEGER,
         default=10,
-        label="编辑器字号",
-        description="代码区字号(pt)。",
+        label="Editor Font Size",
+        description="Code area font size (pt).",
         min=6,
         max=72,
         scope=SettingsScope.GLOBAL,
@@ -70,17 +70,16 @@ GLOBAL_SPECS: tuple = (
         key="ui.show_line_numbers",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="显示行号",
-        description="左侧显示行号。",
+        label="Show Line Numbers",
+        description="Show line numbers on the left.",
         scope=SettingsScope.GLOBAL,
     ),
-
     SettingSpec(
         key="editor.tab_size",
         type=SettingValueType.INTEGER,
         default=4,
-        label="Tab 宽度",
-        description="Tab 插入空格数。",
+        label="Tab Width",
+        description="Number of spaces inserted for Tab.",
         min=1,
         max=16,
         scope=SettingsScope.GLOBAL,
@@ -89,24 +88,24 @@ GLOBAL_SPECS: tuple = (
         key="editor.use_spaces",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="Tab 转空格",
-        description="Tab 插入空格(默认)。",
+        label="Tab to Spaces",
+        description="Insert spaces for Tab (default).",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="editor.auto_save",
         type=SettingValueType.BOOLEAN,
         default=False,
-        label="自动保存",
-        description="编辑停止自动写盘。",
+        label="Auto Save",
+        description="Automatically write to disk after editing stops.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="editor.auto_save_delay_ms",
         type=SettingValueType.INTEGER,
         default=800,
-        label="自动保存延迟",
-        description="空闲等待毫秒。",
+        label="Auto Save Delay",
+        description="Idle wait time in milliseconds.",
         min=100,
         max=60000,
         scope=SettingsScope.GLOBAL,
@@ -115,24 +114,24 @@ GLOBAL_SPECS: tuple = (
         key="editor.auto_save_format",
         type=SettingValueType.STRING,
         default="{unix.seconds}",
-        label="自动保存文件名格式",
-        description="未命名文件自动保存时的文件名格式。可用字段: {year} {month} {day} {hour} {minute} {second} {unix.seconds} {unix.float}",
+        label="Auto Save File Name Format",
+        description="File name format for auto-save of unnamed files. Available fields: {year} {month} {day} {hour} {minute} {second} {unix.seconds} {unix.float}",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="editor.word_wrap",
         type=SettingValueType.BOOLEAN,
         default=False,
-        label="自动换行",
-        description="超界自动换行。",
+        label="Auto Wrap",
+        description="Automatically wrap when exceeding boundary.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="editor.highlight_delay_ms",
         type=SettingValueType.INTEGER,
         default=300,
-        label="高亮延迟",
-        description="高亮重算延迟毫秒,0=无延迟。",
+        label="Highlight Delay",
+        description="Highlight recalculation delay in milliseconds, 0=no delay.",
         min=0,
         max=5000,
         scope=SettingsScope.GLOBAL,
@@ -141,10 +140,10 @@ GLOBAL_SPECS: tuple = (
         key="editor.suggestion_delay_ms",
         type=SettingValueType.INTEGER,
         default=200,
-        label="建议延迟",
+        label="Suggestion Delay",
         description=(
-            "输入或光标主动移动后,触发建议的延迟毫秒;"
-            "快速连续按键/移动时只保留最后一次。0=无延迟。"
+            "Delay in milliseconds before triggering suggestions after typing or cursor movement;"
+            "only the last one is kept when keys are pressed repeatedly or cursor moves quickly. 0=no delay."
         ),
         min=0,
         max=5000,
@@ -154,32 +153,31 @@ GLOBAL_SPECS: tuple = (
         key="editor.large_file_threshold_bytes",
         type=SettingValueType.INTEGER,
         default=5 * 1024 * 1024,
-        label="大文件阈值(字节)",
+        label="Large File Threshold (bytes)",
         description=(
-            "超过该字节数的文件会被视为大文件:"
-            "采用分块流式加载避免 UI 冻结,"
-            "并自动关闭高亮与建议以保证响应速度。"
-            "设为 0 关闭此特性(所有文件走原始路径)。"
+            "Files exceeding this byte count are treated as large files:"
+            "chunked streaming loading is used to avoid UI freezing,"
+            "and highlighting and suggestions are automatically disabled to ensure responsiveness."
+            "Set to 0 to disable this feature (all files go through the original path)."
         ),
         min=0,
         max=1024 * 1024 * 1024,
         scope=SettingsScope.GLOBAL,
     ),
-
     SettingSpec(
         key="completion.enabled",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="启用代码补全",
-        description="键入弹出建议。",
+        label="Enable Code Completion",
+        description="Show suggestions when typing.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="completion.max_suggestions",
         type=SettingValueType.INTEGER,
         default=20,
-        label="最大建议数",
-        description="建议上限条数。",
+        label="Max Suggestions",
+        description="Maximum number of suggestions.",
         min=1,
         max=200,
         scope=SettingsScope.GLOBAL,
@@ -188,8 +186,8 @@ GLOBAL_SPECS: tuple = (
         key="completion.max_visible",
         type=SettingValueType.INTEGER,
         default=8,
-        label="候选条数",
-        description="下拉列表可见候选条数。",
+        label="Visible Candidates",
+        description="Number of visible candidates in dropdown list.",
         min=3,
         max=20,
         scope=SettingsScope.GLOBAL,
@@ -198,59 +196,57 @@ GLOBAL_SPECS: tuple = (
         key="completion.auto_trigger",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="自动触发补全",
-        description="键入自动触发。",
+        label="Auto Trigger Completion",
+        description="Trigger automatically when typing.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="completion.min_chars_before_trigger",
         type=SettingValueType.INTEGER,
         default=1,
-        label="触发补全的最小连续字符数",
+        label="Min Chars Before Trigger",
         description=(
-            "连续输入不少于该字符数后,等待建议延迟才弹出建议窗口;"
-            "在停顿、移动光标或非字符按键时会重置计数。"
-            "默认 1:每次输入字符都会按延迟触发;设为更大的值可延迟弹出。"
-            "设为 0 禁用自动弹窗(只能通过 Ctrl+Space 手动触发)。"
+            "After continuously typing at least this many characters, wait for the suggestion delay before showing the suggestion popup;"
+            "the count resets when pausing, moving cursor, or pressing non-character keys."
+            "Default 1: triggers on every character input after delay; set higher to delay the popup."
+            "Set to 0 to disable auto popup (only manual trigger with Ctrl+Space)."
         ),
         min=0,
         max=20,
         scope=SettingsScope.GLOBAL,
     ),
-
     SettingSpec(
         key="checker.run_on_open",
         type=SettingValueType.BOOLEAN,
         default=False,
-        label="打开时检查",
-        description="打开时检查。",
+        label="Check on Open",
+        description="Run check when file is opened.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="checker.run_on_save",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="保存时检查",
-        description="保存时检查。",
+        label="Check on Save",
+        description="Run check when file is saved.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="checker.timeout_ms",
         type=SettingValueType.INTEGER,
         default=30000,
-        label="检查超时",
-        description="检查超时毫秒。",
+        label="Check Timeout",
+        description="Check timeout in milliseconds.",
         min=500,
         max=600000,
         scope=SettingsScope.GLOBAL,
     ),
-
     SettingSpec(
         key="runner.timeout_ms",
         type=SettingValueType.INTEGER,
         default=30000,
-        label="运行超时",
-        description="运行超时毫秒。",
+        label="Run Timeout",
+        description="Run timeout in milliseconds.",
         min=500,
         max=600000,
         scope=SettingsScope.GLOBAL,
@@ -259,37 +255,35 @@ GLOBAL_SPECS: tuple = (
         key="runner.clear_output_before_run",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="运行前清空输出",
-        description="运行前清空输出。",
+        label="Clear Output Before Run",
+        description="Clear output before running.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="runner.stream_output",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="流式输出",
+        label="Streaming Output",
         description=(
-            "运行时按行实时输出子进程 stdout/stderr。"
-            "关闭后等待子进程结束再一次性输出。"
+            "Output subprocess stdout/stderr in real-time line by line during execution."
+            "When off, output all at once after subprocess completes."
         ),
         scope=SettingsScope.GLOBAL,
     ),
-
     SettingSpec(
         key="startup.restore_files",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="恢复上次打开的文件",
-        description="恢复上次打开的文件。",
+        label="Restore Last Opened Files",
+        description="Restore files opened in the last session.",
         scope=SettingsScope.GLOBAL,
     ),
-
     SettingSpec(
         key="i18n.language",
         type=SettingValueType.CHOICE,
         default="zh_CN",
-        label="界面语言",
-        description="界面语言切换。修改后菜单/状态栏/对话框文案会立即重渲。",
+        label="Interface Language",
+        description="Interface language switch. Menu/status bar/dialog text will re-render immediately after change.",
         choices=tuple(AVAILABLE_LANGUAGES),
         scope=SettingsScope.GLOBAL,
     ),
@@ -297,26 +291,25 @@ GLOBAL_SPECS: tuple = (
         key="i18n.language_marketplace",
         type=SettingValueType.BUTTON,
         default=None,
-        label="浏览语言市场...",
+        label="Browse Languages...",
         description="",
         scope=SettingsScope.GLOBAL,
     ),
-
-    # ── 日志 ────────────────────────────────────────────────────────────
+    # ── Logging ────────────────────────────────────────────────────────────
     SettingSpec(
         key="logging.enabled",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="启用日志",
-        description="开启后记录运行日志到 logs/ 目录。",
+        label="Enable Logging",
+        description="When enabled, records runtime logs to the logs/ directory.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="logging.level",
         type=SettingValueType.CHOICE,
         default="INFO",
-        label="日志级别",
-        description="记录该级别及以上的日志。",
+        label="Log Level",
+        description="Log at this level and above.",
         choices=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"),
         scope=SettingsScope.GLOBAL,
     ),
@@ -324,24 +317,24 @@ GLOBAL_SPECS: tuple = (
         key="logging.file_enabled",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="写文件日志",
-        description="将日志写入 logs/<name>.log 文件。",
+        label="Write File Logs",
+        description="Write logs to logs/<name>.log file.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="logging.console_enabled",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="输出到控制台",
-        description="同时将日志打印到 stdout。",
+        label="Output to Console",
+        description="Also print logs to stdout.",
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
         key="logging.max_bytes",
         type=SettingValueType.INTEGER,
         default=5 * 1024 * 1024,
-        label="日志文件大小上限",
-        description="单个日志文件最大字节数，超出后自动轮转。",
+        label="Log File Max Size",
+        description="Maximum bytes per log file, rotates automatically when exceeded.",
         min=1024,
         max=100 * 1024 * 1024,
         scope=SettingsScope.GLOBAL,
@@ -350,19 +343,18 @@ GLOBAL_SPECS: tuple = (
         key="logging.backup_count",
         type=SettingValueType.INTEGER,
         default=5,
-        label="日志备份数量",
-        description="轮转时保留的旧日志文件数量。",
+        label="Log Backup Count",
+        description="Number of old log files to keep during rotation.",
         min=1,
         max=100,
         scope=SettingsScope.GLOBAL,
     ),
-
-    # ── 插件 ────────────────────────────────────────────────────────────
+    # ── Plugins ────────────────────────────────────────────────────────────
     SettingSpec(
         key="plugins.marketplace",
         type=SettingValueType.BUTTON,
         default=None,
-        label="浏览插件市场...",
+        label="Browse Plugin Marketplace...",
         description="",
         scope=SettingsScope.GLOBAL,
     ),
@@ -372,74 +364,69 @@ GLOBAL_SPECS: tuple = (
 GLOBAL_SCHEMA = SettingsSchema(GLOBAL_SPECS)
 
 
-
-
 PROJECT_SPECS: tuple = (
     SettingSpec(
         key="project.python_interpreter",
         type=SettingValueType.PATH,
         default="",
-        label="Python 解释器",
-        description="解释器路径;空用系统默认。",
+        label="Python Interpreter",
+        description="Interpreter path; empty uses system default.",
         scope=SettingsScope.PROJECT,
     ),
     SettingSpec(
         key="project.entry_point",
         type=SettingValueType.PATH,
         default="",
-        label="入口文件",
-        description="F5 入口文件;空用当前文件。",
+        label="Entry File",
+        description="F5 entry file; empty uses current file.",
         scope=SettingsScope.PROJECT,
     ),
     SettingSpec(
         key="project.c_compiler",
         type=SettingValueType.PATH,
         default="gcc",
-        label="C 编译器",
-        description="C 编译器名或绝对路径。",
+        label="C Compiler",
+        description="C compiler name or absolute path.",
         scope=SettingsScope.PROJECT,
     ),
     SettingSpec(
         key="project.cpp_compiler",
         type=SettingValueType.PATH,
         default="g++",
-        label="C++ 编译器",
-        description="C++ 编译器名或绝对路径。",
+        label="C++ Compiler",
+        description="C++ compiler name or absolute path.",
         scope=SettingsScope.PROJECT,
     ),
-
     SettingSpec(
         key="checker.enabled",
         type=SettingValueType.LIST,
         default=["flake8", "pyright"],
-        label="启用的检查器",
-        description="启用的检查器 ID 列表。",
+        label="Enabled Checkers",
+        description="List of enabled checker IDs.",
         scope=SettingsScope.PROJECT,
     ),
     SettingSpec(
         key="checker.ignore",
         type=SettingValueType.LIST,
         default=[],
-        label="忽略的检查项",
-        description="忽略的检查项 ID(如 E501)。",
+        label="Ignored Checks",
+        description="Ignored checker item IDs (e.g., E501).",
         scope=SettingsScope.PROJECT,
     ),
-
     SettingSpec(
         key="project.exclude_paths",
         type=SettingValueType.LIST,
         default=["__pycache__", ".git", ".venv", "venv", "build", "dist"],
-        label="排除路径",
-        description="忽略的 glob 路径。",
+        label="Exclude Paths",
+        description="Ignored glob paths.",
         scope=SettingsScope.PROJECT,
     ),
-
     SettingSpec(
         key="project.tab_size",
         type=SettingValueType.INTEGER,
         default=4,
-        label="项目 Tab 宽度",
-        description="Tab 宽度覆盖;0=回退全局。",
+        label="Project Tab Width",
+        description="Tab width override; 0=fallback to global.",
         min=0,
         max=16,
         scope=SettingsScope.PROJECT,
@@ -448,33 +435,30 @@ PROJECT_SPECS: tuple = (
         key="project.use_spaces",
         type=SettingValueType.BOOLEAN,
         default=True,
-        label="项目 Tab 转空格",
-        description="Tab 转空格行为覆盖。",
+        label="Project Tab to Spaces",
+        description="Tab to spaces behavior override.",
         scope=SettingsScope.PROJECT,
     ),
-
     SettingSpec(
         key="project.name",
         type=SettingValueType.STRING,
         default="",
-        label="项目名称",
-        description="显示名;空用目录名。",
+        label="Project Name",
+        description="Display name; empty uses directory name.",
         scope=SettingsScope.PROJECT,
     ),
     SettingSpec(
         key="project.description",
         type=SettingValueType.STRING,
         default="",
-        label="项目描述",
-        description="仅展示,不影响运行。",
+        label="Project Description",
+        description="For display only, does not affect execution.",
         scope=SettingsScope.PROJECT,
     ),
 )
 
 
 PROJECT_SCHEMA = SettingsSchema(PROJECT_SPECS)
-
-
 
 
 SCHEMA_BY_SCOPE = {
@@ -484,7 +468,7 @@ SCHEMA_BY_SCOPE = {
 
 
 def get_schema(scope: SettingsScope) -> SettingsSchema:
-    """根据作用域返回内置 :class:`SettingsSchema`。"""
+    """Return the built-in :class:`SettingsSchema` for the given scope."""
 
     return SCHEMA_BY_SCOPE[scope]
 

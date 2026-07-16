@@ -3,11 +3,11 @@ from ._command import Command
 
 class Git(Command):
     _option_aliases = {
-        'empty': 'allow-empty',
+        "empty": "allow-empty",
     }
     _required_args = {
-        'commit': ('message',),
+        "commit": ("message",),
     }
 
     def __init__(self, cwd=None):
-        super().__init__('git', cwd=cwd)
+        super().__init__("git", cwd=cwd)

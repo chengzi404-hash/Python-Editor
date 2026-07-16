@@ -8,7 +8,7 @@ from . import theme
 
 class UTabView(tk.Frame):
     def __init__(self, parent, **kwargs):
-        bg = kwargs.pop('bg', theme.BG_PANEL)
+        bg = kwargs.pop("bg", theme.BG_PANEL)
         super().__init__(parent, bg=bg, highlightthickness=0, bd=0, **kwargs)
 
         self._tabs: dict[str, tk.Frame] = {}
@@ -27,12 +27,17 @@ class UTabView(tk.Frame):
         btn_bg = theme.BG_TITLE
         btn_fg = theme.FG_SECONDARY
 
-        btn = tk.Frame(self._bar, bg=btn_bg, cursor='hand2')
+        btn = tk.Frame(self._bar, bg=btn_bg, cursor="hand2")
         btn.pack(side=tk.LEFT, padx=0, pady=0)
 
         lbl = tk.Label(
-            btn, text=label, bg=btn_bg, fg=btn_fg,
-            font=theme.LABEL_FONT, padx=16, pady=6,
+            btn,
+            text=label,
+            bg=btn_bg,
+            fg=btn_fg,
+            font=theme.LABEL_FONT,
+            padx=16,
+            pady=6,
         )
         lbl.pack()
 
@@ -40,9 +45,9 @@ class UTabView(tk.Frame):
         sep.pack(side=tk.RIGHT, fill=tk.Y)
 
         for w in (btn, lbl):
-            w.bind('<Button-1>', lambda e, tid=tab_id: self.select(tid))
-            w.bind('<Enter>', lambda e, b=btn, l=lbl: self._on_tab_enter(b, l))
-            w.bind('<Leave>', lambda e, b=btn, l=lbl: self._on_tab_leave(b, l, tab_id))
+            w.bind("<Button-1>", lambda e, tid=tab_id: self.select(tid))
+            w.bind("<Enter>", lambda e, b=btn, l=lbl: self._on_tab_enter(b, l))
+            w.bind("<Leave>", lambda e, b=btn, l=lbl: self._on_tab_leave(b, l, tab_id))
 
         content_frame = tk.Frame(self._content, bg=theme.BG_PANEL)
         self._tabs[tab_id] = content_frame

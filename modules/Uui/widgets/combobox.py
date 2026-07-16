@@ -1,12 +1,20 @@
+import contextlib
 import tkinter as tk
 
 from . import theme
 
 
 class UComboBox(tk.Frame):
-    def __init__(self, parent, values=(), textvariable=None, command=None,
-                 select_first: bool = True, **kwargs):
-        bg = kwargs.pop('bg', theme.BG_BASE)
+    def __init__(
+        self,
+        parent,
+        values=(),
+        textvariable=None,
+        command=None,
+        select_first: bool = True,
+        **kwargs,
+    ):
+        bg = kwargs.pop("bg", theme.BG_BASE)
         super().__init__(parent, bg=bg, highlightthickness=0, bd=0, **kwargs)
 
         self._values = list(values)
@@ -15,7 +23,8 @@ class UComboBox(tk.Frame):
         self._select_first = select_first
 
         self._button = tk.Frame(
-            self, bg=theme.BG_INPUT,
+            self,
+            bg=theme.BG_INPUT,
             highlightthickness=1,
             highlightcolor=theme.BORDER_FOCUS,
             highlightbackground=theme.BORDER,
@@ -24,22 +33,28 @@ class UComboBox(tk.Frame):
         self._button.pack(fill=tk.X)
 
         self._text_label = tk.Label(
-            self._button, textvariable=self._var,
-            bg=theme.BG_INPUT, fg=theme.FG_PRIMARY,
-            font=theme.LABEL_FONT, anchor='w',
+            self._button,
+            textvariable=self._var,
+            bg=theme.BG_INPUT,
+            fg=theme.FG_PRIMARY,
+            font=theme.LABEL_FONT,
+            anchor="w",
         )
         self._text_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=6)
 
         self._arrow = tk.Label(
-            self._button, text='\u25BE', bg=theme.BG_INPUT,
-            fg=theme.FG_SECONDARY, font=theme.LABEL_FONT,
+            self._button,
+            text="\u25be",
+            bg=theme.BG_INPUT,
+            fg=theme.FG_SECONDARY,
+            font=theme.LABEL_FONT,
         )
         self._arrow.pack(side=tk.RIGHT, padx=10)
 
         for w in (self._button, self._text_label, self._arrow):
-            w.bind('<Button-1>', self._toggle)
-            w.bind('<Enter>', self._on_enter)
-            w.bind('<Leave>', self._on_leave)
+            w.bind("<Button-1>", self._toggle)
+            w.bind("<Enter>", self._on_enter)
+            w.bind("<Leave>", self._on_leave)
 
         self._dropdown = None
         self._root_bind = None
@@ -78,8 +93,11 @@ class UComboBox(tk.Frame):
         w = max(self.winfo_width(), 160)
 
         frame = tk.Frame(
-            self._dropdown, bg=theme.BG_PANEL,
-            highlightthickness=1, highlightbackground=theme.BORDER, bd=0,
+            self._dropdown,
+            bg=theme.BG_PANEL,
+            highlightthickness=1,
+            highlightbackground=theme.BORDER,
+            bd=0,
         )
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -98,21 +116,27 @@ class UComboBox(tk.Frame):
         if x < 0:
             x = 0
 
-        self._dropdown.geometry(f'{w}x{h}+{x}+{y}')
+        self._dropdown.geometry(f"{w}x{h}+{x}+{y}")
 
         for value in self._values:
             item = tk.Label(
-                frame, text='  ' + str(value), bg=theme.BG_PANEL,
-                fg=theme.FG_PRIMARY, font=theme.LABEL_FONT,
-                anchor='w', cursor='hand2',
-                height=1, padx=8, pady=4,
+                frame,
+                text="  " + str(value),
+                bg=theme.BG_PANEL,
+                fg=theme.FG_PRIMARY,
+                font=theme.LABEL_FONT,
+                anchor="w",
+                cursor="hand2",
+                height=1,
+                padx=8,
+                pady=4,
             )
             item.pack(fill=tk.X)
-            item.bind('<Button-1>', lambda e, v=value: self._select(v))
-            item.bind('<Enter>', lambda e, w=item: w.config(bg=theme.BLUE))
-            item.bind('<Leave>', lambda e, w=item: w.config(bg=theme.BG_PANEL))
+            item.bind("<Button-1>", lambda e, v=value: self._select(v))
+            item.bind("<Enter>", lambda e, w=item: w.config(bg=theme.BLUE))
+            item.bind("<Leave>", lambda e, w=item: w.config(bg=theme.BG_PANEL))
 
-        self._root_bind = top.bind('<Button-1>', self._on_root_click, add='+')
+        self._root_bind = top.bind("<Button-1>", self._on_root_click, add="+")
 
     def _on_root_click(self, e: tk.Event | None = None):
         dd = self._dropdown
@@ -144,16 +168,12 @@ class UComboBox(tk.Frame):
 
     def _close_dropdown(self):
         if self._dropdown is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._dropdown.destroy()
-            except tk.TclError:
-                pass
             self._dropdown = None
         if self._root_bind is not None:
-            try:
-                self.winfo_toplevel().unbind('<Button-1>', self._root_bind)
-            except tk.TclError:
-                pass
+            with contextlib.suppress(tk.TclError):
+                self.winfo_toplevel().unbind("<Button-1>", self._root_bind)
             self._root_bind = None
         self._button.config(bg=theme.BG_INPUT)
         self._text_label.config(bg=theme.BG_INPUT)
@@ -172,7 +192,7 @@ class UComboBox(tk.Frame):
 
     def _apply_theme(self):
         try:
-            outer_bg = self.master.cget('bg')
+            outer_bg = self.master.cget("bg")
             if outer_bg:
                 self.config(bg=outer_bg)
         except Exception:

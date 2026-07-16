@@ -1,4 +1,5 @@
 """ORM field types."""
+
 from datetime import date, datetime
 from typing import Any
 
@@ -6,7 +7,7 @@ from typing import Any
 class Field:
     """Base class for all field types."""
 
-    sql_type: str = 'TEXT'
+    sql_type: str = "TEXT"
     primary_key: bool = False
     auto: bool = False
     nullable: bool = True
@@ -14,13 +15,16 @@ class Field:
     default: Any = None
     has_default: bool = False
 
-    def __init__(self, *,
-                 null: bool = False,
-                 unique: bool = False,
-                 default: Any = None,
-                 primary_key: bool = False,
-                 db_column: str | None = None,
-                 verbose_name: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        null: bool = False,
+        unique: bool = False,
+        default: Any = None,
+        primary_key: bool = False,
+        db_column: str | None = None,
+        verbose_name: str | None = None,
+    ) -> None:
         self.null = null
         self.nullable = null
         self.unique = unique
@@ -29,8 +33,8 @@ class Field:
         self.primary_key = primary_key
         self.db_column = db_column
         self.verbose_name = verbose_name
-        self.attname: str = ''
-        self.column: str = ''
+        self.attname: str = ""
+        self.column: str = ""
 
     def to_python(self, value: Any) -> Any:
         return value
@@ -47,14 +51,14 @@ class Field:
 
 
 class AutoField(Field):
-    sql_type = 'INTEGER'
+    sql_type = "INTEGER"
     primary_key = True
     auto = True
     nullable = False
     unique = True
 
     def __init__(self, **kwargs) -> None:
-        kwargs.setdefault('primary_key', True)
+        kwargs.setdefault("primary_key", True)
         super().__init__(**kwargs)
 
     def to_python(self, value: Any) -> Any:
@@ -62,49 +66,49 @@ class AutoField(Field):
 
 
 class CharField(Field):
-    sql_type = 'VARCHAR'
+    sql_type = "VARCHAR"
 
     def __init__(self, max_length: int = 255, **kwargs) -> None:
         self.max_length = max_length
         super().__init__(**kwargs)
-        self.sql_type = f'VARCHAR({max_length})'
+        self.sql_type = f"VARCHAR({max_length})"
 
     def to_python(self, value: Any) -> Any:
         return str(value) if value is not None else None
 
 
 class TextField(Field):
-    sql_type = 'TEXT'
+    sql_type = "TEXT"
 
 
 class IntegerField(Field):
-    sql_type = 'INTEGER'
+    sql_type = "INTEGER"
 
     def to_python(self, value: Any) -> Any:
         return int(value) if value is not None else None
 
 
 class BigIntegerField(IntegerField):
-    sql_type = 'BIGINT'
+    sql_type = "BIGINT"
 
 
 class SmallIntegerField(IntegerField):
-    sql_type = 'SMALLINT'
+    sql_type = "SMALLINT"
 
 
 class FloatField(Field):
-    sql_type = 'REAL'
+    sql_type = "REAL"
 
     def to_python(self, value: Any) -> Any:
         return float(value) if value is not None else None
 
 
 class BooleanField(Field):
-    sql_type = 'BOOLEAN'
+    sql_type = "BOOLEAN"
 
     def __init__(self, default: Any = False, **kwargs) -> None:
-        kwargs.setdefault('default', default)
-        kwargs.setdefault('null', False)
+        kwargs.setdefault("default", default)
+        kwargs.setdefault("null", False)
         super().__init__(**kwargs)
         self.has_default = True
 
@@ -120,7 +124,7 @@ class BooleanField(Field):
 
 
 class DateTimeField(Field):
-    sql_type = 'TIMESTAMP'
+    sql_type = "TIMESTAMP"
 
     def __init__(self, auto_now: bool = False, auto_now_add: bool = False, **kwargs) -> None:
         self.auto_now = auto_now
@@ -151,7 +155,7 @@ class DateTimeField(Field):
 
 
 class DateField(Field):
-    sql_type = 'DATE'
+    sql_type = "DATE"
 
     def to_python(self, value: Any) -> Any:
         if value is None or isinstance(value, date):
@@ -172,10 +176,10 @@ class DateField(Field):
 
 
 class ForeignKey(Field):
-    sql_type = 'INTEGER'
+    sql_type = "INTEGER"
 
-    def __init__(self, to, on_delete: str = 'CASCADE', **kwargs) -> None:
-        kwargs.setdefault('null', False)
+    def __init__(self, to, on_delete: str = "CASCADE", **kwargs) -> None:
+        kwargs.setdefault("null", False)
         self.to = to if not isinstance(to, str) else to
         self.on_delete = on_delete
         super().__init__(**kwargs)
@@ -185,17 +189,18 @@ class ForeignKey(Field):
     def contribute_to_class(self, cls, name: str) -> None:
         super().contribute_to_class(cls, name)
         if cls is not None:
-            cache_name = f'_{name}_cache'
+            cache_name = f"_{name}_cache"
             setattr(cls, cache_name, None)
-        self._related_name = name + '_set'
+        self._related_name = name + "_set"
 
     def get_related_model(self) -> Any:
         if isinstance(self.to, str):
             from .models import _resolve_model_string
+
             return _resolve_model_string(self.to)
         return self.to
 
 
-CASCADE = 'CASCADE'
-SET_NULL = 'SET_NULL'
-PROTECT = 'PROTECT'
+CASCADE = "CASCADE"
+SET_NULL = "SET_NULL"
+PROTECT = "PROTECT"

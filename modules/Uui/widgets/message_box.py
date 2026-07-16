@@ -9,7 +9,7 @@ from .label import ULabel
 
 
 class _UDialogBase(tk.Toplevel):
-    def __init__(self, parent, title: str = '', width: int = 400, height: int = 180):
+    def __init__(self, parent, title: str = "", width: int = 400, height: int = 180):
         super().__init__(parent)
         self._parent = parent
 
@@ -22,18 +22,18 @@ class _UDialogBase(tk.Toplevel):
         sh = self.winfo_screenheight()
         x = max(0, (sw - width) // 2)
         y = max(0, (sh - height) // 2)
-        self.geometry(f'{width}x{height}+{x}+{y}')
+        self.geometry(f"{width}x{height}+{x}+{y}")
 
-        outer = UFrame(self, variant='panel')
+        outer = UFrame(self, variant="panel")
         outer.pack(fill=tk.BOTH, expand=True)
 
-        self._body = UFrame(outer, variant='panel')
+        self._body = UFrame(outer, variant="panel")
         self._body.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
-        self._btn_area = UFrame(outer, variant='panel')
+        self._btn_area = UFrame(outer, variant="panel")
         self._btn_area.pack(fill=tk.X, padx=20, pady=(0, 15))
 
-        self.protocol('WM_DELETE_WINDOW', self.destroy)
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
 
     @property
     def body(self) -> UFrame:
@@ -44,74 +44,70 @@ class _UDialogBase(tk.Toplevel):
         return self._btn_area
 
 
-def askstring(parent, title: str, prompt: str,
-              initialvalue: str = '', **kwargs) -> str | None:
+def askstring(parent, title: str, prompt: str, initialvalue: str = "", **kwargs) -> str | None:
     import tkinter.simpledialog as sd
-    return sd.askstring(title, prompt, initialvalue=initialvalue,
-                        parent=parent, **kwargs)
+
+    return sd.askstring(title, prompt, initialvalue=initialvalue, parent=parent, **kwargs)
 
 
 def showinfo(title: str, message: str, parent=None, **kwargs):
     if parent is None:
         import tkinter.messagebox as mb
+
         return mb.showinfo(title, message, **kwargs)
 
     dlg = _UDialogBase(parent, title=title, width=400, height=150)
-    ULabel(dlg.body, text=message, variant='primary',
-           font=theme.LABEL_FONT).pack(pady=20)
+    ULabel(dlg.body, text=message, variant="primary", font=theme.LABEL_FONT).pack(pady=20)
 
     def close():
         dlg.destroy()
 
-    UButton(dlg.btn_area, text='OK', variant='primary',
-            command=close, width=80).pack(side=tk.RIGHT)
+    UButton(dlg.btn_area, text="OK", variant="primary", command=close, width=80).pack(side=tk.RIGHT)
     dlg.wait_window()
 
 
 def showerror(title: str, message: str, parent=None, **kwargs):
     if parent is None:
         import tkinter.messagebox as mb
+
         return mb.showerror(title, message, **kwargs)
 
     dlg = _UDialogBase(parent, title=title, width=420, height=150)
-    ULabel(dlg.body, text=message, variant='red',
-           font=theme.LABEL_FONT).pack(pady=20)
+    ULabel(dlg.body, text=message, variant="red", font=theme.LABEL_FONT).pack(pady=20)
 
     def close():
         dlg.destroy()
 
-    UButton(dlg.btn_area, text='OK', variant='danger',
-            command=close, width=80).pack(side=tk.RIGHT)
+    UButton(dlg.btn_area, text="OK", variant="danger", command=close, width=80).pack(side=tk.RIGHT)
     dlg.wait_window()
 
 
 def showwarning(title: str, message: str, parent=None, **kwargs):
     if parent is None:
         import tkinter.messagebox as mb
+
         return mb.showwarning(title, message, **kwargs)
 
     dlg = _UDialogBase(parent, title=title, width=420, height=150)
-    ULabel(dlg.body, text=message, variant='yellow',
-           font=theme.LABEL_FONT).pack(pady=20)
+    ULabel(dlg.body, text=message, variant="yellow", font=theme.LABEL_FONT).pack(pady=20)
 
     def close():
         dlg.destroy()
 
-    UButton(dlg.btn_area, text='OK', variant='warning',
-            command=close, width=80).pack(side=tk.RIGHT)
+    UButton(dlg.btn_area, text="OK", variant="warning", command=close, width=80).pack(side=tk.RIGHT)
     dlg.wait_window()
 
 
 def askyesno(title: str, message: str, parent=None, **kwargs) -> bool:
     if parent is None:
         import tkinter.messagebox as mb
+
         return mb.askyesno(title, message, **kwargs)
 
     result = False
 
     dlg = _UDialogBase(parent, title=title, width=400, height=150)
-    ULabel(dlg.body, text=message, variant='primary',
-           font=theme.LABEL_FONT).pack(pady=20)
+    ULabel(dlg.body, text=message, variant="primary", font=theme.LABEL_FONT).pack(pady=20)
 
     def on_yes():
         nonlocal result
@@ -123,26 +119,24 @@ def askyesno(title: str, message: str, parent=None, **kwargs) -> bool:
         result = False
         dlg.destroy()
 
-    btn_frame = UFrame(dlg.btn_area, variant='panel')
+    btn_frame = UFrame(dlg.btn_area, variant="panel")
     btn_frame.pack(side=tk.RIGHT)
-    UButton(btn_frame, text='Yes', variant='primary',
-            command=on_yes, width=70).pack(side=tk.LEFT, padx=5)
-    UButton(btn_frame, text='No', variant='ghost',
-            command=on_no, width=70).pack(side=tk.LEFT)
+    UButton(btn_frame, text="Yes", variant="primary", command=on_yes, width=70).pack(
+        side=tk.LEFT, padx=5
+    )
+    UButton(btn_frame, text="No", variant="ghost", command=on_no, width=70).pack(side=tk.LEFT)
 
     dlg.wait_window()
     return result
 
 
-def askstring_custom(parent, title: str, prompt: str,
-                     initialvalue: str = '') -> str | None:
+def askstring_custom(parent, title: str, prompt: str, initialvalue: str = "") -> str | None:
     from .entry import UEntry
 
     result: str | None = None
 
     dlg = _UDialogBase(parent, title=title, width=420, height=180)
-    ULabel(dlg.body, text=prompt, variant='secondary',
-           font=theme.LABEL_FONT).pack(anchor='w')
+    ULabel(dlg.body, text=prompt, variant="secondary", font=theme.LABEL_FONT).pack(anchor="w")
 
     var = tk.StringVar(value=initialvalue)
     entry = UEntry(dlg.body, textvariable=var, width=40)
@@ -159,20 +153,22 @@ def askstring_custom(parent, title: str, prompt: str,
         dlg.destroy()
 
     def on_key(e):
-        if e.keysym == 'Return':
+        if e.keysym == "Return":
             on_ok()
-        elif e.keysym == 'Escape':
+        elif e.keysym == "Escape":
             on_cancel()
 
-    dlg.bind('<Key>', on_key)
+    dlg.bind("<Key>", on_key)
     entry.focus_set()
 
-    btn_frame = UFrame(dlg.btn_area, variant='panel')
+    btn_frame = UFrame(dlg.btn_area, variant="panel")
     btn_frame.pack(side=tk.RIGHT)
-    UButton(btn_frame, text='OK', variant='primary',
-            command=on_ok, width=70).pack(side=tk.LEFT, padx=5)
-    UButton(btn_frame, text='Cancel', variant='ghost',
-            command=on_cancel, width=70).pack(side=tk.LEFT)
+    UButton(btn_frame, text="OK", variant="primary", command=on_ok, width=70).pack(
+        side=tk.LEFT, padx=5
+    )
+    UButton(btn_frame, text="Cancel", variant="ghost", command=on_cancel, width=70).pack(
+        side=tk.LEFT
+    )
 
     dlg.wait_window()
     return result

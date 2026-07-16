@@ -20,9 +20,9 @@ class TestJsonFileSettings:
     def test_is_plugin_key(self):
         schema = SettingsSchema(())
         settings = JsonFileSettings(schema=schema, scope=SettingsScope.GLOBAL, auto_load=False)
-        assert settings._is_plugin_key("plugins.myplugin.enabled") == True
-        assert settings._is_plugin_key("plugins.myplugin") == False
-        assert settings._is_plugin_key("normal.key") == False
+        assert settings._is_plugin_key("plugins.myplugin.enabled")
+        assert not settings._is_plugin_key("plugins.myplugin")
+        assert not settings._is_plugin_key("normal.key")
 
     def test_get_with_default(self):
         schema = SettingsSchema((
@@ -53,9 +53,9 @@ class TestJsonFileSettings:
             SettingSpec(key="test.key", type=SettingValueType.STRING, default=""),
         ))
         settings = JsonFileSettings(schema=schema, scope=SettingsScope.GLOBAL, auto_load=False)
-        assert settings.has("test.key") == False
+        assert not settings.has("test.key")
         settings.set("test.key", "value")
-        assert settings.has("test.key") == True
+        assert settings.has("test.key")
 
     def test_all(self):
         schema = SettingsSchema((

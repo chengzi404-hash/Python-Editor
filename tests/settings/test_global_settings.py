@@ -40,11 +40,11 @@ class TestGlobalSettings:
     def test_has(self):
         settings = GlobalSettings(auto_load=False)
         settings.set("editor.tab_size", 8)
-        assert settings.has("editor.tab_size") == True
+        assert settings.has("editor.tab_size")
 
     def test_has_not_set(self):
         settings = GlobalSettings(auto_load=False)
-        assert settings.has("editor.tab_size") == False
+        assert not settings.has("editor.tab_size")
 
     def test_reset_single(self):
         settings = GlobalSettings(auto_load=False)

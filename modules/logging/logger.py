@@ -1,4 +1,4 @@
-"""``modules.logging.logger`` — 日志核心实现。"""
+"""``modules.logging.logger`` — Core logging implementation."""
 
 from __future__ import annotations
 
@@ -12,47 +12,47 @@ from enum import IntEnum
 
 
 class LogLevel(IntEnum):
-    """日志级别枚举，按严重程度升序。"""
+    """Log level enum, ordered by severity ascending."""
 
-    DEBUG = logging.DEBUG      # 10
-    INFO = logging.INFO        # 20
+    DEBUG = logging.DEBUG  # 10
+    INFO = logging.INFO  # 20
     WARNING = logging.WARNING  # 30
-    ERROR = logging.ERROR      # 40
+    ERROR = logging.ERROR  # 40
     CRITICAL = logging.CRITICAL  # 50
 
 
-# 全局日志器字典，按 name 缓存
+# Global logger dict, cached by name
 _loggers: dict[str, Logger] = {}
 _loggers_lock = threading.Lock()
 
-# 全局配置句柄（配置一次，所有新 logger 共享）
+# Global configuration handle (set once, shared by all new loggers)
 _configured = False
 _config_lock = threading.Lock()
 _config: dict = {
     "level": LogLevel.INFO,
     "file_enabled": True,
     "console_enabled": True,
-    "max_bytes": 5 * 1024 * 1024,   # 5 MB
+    "max_bytes": 5 * 1024 * 1024,  # 5 MB
     "backup_count": 5,
-    "_dir": None,                   # 日志目录路径（str）
+    "_dir": None,  # Log directory path (str)
 }
 
 
 def _default_log_dir() -> str:
-    """返回默认日志目录 ``<项目根>/logs``。"""
+    """Return default log directory ``<project root>/logs``."""
     cwd = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(cwd, "logs")
 
 
 def _ensure_log_dir() -> str:
-    """确保日志目录存在并返回路径。"""
+    """Ensure log directory exists and return the path."""
     log_dir = _config["_dir"] or _default_log_dir()
     os.makedirs(log_dir, exist_ok=True)
     return log_dir
 
 
 class _Handler(logging.Handler):
-    """内部 Handler：格式化后写入 list（供 UI 日志面板使用）。"""
+    """Internal Handler: formats and writes to a list (used by UI log panel)."""
 
     def __init__(self, max_entries: int = 500):
         super().__init__()
@@ -63,7 +63,8 @@ class _Handler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         entry = {
             "timestamp": datetime.datetime.fromtimestamp(
-                record.created, tz=datetime.timezone.utc,
+                record.created,
+                tz=datetime.timezone.utc,
             ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
             "level": record.levelname,
             "name": record.name,
@@ -76,7 +77,7 @@ class _Handler(logging.Handler):
                 self._entries.pop(0)
 
     def get_entries(self, level: int | None = None) -> list[dict]:
-        """返回日志条目，level 为 None 时返回全部。"""
+        """Return log entries; when level is None, return all."""
         with self._lock:
             if level is None:
                 return list(self._entries)
@@ -88,12 +89,12 @@ class _Handler(logging.Handler):
 
     @property
     def level_int(self) -> int:
-        """供外部过滤用（与 LogLevel 数值对应）。"""
+        """For external filtering (corresponds to LogLevel values)."""
         return 0
 
 
 class Logger:
-    """统一日志封装，同时写文件 + 控制台 + 内存环形缓冲区。"""
+    """Unified log wrapper: writes to file + console + in-memory ring buffer simultaneously."""
 
     _instances: dict[str, Logger] = {}
 
@@ -115,15 +116,15 @@ class Logger:
         self._configure_handlers()
 
     def _configure_handlers(self) -> None:
-        """根据全局配置挂载 / 卸载 handlers。"""
+        """Mount / unmount handlers according to global config."""
         with self._lock:
-            # 先清除所有已有 handler（配置可能变了）
+            # Clear all existing handlers first (config may have changed)
             self._py_logger.handlers.clear()
 
             level = _config["level"].value
             self._py_logger.setLevel(level)
 
-            # 内存 handler（始终存在，供 UI 读取）
+            # In-memory handler (always present, for UI to read)
             self._py_logger.addHandler(self._handler)
 
             if _config["console_enabled"]:
@@ -153,7 +154,7 @@ class Logger:
                         )
                     )
                 else:
-                    # 级别或文件名可能变化，重新创建
+                    # Level or filename may have changed, recreate
                     self._py_logger.removeHandler(self._file_handler)
                     self._file_handler.close()
                     self._file_handler = logging.handlers.RotatingFileHandler(
@@ -186,29 +187,30 @@ class Logger:
         self._py_logger.critical(msg, *args, **kwargs)
 
     def exception(self, msg: str, *args, **kwargs) -> None:
-        """记录异常并附带堆栈跟踪。"""
+        """Log an exception with stack trace."""
         self._py_logger.exception(msg, *args, **kwargs)
 
     def log(self, level: int | LogLevel, msg: str, *args, **kwargs) -> None:
         self._py_logger.log(int(level), msg, *args, **kwargs)
 
     def get_entries(self, level: int | None = None) -> list[dict]:
-        """获取内存环形缓冲区中的日志条目。"""
+        """Get log entries from the in-memory ring buffer."""
         return self._handler.get_entries(level)
 
     def clear_entries(self) -> None:
-        """清空内存日志。"""
+        """Clear in-memory logs."""
         self._handler.clear()
 
     def flush(self) -> None:
-        """刷新所有 handler。"""
+        """Flush all handlers."""
         for h in self._py_logger.handlers:
             h.flush()
 
 
 # ---------------------------------------------------------------------------
-# 全局配置函数
+# Global configuration functions
 # ---------------------------------------------------------------------------
+
 
 def configure_logging(
     level: str | LogLevel = "INFO",
@@ -218,15 +220,15 @@ def configure_logging(
     max_bytes: int = 5 * 1024 * 1024,
     backup_count: int = 5,
 ) -> None:
-    """一次性配置全局日志行为。
+    """Configure global logging behavior in one call.
 
     Args:
-        level: 日志级别（DEBUG/INFO/WARNING/ERROR/CRITICAL 或对应字符串）。
-        file_enabled: 是否写文件日志。
-        console_enabled: 是否输出到控制台（stdout）。
-        log_dir: 日志文件存放目录，默认 ``<项目根>/logs``。
-        max_bytes: 单个日志文件最大字节数，超出后轮转。
-        backup_count: 保留的轮转备份文件数量。
+        level: Log level (DEBUG/INFO/WARNING/ERROR/CRITICAL or corresponding string).
+        file_enabled: Whether to write file logs.
+        console_enabled: Whether to output to console (stdout).
+        log_dir: Directory for log files, defaults to ``<project root>/logs``.
+        max_bytes: Max bytes per log file before rotation.
+        backup_count: Number of rotated backup files to retain.
     """
     global _configured
 
@@ -242,13 +244,13 @@ def configure_logging(
         _config["backup_count"] = backup_count
         _configured = True
 
-    # 让所有已存在的 logger 实例重新配置 handlers
+    # Reconfigure handlers for all existing logger instances
     for logger in list(_loggers.values()):
         logger._configure_handlers()
 
 
 def set_log_level(level: str | LogLevel) -> None:
-    """动态修改日志级别（不影响其他配置）。"""
+    """Dynamically modify log level (does not affect other config)."""
     if isinstance(level, str):
         level = LogLevel[level.upper()]
     with _config_lock:
@@ -260,13 +262,13 @@ def set_log_level(level: str | LogLevel) -> None:
 
 
 def get_logger(name: str = "app") -> Logger:
-    """获取（或创建）一个命名的 Logger 实例。
+    """Get (or create) a named Logger instance.
 
     Args:
-        name: 日志器名称，同时也是日志文件名（``<name>.log``）。
+        name: Logger name, also the log filename (``<name>.log``).
 
     Returns:
-        Logger 实例。同一 name 总是返回同一实例。
+        Logger instance. The same name always returns the same instance.
     """
     if name in _loggers:
         return _loggers[name]
@@ -277,10 +279,10 @@ def get_logger(name: str = "app") -> Logger:
 
 
 def shutdown() -> None:
-    """程序退出前调用，刷新并关闭所有文件 handler。
+    """Call before program exit to flush and close all file handlers.
 
-    Python 的 logging 模块会在 atexit 时自动调用 shutdown，
-    这里只负责刷新自定义 logger 实例的缓冲区。
+    Python's logging module calls shutdown automatically at atexit;
+    this only flushes our custom logger instance buffers.
     """
     for logger in list(_loggers.values()):
         logger.flush()

@@ -4,9 +4,10 @@ from . import theme
 
 
 class UCheckButton(tk.Frame):
-    def __init__(self, parent, text: str = '', variable=None, command=None,
-                 external_toggle=None, **kwargs):
-        bg = kwargs.pop('bg', theme.BG_BASE)
+    def __init__(
+        self, parent, text: str = "", variable=None, command=None, external_toggle=None, **kwargs
+    ):
+        bg = kwargs.pop("bg", theme.BG_BASE)
         super().__init__(parent, bg=bg, highlightthickness=0, bd=0, **kwargs)
 
         self._var = variable if variable is not None else tk.BooleanVar()
@@ -16,8 +17,12 @@ class UCheckButton(tk.Frame):
         self._size = 18
         self._box_size = 14
         self._canvas = tk.Canvas(
-            self, width=self._size, height=self._size,
-            bg=bg, highlightthickness=0, bd=0,
+            self,
+            width=self._size,
+            height=self._size,
+            bg=bg,
+            highlightthickness=0,
+            bd=0,
         )
         self._canvas.pack(side=tk.LEFT)
 
@@ -26,26 +31,35 @@ class UCheckButton(tk.Frame):
             (self._size - self._box_size) // 2,
             (self._size - self._box_size) // 2 + self._box_size,
             (self._size - self._box_size) // 2 + self._box_size,
-            fill=theme.BG_INPUT, outline=theme.BORDER, width=1,
+            fill=theme.BG_INPUT,
+            outline=theme.BORDER,
+            width=1,
         )
         self._check = self._canvas.create_text(
-            self._size // 2, self._size // 2,
-            text='\u2713', fill=theme.FG_PRIMARY,
-            font=theme.ICON_FONT, state='hidden',
+            self._size // 2,
+            self._size // 2,
+            text="\u2713",
+            fill=theme.FG_PRIMARY,
+            font=theme.ICON_FONT,
+            state="hidden",
         )
 
         self._label = tk.Label(
-            self, text=text, bg=bg, fg=theme.FG_PRIMARY,
-            font=theme.LABEL_FONT, cursor='hand2',
+            self,
+            text=text,
+            bg=bg,
+            fg=theme.FG_PRIMARY,
+            font=theme.LABEL_FONT,
+            cursor="hand2",
         )
         self._label.pack(side=tk.LEFT, padx=(6, 0))
 
         for w in (self._canvas, self._label):
-            w.bind('<Button-1>', self._toggle)
-            w.bind('<Enter>', self._on_enter)
-            w.bind('<Leave>', self._on_leave)
+            w.bind("<Button-1>", self._toggle)
+            w.bind("<Enter>", self._on_enter)
+            w.bind("<Leave>", self._on_leave)
 
-        self._var.trace_add('write', self._on_var_change)
+        self._var.trace_add("write", self._on_var_change)
         self._on_var_change()
 
     def _toggle(self, e=None):
@@ -67,10 +81,10 @@ class UCheckButton(tk.Frame):
     def _on_var_change(self, *args):
         if self._var.get():
             self._canvas.itemconfig(self._box, fill=theme.BLUE, outline=theme.BLUE)
-            self._canvas.itemconfig(self._check, state='normal')
+            self._canvas.itemconfig(self._check, state="normal")
         else:
             self._canvas.itemconfig(self._box, fill=theme.BG_INPUT, outline=theme.BORDER)
-            self._canvas.itemconfig(self._check, state='hidden')
+            self._canvas.itemconfig(self._check, state="hidden")
 
     def get(self) -> bool:
         return bool(self._var.get())
@@ -80,7 +94,7 @@ class UCheckButton(tk.Frame):
 
     def _apply_theme(self):
         try:
-            bg = self.master.cget('bg')
+            bg = self.master.cget("bg")
             if bg:
                 self.config(bg=bg)
         except Exception:
