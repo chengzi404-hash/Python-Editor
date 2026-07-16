@@ -11,7 +11,7 @@ dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["modules*", "utils*"]
+include = ["core*", "ui*", "utils*"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ruff: 静态检查 + import 排序 (替代 flake8 + isort + pyupgrade)
@@ -57,11 +57,11 @@ ignore = [
 # 测试目录允许未使用导入/宽松命名
 "tests/**" = ["F401", "F811", "N802", "N803"]
 "__init__.py" = ["F401"]
-# Uui is the intentional project name
-"modules/Uui/**" = ["N999"]
+# ui is the intentional project name
+"ui/**" = ["N999"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["modules", "utils"]
+known-first-party = ["core", "ui", "utils"]
 combine-as-imports = true
 
 # ─────────────────────────────────────────────────────────────────────────────
