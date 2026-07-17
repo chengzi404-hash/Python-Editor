@@ -168,7 +168,7 @@ class UScrollBar(tk.Frame):
 
     configure = config  # type: ignore[assignment]
 
-    def cget(self, key: str) -> Any:  # type: ignore[override]
+    def cget(self, key: str) -> Any:
         custom: dict[str, Any] = {
             "command": self._command if self._command else "",
             "bg": self._slider_color,

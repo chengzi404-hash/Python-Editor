@@ -75,9 +75,9 @@ pip.install("requests", upgrade=True, mirror="https://pypi.tuna.tsinghua.edu.cn/
 pip.uninstall("requests")
 ```
 
-> The env manager (`core.env_manager`) does **not** use this class — it
-> shells out to `python -m pip` directly because it needs to target
-> a *specific* interpreter (not the editor's).
+> The editor uses `sys.executable` directly to run scripts and checks
+> through `Pip` and the runner (`core.runner`). Calling code does not need
+> to manage interpreters separately.
 
 ## `Npm` `[npm.py]`
 

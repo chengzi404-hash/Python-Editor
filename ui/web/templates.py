@@ -94,4 +94,4 @@ class Jinja2Backend(TemplateBackend):
             tmpl = self.env.get_template(template_name)
         except self.jinja2.TemplateNotFound:
             raise ImproperlyConfiguredError(f"Template not found: {template_name}")
-        return tmpl.render(**context)
+        return tmpl.render(**context)  # type: ignore[no-any-return]

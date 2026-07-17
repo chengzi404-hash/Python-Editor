@@ -3,7 +3,7 @@
 import contextlib
 import sqlite3
 import threading
-from typing import Any
+from typing import Any, Literal
 
 from .base import Backend
 
@@ -27,7 +27,7 @@ class SqliteBackend(Backend):
     def connection(self) -> sqlite3.Connection:
         conn = getattr(self._local, "conn", None)
         if conn is None:
-            isolation: str | None = None if self._auto_commit else "DEFERRED"
+            isolation: Literal["DEFERRED", "EXCLUSIVE", "IMMEDIATE"] | None = None if self._auto_commit else "DEFERRED"
             conn = sqlite3.connect(self._name, isolation_level=isolation, check_same_thread=False)
             conn.row_factory = sqlite3.Row
             for pragma, value in self._pragmas.items():

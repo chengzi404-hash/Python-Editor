@@ -967,7 +967,7 @@ def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        return args.func(args)
+        return args.func(args)  # type: ignore[no-any-return]
     except KeyboardInterrupt:
         return 130
 

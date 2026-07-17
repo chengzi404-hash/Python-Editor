@@ -1,3 +1,4 @@
+import contextlib
 from dataclasses import dataclass
 
 
@@ -22,10 +23,8 @@ class _Debouncer:
 
     def schedule(self, callback, delay_ms: int) -> None:
         if self._after_id is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._cancel(self._after_id)
-            except Exception:
-                pass
             self._after_id = None
         delay = max(0, int(delay_ms))
         try:
@@ -36,10 +35,8 @@ class _Debouncer:
     def cancel(self) -> None:
         if self._after_id is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             self._cancel(self._after_id)
-        except Exception:
-            pass
         self._after_id = None
 
     @property

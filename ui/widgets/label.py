@@ -43,7 +43,7 @@ class ULabel(tk.Label):
         try:
             bg = parent.cget("bg")
             if bg:
-                return bg
+                return str(bg)
         except Exception:
             pass
         return theme.BG_BASE

@@ -135,9 +135,9 @@ class UComboBox(tk.Frame):
                 pady=4,
             )
             item.pack(fill=tk.X)
-            item.bind("<Button-1>", lambda e: self._select(value))
-            item.bind("<Enter>", lambda e: item.config(bg=theme.BLUE))
-            item.bind("<Leave>", lambda e: item.config(bg=theme.BG_PANEL))
+            item.bind("<Button-1>", lambda e, v=value: self._select(v))
+            item.bind("<Enter>", lambda e, i=item: i.config(bg=theme.BLUE))
+            item.bind("<Leave>", lambda e, i=item: i.config(bg=theme.BG_PANEL))
 
         self._root_bind = top.bind("<Button-1>", self._on_root_click, add="+")
 

@@ -78,12 +78,10 @@ Constructor responsibilities (see [`core/editor/app.py`](../../core/editor/app.p
 
 1. Build the `Window` (custom or native titlebar based on
    `--custom-titlebar`).
-2. Instantiate `SettingsManager`, `Translator`, themes, plugin manager,
-   environment manager.
+2. Instantiate `SettingsManager`, `Translator`, themes, plugin manager.
 3. Construct the menubar, toolbar, tab bar, editor, output panel, status
    bar.
 4. Load global plugins and refresh plugin menus.
-5. Schedule an initial `EnvironmentManager.scan()` after 100 ms.
 
 The `Window` is held at `editor.window`. The internal state is
 intentionally private (underscore prefix). Plugins interact with the

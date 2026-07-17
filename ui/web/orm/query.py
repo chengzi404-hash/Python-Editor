@@ -141,7 +141,7 @@ class QuerySet:
     def delete(self) -> int:
         backend = _conn.get_backend()
         where, params = self._build_where()
-        sql = f"DELETE FROM {backend.quote_name(self._model._meta['table'])}{where}"
+        sql = f"DELETE FROM {backend.quote_name(self._model._meta['table'])}{where}"  # type: ignore[attr-defined]
         backend.execute(sql, tuple(params))
         return -1  # SQLite doesn't return affected row count by default
 
@@ -158,7 +158,7 @@ class QuerySet:
         for k, v in kwargs.items():
             field = _resolve_field(self._model, k)
             values.append(field.to_db(v) if hasattr(field, "to_db") else v)
-        sql = f"UPDATE {backend.quote_name(self._model._meta['table'])} SET {assignments}{where}"
+        sql = f"UPDATE {backend.quote_name(self._model._meta['table'])} SET {assignments}{where}"  # type: ignore[attr-defined]
         backend.execute(sql, tuple(values) + tuple(params))
         return -1
 
@@ -174,7 +174,7 @@ class QuerySet:
         else:
             select = "*"
 
-        sql = f"SELECT {select} FROM {backend.quote_name(self._model._meta['table'])}"
+        sql = f"SELECT {select} FROM {backend.quote_name(self._model._meta['table'])}"  # type: ignore[attr-defined]
         where, params = self._build_where()
         sql += where
         if self._order:
@@ -251,7 +251,7 @@ class QuerySet:
         instance = self._model()
         keys = row.keys() if hasattr(row, "keys") else range(len(row))
         mapping = dict(zip(keys, row, strict=False))
-        for fname, fld in self._model._meta["fields"].items():
+        for fname, fld in self._model._meta["fields"].items():  # type: ignore[attr-defined]
             value = mapping.get(fld.column)
             if hasattr(fld, "to_python"):
                 value = fld.to_python(value)
@@ -290,9 +290,9 @@ def _parse_lookup(key: str, value: Any) -> tuple[str, tuple[str, Any]]:
 
 
 def _resolve_field(model: type, name: str):
-    fields = model._meta["fields"]
+    fields = model._meta["fields"]  # type: ignore[attr-defined]
     if name in fields:
         return fields[name]
     if name == "pk":
-        return fields[model._meta["pk"]]
+        return fields[model._meta["pk"]]  # type: ignore[attr-defined]
     raise AttributeError(f"{model.__name__} has no field {name!r}")

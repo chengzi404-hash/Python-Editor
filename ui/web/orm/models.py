@@ -70,14 +70,14 @@ class ModelMeta(type):
             attrs[fname] = fld
 
         cls = super().__new__(mcs, name, bases, attrs)
-        cls._meta = meta_dict  # type: ignore[attr-defined]
+        cls._meta = meta_dict  # type: ignore[assignment]
         from .query import QuerySet
 
-        cls.objects = QuerySet(cls)  # type: ignore[arg-type,attr-defined]
+        cls.objects = QuerySet(cls)  # type: ignore[assignment]
 
         model_path = f"{cls.__module__}.{name}"
-        _models[model_path] = cls  # type: ignore[arg-type]
-        _models[name] = cls  # type: ignore[arg-type]
+        _models[model_path] = cls  # type: ignore[assignment]
+        _models[name] = cls  # type: ignore[assignment]
         return cls
 
 

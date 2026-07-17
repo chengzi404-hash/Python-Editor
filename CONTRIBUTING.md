@@ -56,8 +56,7 @@ modules/
 ├── runner/        # Code execution
 ├── plugins/       # Plugin system
 ├── settings/      # Configuration
-├── i18n/          # Internationalization
-└── env_manager/   # Python environment management
+└── i18n/          # Internationalization
 ```
 
 ## Questions?

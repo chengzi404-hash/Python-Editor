@@ -346,13 +346,13 @@ class UEditorSuggestion(tk.Toplevel):
             widgets, main_label, detail_label = self._row_widgets_map.get(row, ([row], None, None))
             for w in widgets:
                 with contextlib.suppress(tk.TclError):
-                    w.config(bg=bg)  # type: ignore
+                    w.config(bg=bg)
             if main_label is not None:
                 with contextlib.suppress(tk.TclError):
-                    main_label.config(fg=theme.FG_PRIMARY)  # type: ignore
+                    main_label.config(fg=theme.FG_PRIMARY)
             if detail_label is not None:
                 with contextlib.suppress(tk.TclError):
-                    detail_label.config(fg=theme.FG_PRIMARY if selected else theme.FG_SECONDARY)  # type: ignore
+                    detail_label.config(fg=theme.FG_PRIMARY if selected else theme.FG_SECONDARY)
         self._update_footer()
 
     def _update_footer(self) -> None:
@@ -415,13 +415,13 @@ class UEditorSuggestion(tk.Toplevel):
             widgets, main_label, detail_label = self._row_widgets_map.get(row, ([row], None, None))
             for w in widgets:
                 with contextlib.suppress(tk.TclError):
-                    w.config(bg=theme.BG_PANEL)  # type: ignore
+                    w.config(bg=theme.BG_PANEL)
             if main_label is not None:
                 with contextlib.suppress(tk.TclError):
-                    main_label.config(fg=theme.FG_PRIMARY)  # type: ignore
+                    main_label.config(fg=theme.FG_PRIMARY)
             if detail_label is not None:
                 with contextlib.suppress(tk.TclError):
-                    detail_label.config(fg=theme.FG_SECONDARY)  # type: ignore
+                    detail_label.config(fg=theme.FG_SECONDARY)
         self._refresh_selection()
 
 

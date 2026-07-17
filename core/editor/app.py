@@ -17,7 +17,6 @@ from core.editor.lang_config import (
     TAB_WIDTHS,
     THEME_NAMES,
 )
-from core.env_manager import get_env_manager
 from core.language.checker import CPythonChecker
 from core.language.highlighter import (
     HighlightBlock,
@@ -26,6 +25,7 @@ from core.language.highlighter import (
 )
 from core.language.suggestion import SuggestionBlock
 from core.plugins import HookEvents, LanguageContribution, PluginManager, plugin_marketplace
+from core.plugins.widgets import UPluginManagerWindow
 from core.runner import RunResult, stream_command
 from core.settings import SettingsChangeEvent, SettingsManager, SettingsScope
 from core.settings.i18n import AVAILABLE_LANGUAGES, get_translator, language_marketplace, t
@@ -110,6 +110,17 @@ class CodeEditor:
         self._large_file_mode: bool = False
         self._stream_epoch: int = 0
 
+        self._font_family_tk_var: tk.StringVar | None = None
+        self._font_size_tk_var: tk.IntVar | None = None
+        self._tab_width_tk_var: tk.IntVar | None = None
+        self._highlight_tk_var: tk.BooleanVar | None = None
+        self._suggestion_tk_var: tk.BooleanVar | None = None
+        self._autosave_tk_var: tk.BooleanVar | None = None
+        self._highlight_theme_tk_var: tk.StringVar | None = None
+        self._theme_tk_var: tk.StringVar | None = None
+        self._lang_tk_var: tk.StringVar | None = None
+        self._lang_locale_tk_var: tk.StringVar | None = None
+
         self._build_menubar()
         self._build_toolbar()
         self._build_editor()
@@ -125,10 +136,6 @@ class CodeEditor:
             self._plugin_manager.load_global_plugins()
         self._refresh_plugin_menu()
         self._refresh_plugin_languages()
-
-        self._env_manager = get_env_manager()
-        self._env_manager.add_listener(self._on_env_changed)
-        self.window.after(100, self._scan_environments)
 
         self._settings.add_listener(self._on_settings_changed)
 
@@ -192,7 +199,7 @@ class CodeEditor:
         self._dirty = doc.dirty
         self._lang = doc.lang
         self._switch_language(doc.lang, from_doc_switch=True)
-        self._tab_bar.set_active(doc_id)
+        self._tab_bar.set_active(doc_id)  # type: ignore[union-attr]
         self._apply_highlight()
         self._update_status()
 
@@ -214,7 +221,7 @@ class CodeEditor:
                 return
 
         del self._documents[doc_id]
-        self._tab_bar.remove_tab(doc_id)
+        self._tab_bar.remove_tab(doc_id)  # type: ignore[union-attr]
 
         if not self._documents:
             self._init_first_document()
@@ -566,14 +573,6 @@ class CodeEditor:
         )
         query_menu.add_command(t("menu.query.hide_suggestions"), self._hide_suggestions, "Esc")
 
-        env_menu = self._menubar.add_cascade(t("menu.environment"))
-        env_menu.add_command(t("menu.environment.manage"), self._open_env_manager, "Ctrl+Shift+E")
-        env_menu.add_command(t("menu.environment.create"), self._create_venv_dialog, "Ctrl+Shift+V")
-        env_menu.add_separator()
-        env_menu.add_command(t("menu.environment.refresh"), self._scan_environments)
-        env_menu.add_separator()
-        env_menu.add_command(t("menu.environment.no_env"), lambda: None)
-
         settings_menu = self._menubar.add_cascade(t("menu.settings"))
         theme_sub = settings_menu.add_cascade(t("menu.settings.theme"))
         for name in THEME_NAMES:
@@ -644,7 +643,7 @@ class CodeEditor:
                 t(f"menu.language.{lang}"),
                 value=lang,
                 variable=self._lang_locale_var(),
-                command=lambda l=lang: self._set_language_locale(l),
+                command=lambda code=lang: self._set_language_locale(code),
             )
         lang_locale_sub.add_separator()
         lang_locale_sub.add_command(
@@ -688,8 +687,6 @@ class CodeEditor:
         self.window.bind("<Control-space>", lambda e: self._show_suggestions())
         self.window.bind("<F1>", lambda e: self._show_documentation())
         self.window.bind("<Control-slash>", lambda e: self._toggle_comment())
-        self.window.bind("<Control-Shift-E>", lambda e: self._open_env_manager())
-        self.window.bind("<Control-Shift-V>", lambda e: self._create_venv_dialog())
         self.window.bind("<Control-w>", lambda e: self._close_active_tab())
         self.window.bind("<Control-Tab>", lambda e: self._next_tab())
         self.window.bind("<Control-Shift-Tab>", lambda e: self._prev_tab())
@@ -926,7 +923,7 @@ class CodeEditor:
     def _stream_insert_into_editor(self, path: str, total_size: int, doc_id: str) -> None:
         chunk_size = 64 * 1024
         try:
-            f = open(path, encoding="utf-8", errors="replace")
+            f = open(path, encoding="utf-8", errors="replace")  # noqa: SIM115 - held across deferred after() callbacks
         except OSError as e:
             tk.messagebox.showerror(t("dialog.title.open_failed"), str(e), parent=self.window)
             self._large_file_mode = False
@@ -1013,9 +1010,6 @@ class CodeEditor:
             status, text=t("status.ready"), variant="secondary", bg=theme.BG_TITLE
         )
         self._status_label.pack(side=tk.LEFT, padx=10, pady=2)
-
-        self._env_label = ULabel(status, text="", variant="secondary", bg=theme.BG_TITLE)
-        self._env_label.pack(side=tk.RIGHT, padx=10, pady=2)
 
         self._lang_label = ULabel(status, text="Python", variant="secondary", bg=theme.BG_TITLE)
         self._lang_label.pack(side=tk.RIGHT, padx=10, pady=2)
@@ -1211,7 +1205,7 @@ class CodeEditor:
         code = self._editor.get("1.0", "end-1c")
         cursor = self._editor._text.index(tk.INSERT)
         line, col = map(int, cursor.split("."))
-        position = sum(len(l) + 1 for l in code.split("\n")[: line - 1]) + col
+        position = sum(len(line_text) + 1 for line_text in code.split("\n")[: line - 1]) + col
         block = SuggestionBlock(code=code, position=position)
         suggestions = self._suggestion_expert.suggest(block)
 
@@ -1368,7 +1362,7 @@ class CodeEditor:
             self._save_file_as()
 
     def _save_file_as(self):
-        ext = LANG_CONFIG[self._lang]["ext"]
+        ext = str(LANG_CONFIG[self._lang]["ext"])
         lang_label = t("file_dialog.lang_filter", lang=self._lang)
         filetypes = [(lang_label, f"*{ext}"), (t("file_dialog.all_files"), "*.*")]
         path = tk.filedialog.asksaveasfilename(defaultextension=ext, filetypes=filetypes)
@@ -1609,15 +1603,15 @@ class CodeEditor:
         text = self._editor._text
         sel = text.tag_ranges("sel")
         if sel:
-            start = sel[0]
-            end = sel[1]
+            start_obj = sel[0]
+            end_obj = sel[1]
+            start_str = str(start_obj)
+            end_str = str(end_obj)
         else:
-            start = text.index(tk.INSERT)
-            end = start
-        start = str(start)
-        end = str(end)
-        start_line = int(start.split(".")[0])
-        end_line = int(end.split(".")[0])
+            start_str = text.index(tk.INSERT)
+            end_str = start_str
+        start_line = int(start_str.split(".")[0])
+        end_line = int(end_str.split(".")[0])
         indent = " " * self._tab_width
         for ln in range(start_line, end_line + 1):
             line_start = f"{ln}.0"
@@ -1631,15 +1625,15 @@ class CodeEditor:
         text = self._editor._text
         sel = text.tag_ranges("sel")
         if sel:
-            start = sel[0]
-            end = sel[1]
+            start_obj = sel[0]
+            end_obj = sel[1]
+            start_str = str(start_obj)
+            end_str = str(end_obj)
         else:
-            start = text.index(tk.INSERT)
-            end = start
-        start = str(start)
-        end = str(end)
-        start_line = int(start.split(".")[0])
-        end_line = int(end.split(".")[0])
+            start_str = text.index(tk.INSERT)
+            end_str = start_str
+        start_line = int(start_str.split(".")[0])
+        end_line = int(end_str.split(".")[0])
         for ln in range(start_line, end_line + 1):
             line_start = f"{ln}.0"
             line_text = text.get(line_start, f"{ln}.end")
@@ -1662,15 +1656,15 @@ class CodeEditor:
         text = self._editor._text
         sel = text.tag_ranges("sel")
         if sel:
-            start = sel[0]
-            end = sel[1]
+            start_obj = sel[0]
+            end_obj = sel[1]
+            start_str = str(start_obj)
+            end_str = str(end_obj)
         else:
-            start = text.index(tk.INSERT)
-            end = start
-        start = str(start)
-        end = str(end)
-        start_line = int(start.split(".")[0])
-        end_line = int(end.split(".")[0])
+            start_str = text.index(tk.INSERT)
+            end_str = start_str
+        start_line = int(start_str.split(".")[0])
+        end_line = int(end_str.split(".")[0])
         for ln in range(start_line, end_line + 1):
             line_start = f"{ln}.0"
             line_text = text.get(line_start, f"{ln}.end")
@@ -2117,7 +2111,7 @@ class CodeEditor:
     def _open_plugin_manager(self):
 
         try:
-            win = UPluginManagerWindow(
+            win = UPluginManagerWindow(  # type: ignore[name-defined]
                 self._plugin_manager, parent=self.window, title=t("dialog.title.plugin_manager")
             )
             self._plugin_manager_window = win
@@ -2162,13 +2156,7 @@ class CodeEditor:
             self._append_output(f"{t('output.unsupported_lang', lang=lang)}\n")
 
     def _run_python_code(self, code: str) -> None:
-        env = self._env_manager.get_current()
-        if env is None:
-            tk.messagebox.showerror(
-                t("dialog.title.no_env"), t("dialog.no_env.message"), parent=self.window
-            )
-            return
-        python_path = env.python_path
+        python_path = sys.executable
         temp_path = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -2188,8 +2176,8 @@ class CodeEditor:
             stream_command(
                 [python_path, temp_path],
                 cwd=os.path.dirname(temp_path),
-                on_line=on_line,
-                on_done=on_done,
+                line_callback=on_line,
+                done_callback=on_done,
             )
         except Exception as exc:
             self._append_output(f"{t('output.error')}: {exc}\n")
@@ -2211,13 +2199,7 @@ class CodeEditor:
             self._append_output(f"{t('output.check_unsupported', lang=lang)}\n")
 
     def _check_python_code(self, code: str) -> None:
-        env = self._env_manager.get_current()
-        if env is None:
-            tk.messagebox.showerror(
-                t("dialog.title.no_env"), t("dialog.no_env.message"), parent=self.window
-            )
-            return
-        python_path = env.python_path
+        python_path = sys.executable
         temp_path = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -2228,65 +2210,13 @@ class CodeEditor:
 
             self._append_output(f"{t('output.checking')}...\n")
 
-            checker = CPythonChecker(python_path)
+            checker = CPythonChecker()
             result = checker.check(temp_path)
-            for row in result.output:
+            for row in result.row:
                 self._append_output(f"{row}\n")
             self._append_output(f"{t('output.check_done')}\n")
         except Exception as exc:
             self._append_output(f"{t('output.error')}: {exc}\n")
-
-    def _scan_environments(self) -> None:
-        try:
-            self._env_manager.scan()
-            self._update_env_label()
-        except Exception as exc:
-            app_logger.error(f"Failed to scan environments: {exc}")
-
-    def _update_env_label(self) -> None:
-        env = self._env_manager.get_current()
-        if env:
-            self._env_label.config(text=f"Python {env.version}")
-        else:
-            self._env_label.config(text="No Environment")
-
-    def _on_env_changed(self) -> None:
-        self._update_env_label()
-
-    def _open_env_manager(self):
-        try:
-            envs = self._env_manager.list_environments()
-            msg = "Available environments:\n" + "\n".join(f"  - {v.name}" for v in envs.values())
-            tk.messagebox.showinfo(t("dialog.title.env_manager"), msg, parent=self.window)
-        except Exception as exc:
-            tk.messagebox.showerror(
-                t("dialog.title.env_manager_error"),
-                t("dialog.env_manager.load_failed", err=exc),
-                parent=self.window,
-            )
-
-    def _create_venv_dialog(self):
-        result = tk.simpledialog.askstring(
-            t("dialog.title.create_venv"),
-            t("dialog.create_venv.prompt"),
-            parent=self.window,
-        )
-        if not result:
-            return
-        try:
-            self._env_manager.create_venv(result)
-            self._scan_environments()
-            tk.messagebox.showinfo(
-                t("dialog.title.venv_created"),
-                t("dialog.venv.created", name=result),
-                parent=self.window,
-            )
-        except Exception as exc:
-            tk.messagebox.showerror(
-                t("dialog.title.venv_error"),
-                t("dialog.venv.create_failed", err=exc),
-                parent=self.window,
-            )
 
     def _show_documentation(self):
         tk.messagebox.showinfo(

@@ -18,7 +18,7 @@ _PRIORITY_USER_CLASS = 20
 _PRIORITY_BUILTIN = 30
 
 # Cache for loaded suggestion lists
-_CACHED_LISTS: dict = {}
+_CACHED_LISTS: dict[str, list[tuple[str, int]]] = {}
 
 
 def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
@@ -1078,17 +1078,17 @@ class PythonSuggestionExpert(SuggestionExpert):
             parent_dom = get_lib_dom(parts[0])
             if parent_dom is not None and parts[1] in parent_dom.submodule_contents:
                 sub_info = parent_dom.submodule_contents[parts[1]]
-                suggestions: list[SuggestionItem] = []
+                sub_suggestions: list[SuggestionItem] = []
                 for fn in sub_info.get("functions", []):
-                    suggestions.append(
+                    sub_suggestions.append(
                         SuggestionItem(label=fn, priority=_PRIORITY_BUILTIN, kind="function")
                     )
                 for cls in sub_info.get("classes", []):
-                    suggestions.append(
+                    sub_suggestions.append(
                         SuggestionItem(label=cls, priority=_PRIORITY_BUILTIN, kind="class")
                     )
-                if suggestions:
-                    return suggestions
+                if sub_suggestions:
+                    return sub_suggestions
             # Fall through: try direct lookup as single-level module name
             obj_name = parts[0]
 

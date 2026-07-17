@@ -17,17 +17,17 @@ accompanying web framework.
 │  │  ├── ActivityBar + SideBar (Explorer / Debug / Git)           │  │
 │  │  ├── TabBar + UText editor (LineNumberCanvas)                 │  │
 │  │  ├── Output panel (UText, runner stdout/stderr)               │  │
-│  │  ├── Status bar (current env, lang, cursor, …)                │  │
+│  │  ├── Status bar (lang, cursor, …)                             │  │
 │  │  └── UEditorSuggestion (code-completion popup)                │  │
 │  └───────────────────────────────────────────────────────────────┘  │
-│           │           │            │           │                   │
-│           ▼           ▼            ▼           ▼                   │
-│    settings     highlighter     plugins    env_manager             │
-│   (manager)   + suggestion     (manager)   (EnvironmentManager)     │
-│       │           │               │            │                   │
-│       ▼           ▼               ▼            ▼                   │
-│   JSON files    themes      global+proj     python -m pip,          │
-│   schema        dom_cache   plugins dir     venv create, …          │
+│           │           │            │                                │
+│           ▼           ▼            ▼                                │
+│    settings     highlighter     plugins                            │
+│   (manager)   + suggestion     (manager)                           │
+│       │           │               │                                │
+│       ▼           ▼               ▼                                │
+│   JSON files    themes      global+proj                            │
+│   schema        dom_cache   plugins dir                            │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -79,18 +79,7 @@ accompanying web framework.
   Python libraries once and caches their classes / functions / submodules
   for fast attribute completion.
 
-### 5. Environment manager (`core.env_manager`)
-- On `scan()`, walks `PATH`, common install locations, conda envs and
-  `<project>/.venv` to find `python` interpreters.
-- Tracks the **current** environment. `install_package()` and
-  `uninstall_package()` shell out to `python -m pip` on the right
-  interpreter.
-- `create_venv(path)` is the only mutation that affects disk structure
-  outside `pip`'s control.
-- Listeners (`add_listener`) let the UI refresh when the set of
-  environments changes.
-
-### 6. Runner (`core.runner`)
+### 5. Runner (`core.runner`)
 - `stream_command()` runs a subprocess with separate drain threads for
   stdout and stderr, calling back line-by-line. `done_callback` fires
   when the process exits (or times out).
@@ -99,40 +88,40 @@ accompanying web framework.
 - The `CodeEditor._run_*` methods orchestrate the runners and redirect
   their output to the output panel.
 
-### 7. UI toolkit (`ui.widgets`)
+### 6. UI toolkit (`ui.widgets`)
 - Themed replacement for raw `tk.*` widgets. Every widget listens to the
   current theme and re-applies colors on `theme.set_theme(...)`.
 - `Window` is the custom-titlebar root window used by `CodeEditor`.
 - `LineNumberCanvas`, `TabBar`, `UEditorSuggestion` and `TreeCanvas` are
   Canvas-drawn — Tk does not provide native equivalents.
 
-### 8. i18n (`core.settings.i18n`)
+### 7. i18n (`core.settings.i18n`)
 - Two locales: `zh_CN` (default) and `en_US` (fallback).
 - `Translator` is a process-wide singleton; `t(key, **kwargs)` is the
   module shortcut. Strings use Python `str.format` placeholders.
 - All UI text must go through `t()`. Hard-coded English is a bug.
 
-### 9. Logging (`core.settings.logging`)
+### 8. Logging (`core.settings.logging`)
 - `configure_logging()` is called once from `main.py` before anything
   else.
 - Writes to `logs/<name>.log` (rotating, default 5 MiB × 5 backups) and
   optionally to the console.
 - In-memory ring buffer (`get_entries`) is used by the in-app log viewer.
 
-### 10. Checker (`core.language.checker`)
+### 9. Checker (`core.language.checker`)
 - Three backends: `Flake8Checker`, `PyrightChecker`, `CPythonChecker`.
   They share the abstract `Checker` interface returning `Output` rows.
 - The editor runs them in sequence and surfaces the first non-empty
   result through the output panel.
 
-### 11. Shell wrappers (`ui.call`)
+### 10. Shell wrappers (`ui.call`)
 - `Command` is the generic subprocess wrapper used by `Git`, `Pip`,
-  `Npm`. Editor code (env manager, git card) goes through these classes
+  `Npm`. Editor code (git card) goes through these classes
   instead of calling `subprocess` directly.
 - Exception hierarchy under `CallError` lets callers distinguish
   "command missing" from "command returned non-zero".
 
-### 12. Web framework (`ui.web`)
+### 11. Web framework (`ui.web`)
 - A self-contained Django-inspired WSGI framework: `UWSGIApp`,
   `URLRouter`, request / response, an ORM with multiple backends
   (SQLite / MySQL / PostgreSQL / Oracle), auth, sessions, admin, and a
@@ -141,7 +130,7 @@ accompanying web framework.
   is possible; it is **not** loaded by the editor startup. See
   [`ui/web/README.md`](../../ui/web/README.md).
 
-### 13. Tooling (`ui.tool`, `ui.cli`, `ui.demo`)
+### 12. Tooling (`ui.tool`, `ui.cli`, `ui.demo`)
 - `ui.tool.designer` — visual widget designer (Canvas-based, edit a
   scene XML file).
 - `ui.cli` — project scaffolder, theme generator, info / demo / designer
@@ -159,7 +148,6 @@ main.py
   │     ├── Translator.set_language()    # picks i18n.language
   │     ├── theme.set_theme()            # picks ui.theme
   │     ├── PluginManager()              # loads global plugins
-  │     ├── EnvironmentManager.scan()
   │     ├── build menu / toolbar / editor / status
   │     └── show welcome tab
   └── editor.window.mainloop()           # Tk mainloop

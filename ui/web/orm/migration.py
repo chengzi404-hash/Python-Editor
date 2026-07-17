@@ -124,7 +124,7 @@ class MigrationEngine:
     def _column_sql(self, backend, col: dict[str, Any]) -> str:
         col_type = backend.sql_type(col["type"])
         if col.get("primary_key") and col.get("auto"):
-            return backend.auto_increment_sql(col["name"], col_type)
+            return backend.auto_increment_sql(col["name"], col_type)  # type: ignore[no-any-return]
         parts = [backend.quote_name(col["name"]), col_type]
         if col.get("primary_key"):
             parts.append("PRIMARY KEY")
@@ -161,7 +161,7 @@ def generate_migration(app: str, name: str = "initial") -> dict[str, Any]:
 
     for mdl in seen:
         columns = []
-        for _fname, fld in mdl._meta["fields"].items():
+        for _fname, fld in mdl._meta["fields"].items():  # type: ignore[attr-defined]
             columns.append(
                 {
                     "name": fld.column,

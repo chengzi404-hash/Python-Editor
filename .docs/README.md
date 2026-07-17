@@ -12,7 +12,6 @@ in `[brackets]` refer to the implementation files.
 ├── entry-point.md             — main.py and CodeEditor
 ├── core/                      — core package overviews (English)
 │   ├── editor.md              — core/editor/*             (CodeEditor, Document, lang registry)
-│   ├── env_manager.md         — core/env_manager/*        (Python interpreter detection)
 │   ├── language.md            — core/language/*           (highlighter, suggestion, checker)
 │   ├── plugins.md             — core/plugins/*            (plugin manager, hooks, marketplace)
 │   ├── runner.md              — core/runner/*             (subprocess streaming runner)
@@ -47,7 +46,7 @@ Per [`AGENTS.md`](../AGENTS.md):
 | Item | Value |
 | --- | --- |
 | Entry point | `main.py` (`python main.py`) |
-| Core packages | `core.editor`, `core.env_manager`, `core.language.*`, `core.plugins`, `core.runner`, `core.settings.*` |
+| Core packages | `core.editor`, `core.language.*`, `core.plugins`, `core.runner`, `core.settings.*` |
 | UI framework | Tkinter + `ui.widgets.*` |
 | i18n default | `zh_CN` (fallback `en_US`) |
 | Settings location (Win) | `%APPDATA%\PythonEditor\settings.json` |
@@ -60,7 +59,6 @@ Per [`AGENTS.md`](../AGENTS.md):
 | Module | Purpose | Doc |
 | --- | --- | --- |
 | `core.editor` | `CodeEditor` controller, document model, language registry | [core/editor.md](core/editor.md) |
-| `core.env_manager` | Detect / manage Python interpreters and packages | [core/env_manager.md](core/env_manager.md) |
 | `core.language.checker` | Static analysis backends (flake8 / pyright / ast) | [core/language.md](core/language.md) |
 | `core.language.highlighter` | Syntax highlighters + theme registry + DOM cache | [core/language.md](core/language.md) |
 | `core.language.suggestion` | Code completion experts (Python / C / C++) | [core/language.md](core/language.md) |

@@ -12,7 +12,7 @@ Python Editor is a Tkinter-based code editor. Entry point: `python main.py`.
 
 ## Package Structure
 
-- `modules/` — core packages (Uui, highlighter, checker, runner, plugins, settings, i18n, env_manager)
+- `modules/` — core packages (Uui, highlighter, checker, runner, plugins, settings, i18n)
 - `utils/` — utility modules
 - `tests/` — pytest test suite with fixtures in `conftest.py`
 

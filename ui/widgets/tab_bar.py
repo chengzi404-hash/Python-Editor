@@ -263,8 +263,9 @@ class TabBar(tk.Frame):
         info = self._layout.get(tab_id)
         if not info:
             return False
-        close_x = info["x2"] - self.CLOSE_SIZE - self.CLOSE_OFFSET
-        return close_x <= x <= info["x2"]
+        x2 = float(info["x2"])
+        close_x = x2 - self.CLOSE_SIZE - self.CLOSE_OFFSET
+        return close_x <= x <= x2
 
     # ------------------------------------------------------------------
     # Theme following

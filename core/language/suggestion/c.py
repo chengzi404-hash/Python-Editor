@@ -17,7 +17,7 @@ _PRIORITY_BUILTIN = 30
 _PRIORITY_HEADER = 35
 
 # Cache for loaded suggestion lists
-_CACHED_LISTS: dict = {}
+_CACHED_LISTS: dict[str, list[tuple[str, int]]] = {}
 
 
 def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:

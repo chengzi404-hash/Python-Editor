@@ -182,7 +182,7 @@ class _MenuItemRow(tk.Frame):
             self.prefix.config(text="\u25c9" if str(var.get()) == str(value) else "\u25cc")
 
             def on_click(e=None):
-                var.set(str(value))  # type: ignore[arg-type]
+                var.set(str(value))
                 if command:
                     command()
                 self._dropdown._menu_bar._close_dropdown()

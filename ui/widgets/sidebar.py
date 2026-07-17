@@ -71,7 +71,7 @@ class ActivityBarItem(tk.Frame):
         draw_icon(self._canvas, self._icon_name, self._get_color())
 
     def _get_color(self) -> str:
-        return theme.FG_PRIMARY if self._is_active else theme.FG_TERTIARY
+        return str(theme.FG_PRIMARY if self._is_active else theme.FG_TERTIARY)
 
     def _update_colors(self):
         self.config(bg="#1e1e1e")

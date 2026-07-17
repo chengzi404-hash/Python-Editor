@@ -6,6 +6,7 @@ import tkinter as tk
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from tkinter import filedialog, messagebox
+from typing import Any
 
 from Uui import Window
 from Uui.widgets import (
@@ -52,7 +53,7 @@ WIDGET_CLASSES = {
     "USlider": USlider,
 }
 
-DEFAULT_PROPS = {
+DEFAULT_PROPS: dict[str, dict[str, Any]] = {
     "UFrame": {"variant": "panel"},
     "ULabel": {"text": "Label", "variant": "primary"},
     "UButton": {"text": "Button", "variant": "default"},
@@ -65,7 +66,7 @@ DEFAULT_PROPS = {
     "USlider": {"from_": 0, "to": 100, "value": 0, "orient": "horizontal", "show_value": False},
 }
 
-DEFAULT_SIZE = {
+DEFAULT_SIZE: dict[str, tuple[int, int]] = {
     "UFrame": (200, 120),
     "ULabel": (120, 24),
     "UButton": (96, 28),
@@ -324,12 +325,12 @@ class _SidebarTabBar(tk.Frame):
                 cursor="hand2",
             )
             btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
-            btn.bind("<Button-1>", lambda e, i=idx: self._select(i))
-            btn.bind("<Enter>", lambda e, b=btn: b.config(bg=theme.BG_PANEL))
+            btn.bind("<Button-1>", lambda e: self._select(idx))
+            btn.bind("<Enter>", lambda e: btn.config(bg=theme.BG_PANEL))
             btn.bind(
                 "<Leave>",
-                lambda e, b=btn, i=idx: b.config(
-                    bg=theme.BG_PANEL if i == self._active else theme.BG_TITLE
+                lambda e: btn.config(
+                    bg=theme.BG_PANEL if idx == self._active else theme.BG_TITLE
                 ),
             )
             self._buttons.append(btn)
@@ -510,7 +511,7 @@ class DesignerApp(Window):
         self._body = UFrame(self, variant="base")
         self._body.pack(fill=tk.BOTH, expand=True)
 
-        sash_kw = {
+        sash_kw: dict[str, Any] = {
             "sashrelief": str(tk.FLAT),
             "sashwidth": 4,
             "sashpad": 0,
@@ -700,10 +701,10 @@ class DesignerApp(Window):
         cell.grid_columnconfigure(1, weight=1)
 
         for w in (cell, icon_box, name_lbl):
-            w.bind("<Button-1>", lambda e, t=wtype: self._add_widget(t))
+            w.bind("<Button-1>", lambda _e: self._add_widget(wtype))
             w.bind(
                 "<Enter>",
-                lambda e, c=cell, n=name_lbl, i=icon_box: (
+                lambda _e, c=cell, n=name_lbl, i=icon_box: (
                     c.config(bg=theme.BG_HOVER),
                     n.config(bg=theme.BG_HOVER),
                     i.config(bg=theme.BG_HOVER),
@@ -711,7 +712,7 @@ class DesignerApp(Window):
             )
             w.bind(
                 "<Leave>",
-                lambda e, c=cell, n=name_lbl, i=icon_box: (
+                lambda _e, c=cell, n=name_lbl, i=icon_box: (
                     c.config(bg=theme.BG_RAISED),
                     n.config(bg=theme.BG_RAISED),
                     i.config(bg=theme.BG_PANEL),

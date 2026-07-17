@@ -27,7 +27,7 @@ def get_anonymous_user() -> AnonymousUser:
     return _ANONYMOUS
 
 
-class User(Model):  # type: ignore[misc]
+class User(Model):
     """Default user model. Override with ``settings.AUTH_USER_MODEL``."""
 
     username = fields.CharField(max_length=150, unique=True)
@@ -43,8 +43,8 @@ class User(Model):  # type: ignore[misc]
         table = "auth_user"
 
     @property
-    def pk(self):  # type: ignore[override]
-        return self.id  # type: ignore[attr-defined]
+    def pk(self):
+        return getattr(self, self._meta["pk"])  # type: ignore[attr-defined]
 
     @property
     def is_authenticated(self) -> bool:
@@ -55,7 +55,7 @@ class User(Model):  # type: ignore[misc]
         return False
 
     def set_password(self, raw: str) -> None:
-        self.password_hash = _pw.make_password(raw)
+        self.password_hash = _pw.make_password(raw)  # type: ignore[assignment]
 
     def check_password(self, raw: str) -> bool:
         return _pw.check_password(raw, self.password_hash or "")  # type: ignore[arg-type]

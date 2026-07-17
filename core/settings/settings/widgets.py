@@ -57,7 +57,7 @@ else:
     theme: Any = None  # type: ignore[assignment,misc]
 
 try:
-    from ui.widgets import (  # type: ignore[assignment]
+    from ui.widgets import (
         UButton,
         UCheckButton,
         UComboBox,
@@ -189,7 +189,7 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         )
         desc.grid(row=row, column=2, sticky="nw", padx=(4, 12), pady=4)
 
-    def _make_widget(self, spec: SettingSpec):
+    def _make_widget(self, spec: SettingSpec) -> Any:
         """Instantiate the corresponding control based on spec.type."""
 
         current = self._current_value(spec)
@@ -197,14 +197,14 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         if spec.type is SettingValueType.BOOLEAN:
             var = tk.BooleanVar(value=bool(current))
             widget = UCheckButton(self, text="", variable=var)
-            widget._command = lambda v=var, k=spec.key: self._user_changed(k, v.get())  # type: ignore[attr-defined]
+            widget._command = lambda v=var, k=spec.key: self._user_changed(k, v.get())
             self._vars[spec.key] = var
             return widget
 
         if spec.type is SettingValueType.CHOICE:
             widget = UComboBox(self, values=list(spec.choices))
             widget.set(str(current))
-            widget._command = lambda v, k=spec.key: self._user_changed(k, v)  # type: ignore[attr-defined]
+            widget._command = lambda v, k=spec.key: self._user_changed(k, v)
             return widget
 
         if spec.type is SettingValueType.BUTTON:
@@ -330,11 +330,11 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
             self._working.clear()
             self._refresh_widgets()
 
-    def destroy(self) -> None:  # type: ignore[override]
+    def destroy(self) -> None:
         if self._listener is not None:
             with contextlib.suppress(Exception):
                 self._settings.remove_listener(self._listener)
-        super().destroy()  # type: ignore[misc]
+        super().destroy()
 
 
 class UProjectSettingsWindow:
@@ -546,7 +546,7 @@ class UProjectSettingsWindow:
 
         scope = selection.scope
         if scope is SettingsScope.GLOBAL:
-            settings = self._manager.global_settings
+            settings: Settings | None = self._manager.global_settings
         elif scope is SettingsScope.PROJECT:
             settings = self._manager.project_settings
         else:

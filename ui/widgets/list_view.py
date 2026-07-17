@@ -118,8 +118,8 @@ class UListView(tk.Frame):
         return None
 
     def _rebuild(self):
-        for w in self._items_frame.winfo_children():
-            w.destroy()
+        for child in self._items_frame.winfo_children():
+            child.destroy()
         self._items.clear()
 
         ncols = len(self._columns)

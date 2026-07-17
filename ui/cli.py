@@ -359,7 +359,7 @@ def _prompt(question: str, default: str = "", *, required: bool = False, validat
         return ans
 
 
-def _prompt_choice(question: str, choices: list, default=None, *, index_from: int = 1) -> str:
+def _prompt_choice(question: str, choices: list[str], default: str | None = None, *, index_from: int = 1) -> str:
     if default is None:
         default = choices[0]
     if default not in choices:
@@ -1160,7 +1160,7 @@ def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        return args.func(args)
+        return args.func(args)  # type: ignore[no-any-return]
     except KeyboardInterrupt:
         return 130
 

@@ -39,7 +39,6 @@ python-editor/
 │   ├── plugins/               # Plugin system
 │   ├── settings/              # Configuration management
 │   ├── i18n/                  # Internationalization
-│   ├── env_manager/           # Python environment management
 │   ├── suggestion/            # Auto-completion
 │   └── logging/               # Logging system
 ├── data/                     # Static data
@@ -155,25 +154,6 @@ def t(key: str, default: str | None = None, **kwargs) -> str
 ```
 
 Supported locales: `zh_CN` (default), `en_US` (fallback)
-
-### Env Manager
-
-Python environment detection and management:
-
-```python
-@dataclass
-class PythonEnvironment:
-    name: str
-    python_path: str
-    version: str
-    env_type: str  # venv, conda, system, custom
-
-env_manager.get_python_path()       # Get current interpreter path
-env_manager.install_package("pkg")  # Install via pip
-env_manager.create_venv(path)       # Create new venv
-```
-
-Scanned locations: sys.executable, system Pythons, .venv, venv, .env, conda
 
 ## Configuration
 

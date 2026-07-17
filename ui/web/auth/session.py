@@ -8,7 +8,7 @@ from typing import Any
 from ..orm import Model, fields
 
 
-class Session(Model):  # type: ignore[misc]
+class Session(Model):
     """Database-backed session record."""
 
     session_key = fields.CharField(max_length=40, unique=True)
@@ -134,7 +134,7 @@ def _unserialize(text: str) -> dict[str, Any]:
     import json
 
     try:
-        return json.loads(text)
+        return json.loads(text)  # type: ignore[no-any-return]
     except Exception:
         return {}
 

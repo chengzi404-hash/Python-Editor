@@ -118,12 +118,10 @@ The line numbers are approximate; see `app.py` for the exact location.
 ### Constructor responsibilities `[app.py:56]`
 
 1. Build the `Window` (custom or native titlebar).
-2. Instantiate `SettingsManager`, `Translator`, themes, plugin manager,
-   environment manager.
+2. Instantiate `SettingsManager`, `Translator`, themes, plugin manager.
 3. Construct the menubar, toolbar, tab bar, editor, output panel, status
    bar.
 4. Load global plugins and refresh plugin menus.
-5. Schedule an initial `EnvironmentManager.scan()` after 100 ms.
 
 ### Grouped method reference
 
@@ -249,16 +247,6 @@ for IDE features.
 `CPythonChecker` based on which tools are installed. `_run_code`
 writes the buffer to a temp file and invokes `stream_command` for live
 output.
-
-#### Environment manager UI
-
-`_scan_environments`, `_on_env_changed`, `_update_env_status`,
-`_open_env_manager`, `_create_venv_dialog`,
-`_show_env_manager_dialog`, `_env_dialog_refresh`.
-
-A separate `UDialog` is opened on demand and contains nested callbacks
-(`load_packages`, `install_pkg`, `do_search`, `do_install`,
-`uninstall_pkg`, `do_create`).
 
 ## Public surface
 

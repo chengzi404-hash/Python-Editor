@@ -212,7 +212,7 @@ def _parse_multipart(
     environ: Mapping[str, Any], body: bytes, content_type: str
 ) -> list[tuple[str, str]]:
     try:
-        from multipart import parse_multipart  # type: ignore[import]
+        from multipart import parse_multipart
     except ImportError:
         return []
     try:

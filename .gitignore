@@ -14,6 +14,7 @@ logs/
 
 # Cache (runtime data like library DOM)
 cache/
+.mypy_cache/
 
 # Test reports
 junit.xml

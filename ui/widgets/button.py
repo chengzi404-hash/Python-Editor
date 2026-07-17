@@ -149,7 +149,7 @@ class UButton(tk.Frame):
         try:
             v = self.master.cget("bg")
             if v:
-                return v
+                return str(v)
         except Exception:
             pass
         return theme.BG_BASE
