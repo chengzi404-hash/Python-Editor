@@ -1,7 +1,7 @@
 # Python Editor — API Documentation
 
-Reference documentation for every public module in this project. Generated from
-the source code; line numbers in `[brackets]` refer to the implementation files.
+Reference documentation for every public module in this project. Line numbers
+in `[brackets]` refer to the implementation files.
 
 ## Layout
 
@@ -10,34 +10,30 @@ the source code; line numbers in `[brackets]` refer to the implementation files.
 ├── README.md                  — this file
 ├── architecture.md            — high-level architecture overview
 ├── entry-point.md             — main.py and CodeEditor
-├── modules/                   — module-level overviews (this directory)
-│   ├── data.md                — modules/data.py
-│   ├── checker.md             — modules/checker/*
-│   ├── env_manager.md         — modules/env_manager/*
-│   ├── highlighter.md         — modules/highlighter/*
-│   ├── i18n.md                — modules/i18n/*
-│   ├── logging.md             — modules/logging/*
-│   ├── plugins.md             — modules/plugins/*
-│   ├── runner.md              — modules/runner/*
-│   ├── settings.md            — modules/settings/*
-│   └── suggestion.md          — modules/suggestion/*
-├── uui/                       — vendored library overviews
-│   ├── widgets.md             — modules/Uui/widgets/*  (Tk toolkit)
-│   ├── call.md                — modules/Uui/call/*     (shell helpers)
-│   ├── tool.md                — modules/Uui/tool/*     (visual designer)
-│   └── web.md                 — modules/Uui/web/*      (WSGI framework)
-└── api/                       — per-file API reference (Chinese, auto-generated)
-    └── *.zh.md                — one file per source module
+├── core/                      — core package overviews (English)
+│   ├── editor.md              — core/editor/*             (CodeEditor, Document, lang registry)
+│   ├── env_manager.md         — core/env_manager/*        (Python interpreter detection)
+│   ├── language.md            — core/language/*           (highlighter, suggestion, checker)
+│   ├── plugins.md             — core/plugins/*            (plugin manager, hooks, marketplace)
+│   ├── runner.md              — core/runner/*             (subprocess streaming runner)
+│   ├── settings.md            — core/settings/*           (global/project settings, i18n, logging)
+│   └── data.md                — core/data.py              (data/cache path helpers)
+└── ui/                        — UI framework overviews
+    ├── widgets.md             — ui/widgets/*              (Tk toolkit)
+    ├── call.md                — ui/call/*                 (Git / Pip / Npm wrappers)
+    ├── web.md                 — ui/web/*                  (WSGI framework + ORM + admin)
+    ├── tool.md                — ui/tool/*                 (visual designer)
+    ├── cli.md                 — ui/cli.py                 (scaffolding CLI)
+    └── demo.md                — ui/demo.py                (component gallery)
 ```
 
 ## Two complementary views
 
-- `modules/` and `uui/` — **module-level** documentation (English): the
-  entry points, the public classes, the most important methods, and how
-  the parts fit together. Read these first.
-- `api/*.zh.md` — **per-file** API reference (Chinese): every public
-  symbol in every source file, with signatures and brief descriptions.
-  Use as a lookup table when you need a specific function.
+- `core/` and `ui/` — **module-level** documentation (English): the entry
+  points, the public classes, the most important methods, and how the parts
+  fit together. Read these first.
+- `ui/web/README.md` — a long-form Chinese reference for the embedded WSGI
+  framework. Treat it as an authoritative lookup for that subsystem.
 
 ## Naming convention
 
@@ -50,8 +46,9 @@ Per [`AGENTS.md`](../AGENTS.md):
 
 | Item | Value |
 | --- | --- |
-| Entry point | `main.py` (`python main.py` or `python -m`) |
-| UI toolkit | Tkinter + `modules.Uui.widgets.*` |
+| Entry point | `main.py` (`python main.py`) |
+| Core packages | `core.editor`, `core.env_manager`, `core.language.*`, `core.plugins`, `core.runner`, `core.settings.*` |
+| UI framework | Tkinter + `ui.widgets.*` |
 | i18n default | `zh_CN` (fallback `en_US`) |
 | Settings location (Win) | `%APPDATA%\PythonEditor\settings.json` |
 | Settings location (project) | `<root>/.pyeditor/settings.json` |
@@ -62,27 +59,29 @@ Per [`AGENTS.md`](../AGENTS.md):
 
 | Module | Purpose | Doc |
 | --- | --- | --- |
-| `modules.data` | Locate data/cache files in `data/` and `cache/` | [modules/data.md](modules/data.md) |
-| `modules.charts` | Reserved (empty package) | — |
-| `modules.checker` | Static analysis backends (flake8 / pyright / ast) | [modules/checker.md](modules/checker.md) |
-| `modules.env_manager` | Detect / manage Python interpreters and packages | [modules/env_manager.md](modules/env_manager.md) |
-| `modules.highlighter` | Syntax highlighters + theme registry + DOM cache | [modules/highlighter.md](modules/highlighter.md) |
-| `modules.i18n` | Translation lookup and runtime language switching | [modules/i18n.md](modules/i18n.md) |
-| `modules.logging` | Unified rotating-file logger | [modules/logging.md](modules/logging.md) |
-| `modules.plugins` | Plugin loading, hooks, manifest, manager UI | [modules/plugins.md](modules/plugins.md) |
-| `modules.runner` | Subprocess streaming and blocking runners | [modules/runner.md](modules/runner.md) |
-| `modules.settings` | Global + per-project settings, schemas, UI | [modules/settings.md](modules/settings.md) |
-| `modules.suggestion` | Code completion experts (Python / C / C++) | [modules/suggestion.md](modules/suggestion.md) |
-| `modules.Uui.widgets` | Themed Tk widget toolkit | [uui/widgets.md](uui/widgets.md) |
-| `modules.Uui.call` | Shell command wrappers (Git, Pip, Npm) | [uui/call.md](uui/call.md) |
-| `modules.Uui.tool` | Visual widget designer | [uui/tool.md](uui/tool.md) |
-| `modules.Uui.web` | Django-inspired WSGI framework + ORM + admin | [uui/web.md](uui/web.md) |
+| `core.editor` | `CodeEditor` controller, document model, language registry | [core/editor.md](core/editor.md) |
+| `core.env_manager` | Detect / manage Python interpreters and packages | [core/env_manager.md](core/env_manager.md) |
+| `core.language.checker` | Static analysis backends (flake8 / pyright / ast) | [core/language.md](core/language.md) |
+| `core.language.highlighter` | Syntax highlighters + theme registry + DOM cache | [core/language.md](core/language.md) |
+| `core.language.suggestion` | Code completion experts (Python / C / C++) | [core/language.md](core/language.md) |
+| `core.plugins` | Plugin loading, hooks, manifest, manager UI | [core/plugins.md](core/plugins.md) |
+| `core.runner` | Subprocess streaming and blocking runners | [core/runner.md](core/runner.md) |
+| `core.settings` | Global + per-project settings, schemas | [core/settings.md](core/settings.md) |
+| `core.settings.i18n` | Translation lookup and runtime language switching | [core/settings.md](core/settings.md) |
+| `core.settings.logging` | Unified rotating-file logger | [core/settings.md](core/settings.md) |
+| `core.data` | Locate data/cache files in `data/` and `cache/` | [core/data.md](core/data.md) |
+| `ui.widgets` | Themed Tk widget toolkit | [ui/widgets.md](ui/widgets.md) |
+| `ui.call` | Shell command wrappers (Git, Pip, Npm) | [ui/call.md](ui/call.md) |
+| `ui.web` | Django-inspired WSGI framework + ORM + admin | [ui/web.md](ui/web.md) |
+| `ui.tool` | Visual widget designer | [ui/tool.md](ui/tool.md) |
+| `ui.cli` | Scaffolding CLI (`python -m ui.cli`) | [ui/cli.md](ui/cli.md) |
+| `ui.demo` | Component gallery | [ui/demo.md](ui/demo.md) |
 
 ## Public surface guarantees
 
 - Every subpackage has an explicit `__all__`; **only** symbols listed there are
   considered public API. Anything else is internal and may change without notice.
-- Settings keys are documented in [modules/settings.md](modules/settings.md).
+- Settings keys are documented in [core/settings.md](core/settings.md).
   All keys are dotted (`ui.theme`, `editor.tab_size`, …) and grouped by prefix.
-- Plugin authors should only import from `modules.plugins.*`; in particular,
-  `modules.plugins.api.PluginContext` is the contract every plugin receives.
+- Plugin authors should only import from `core.plugins.*`; in particular,
+  `core.plugins.api.PluginContext` is the contract every plugin receives.

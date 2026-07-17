@@ -207,4 +207,3 @@ Main initialization sequence:
 4. Setup i18n translator
 5. Build UI (menubar, toolbar, editor, output panel, status bar)
 6. Load plugins
-7. Scan Python environments
