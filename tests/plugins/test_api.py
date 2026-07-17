@@ -1,6 +1,6 @@
 import pytest
 
-from modules.plugins.api import (
+from core.plugins.api import (
     HookEvents,
     LanguageContribution,
     PluginCommand,
@@ -148,3 +148,35 @@ class TestPluginContext:
         ctx = PluginContext(plugin_id="test", plugin_name="Test", host=host)
         ctx.log("info", "test message")
         assert len(host.outputs) == 1
+
+
+class TestHookEvents:
+    def test_editor_file_opened(self):
+        assert HookEvents.EDITOR_FILE_OPENED == "editor:file_opened"
+
+    def test_editor_file_saved(self):
+        assert HookEvents.EDITOR_FILE_SAVED == "editor:file_saved"
+
+    def test_editor_content_changed(self):
+        assert HookEvents.EDITOR_CONTENT_CHANGED == "editor:content_changed"
+
+    def test_editor_run_started(self):
+        assert HookEvents.EDITOR_RUN_STARTED == "editor:run_started"
+
+    def test_editor_run_finished(self):
+        assert HookEvents.EDITOR_RUN_FINISHED == "editor:run_finished"
+
+    def test_editor_closing(self):
+        assert HookEvents.EDITOR_CLOSING == "editor:closing"
+
+
+class TestLanguageContribution:
+    def test_creation(self):
+        contrib = LanguageContribution(
+            name="TestLang",
+            ext=".test",
+            highlighter_factory=lambda: None,
+            suggestion_factory=lambda: None,
+        )
+        assert contrib.name == "TestLang"
+        assert contrib.ext == ".test"

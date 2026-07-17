@@ -7,7 +7,6 @@ import pytest
 
 @pytest.fixture
 def temp_dir():
-    """Create a temporary directory for tests."""
     tmp = tempfile.mkdtemp()
     yield tmp
     shutil.rmtree(tmp, ignore_errors=True)
@@ -15,7 +14,6 @@ def temp_dir():
 
 @pytest.fixture
 def sample_python_file(temp_dir):
-    """Create a sample Python file for testing."""
     path = os.path.join(temp_dir, "sample.py")
     with open(path, "w", encoding="utf-8") as f:
         f.write("def hello():\n    print('Hello, World!')\n")
@@ -24,7 +22,6 @@ def sample_python_file(temp_dir):
 
 @pytest.fixture
 def sample_syntax_error_file(temp_dir):
-    """Create a Python file with syntax error."""
     path = os.path.join(temp_dir, "error.py")
     with open(path, "w", encoding="utf-8") as f:
         f.write("def hello(\n    print('Hello')\n")
@@ -33,7 +30,6 @@ def sample_syntax_error_file(temp_dir):
 
 @pytest.fixture
 def sample_c_file(temp_dir):
-    """Create a sample C file for testing."""
     path = os.path.join(temp_dir, "sample.c")
     with open(path, "w", encoding="utf-8") as f:
         f.write('#include <stdio.h>\n\nint main() {\n    printf("Hello\\n");\n    return 0;\n}\n')
@@ -42,7 +38,6 @@ def sample_c_file(temp_dir):
 
 @pytest.fixture
 def sample_cpp_file(temp_dir):
-    """Create a sample C++ file for testing."""
     path = os.path.join(temp_dir, "sample.cpp")
     with open(path, "w", encoding="utf-8") as f:
         f.write(

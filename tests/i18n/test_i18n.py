@@ -1,6 +1,7 @@
 import pytest
 
-from modules.i18n.translator import AVAILABLE_LANGUAGES, Translator, _load_locale, get_translator, t
+from core.settings.i18n import AVAILABLE_LANGUAGES, Translator, get_translator, t
+from core.settings.i18n.translator import _load_locale
 
 
 class TestLoadLocale:

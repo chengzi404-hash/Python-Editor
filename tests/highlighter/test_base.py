@@ -1,6 +1,6 @@
 import pytest
 
-from modules.highlighter.base import HighlightBlock, HighlighterExpert, HighlightToken
+from core.language.highlighter import HighlightBlock, HighlighterExpert, HighlightToken
 
 
 class MockHighlighter(HighlighterExpert):
@@ -29,7 +29,7 @@ class TestHighlightBlock:
         tokens = [HighlightToken(0, 5, "keyword"), HighlightToken(6, 11, "identifier")]
         block = HighlightBlock(code="print", tokens=tokens)
         assert block.code == "print"
-        assert len(block.tokens) == 2
+        assert len(block.tokens or []) == 2
 
 
 class TestHighlighterExpert:

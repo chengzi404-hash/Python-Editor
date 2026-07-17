@@ -1,7 +1,6 @@
 import pytest
 
-from modules.highlighter.base import HighlightBlock
-from modules.highlighter.python import PythonHighlighterExpert
+from core.language.highlighter import HighlightBlock, PythonHighlighterExpert
 
 
 class TestPythonHighlighter:
@@ -69,6 +68,7 @@ class TestPythonHighlighter:
         block = HighlightBlock(code="def my_func(): pass")
         result = expert.highlight(block)
         assert result.code == "def my_func(): pass"
+        assert result.tokens is not None
         token_types = [t.type for t in result.tokens]
         assert "keyword" in token_types
         assert "function" in token_types
@@ -78,6 +78,7 @@ class TestPythonHighlighter:
         block = HighlightBlock(code="class MyClass: pass")
         result = expert.highlight(block)
         assert result.code == "class MyClass: pass"
+        assert result.tokens is not None
         token_types = [t.type for t in result.tokens]
         assert "keyword" in token_types
         assert "class" in token_types
@@ -87,6 +88,7 @@ class TestPythonHighlighter:
         block = HighlightBlock(code="import os")
         result = expert.highlight(block)
         assert result.code == "import os"
+        assert result.tokens is not None
         token_types = [t.type for t in result.tokens]
         assert "keyword" in token_types
 
@@ -95,5 +97,6 @@ class TestPythonHighlighter:
         block = HighlightBlock(code="from os import path")
         result = expert.highlight(block)
         assert result.code == "from os import path"
+        assert result.tokens is not None
         token_types = [t.type for t in result.tokens]
         assert "keyword" in token_types

@@ -1,6 +1,6 @@
 import pytest
 
-from modules.highlighter.dom_cache import LibraryDOM, cache_exists, get_lib_dom
+from core.language.highlighter import LibraryDOM, cache_exists, get_lib_dom
 
 
 class TestLibraryDOM:

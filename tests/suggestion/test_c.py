@@ -1,6 +1,6 @@
 import pytest
 
-from modules.suggestion.c import CSuggestionExpert, SuggestionBlock
+from core.language.suggestion import CSuggestionExpert, SuggestionBlock
 
 
 class TestCSuggestionExpert:

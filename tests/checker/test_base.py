@@ -1,6 +1,6 @@
 import pytest
 
-from modules.checker.base import Checker, Output, OutputRow
+from core.language.checker import Checker, Output, OutputRow
 
 
 class MockChecker(Checker):
@@ -32,3 +32,10 @@ class TestCheckerBase:
     def test_checker_is_abstract(self):
         with pytest.raises(TypeError):
             Checker()
+
+    def test_mock_checker(self):
+        checker = MockChecker()
+        output = checker.check("test.py")
+        assert output.file == "test.py"
+        assert len(output.row) == 1
+        assert output.row[0].message == "test"

@@ -1,7 +1,6 @@
 import pytest
 
-from modules.highlighter.base import HighlightBlock
-from modules.highlighter.ccpp import CcppHighlighterExpert
+from core.language.highlighter import CcppHighlighterExpert, HighlightBlock
 
 
 class TestCcppHighlighter:
@@ -70,6 +69,7 @@ class TestCcppHighlighter:
         block = HighlightBlock(code="int main()")
         result = expert.highlight(block)
         assert result.code == "int main()"
+        assert result.tokens is not None
         token_types = [t.type for t in result.tokens]
         assert "keyword" in token_types
 
@@ -78,6 +78,7 @@ class TestCcppHighlighter:
         block = HighlightBlock(code="struct MyStruct { };")
         result = expert.highlight(block)
         assert result.code == "struct MyStruct { };"
+        assert result.tokens is not None
         token_types = [t.type for t in result.tokens]
         assert "keyword" in token_types
 
@@ -86,6 +87,7 @@ class TestCcppHighlighter:
         block = HighlightBlock(code="class MyClass { };")
         result = expert.highlight(block)
         assert result.code == "class MyClass { };"
+        assert result.tokens is not None
         token_types = [t.type for t in result.tokens]
         assert "keyword" in token_types
 
@@ -94,5 +96,6 @@ class TestCcppHighlighter:
         block = HighlightBlock(code="enum Color { RED };")
         result = expert.highlight(block)
         assert result.code == "enum Color { RED };"
+        assert result.tokens is not None
         token_types = [t.type for t in result.tokens]
         assert "keyword" in token_types

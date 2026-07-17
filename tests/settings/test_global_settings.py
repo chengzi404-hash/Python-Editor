@@ -1,10 +1,8 @@
-import json
 import os
-import tempfile
 
 import pytest
 
-from modules.settings.global_settings import GlobalSettings, default_global_path
+from core.settings import GlobalSettings, SettingsScope, default_global_path
 
 
 class TestGlobalSettings:
@@ -19,8 +17,6 @@ class TestGlobalSettings:
 
     def test_scope(self):
         settings = GlobalSettings(auto_load=False)
-        from modules.settings.base import SettingsScope
-
         assert settings.scope == SettingsScope.GLOBAL
 
     def test_get_default_value(self):

@@ -1,11 +1,11 @@
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from modules.plugins.api import PluginManifest, _HookSubscription
-from modules.plugins.manager import DiscoveredPlugin, PluginManager
+from core.plugins.api import PluginManifest, _HookSubscription
+from core.plugins.manager import DiscoveredPlugin, PluginManager
 
 
 class TestPluginManager:
