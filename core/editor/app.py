@@ -96,7 +96,9 @@ class CodeEditor:
         self._font_size = int(gs.get("ui.font_size", 10))
         self._tab_width = int(gs.get("editor.tab_size", 4))
         self._highlight_delay_ms = int(gs.get("editor.highlight_delay_ms", 300))
-        self._definition_highlight_duration_ms = int(gs.get("editor.definition_highlight_duration_ms", 3000))
+        self._definition_highlight_duration_ms = int(
+            gs.get("editor.definition_highlight_duration_ms", 3000)
+        )
         self._suggest_delay_ms = int(gs.get("editor.suggestion_delay_ms", 200))
         self._suggest_min_chars = int(gs.get("completion.min_chars_before_trigger", 1))
 
@@ -451,7 +453,9 @@ class CodeEditor:
             gs.get("editor.highlight_delay_ms", self._highlight_delay_ms)
         )
         self._definition_highlight_duration_ms = int(
-            gs.get("editor.definition_highlight_duration_ms", self._definition_highlight_duration_ms)
+            gs.get(
+                "editor.definition_highlight_duration_ms", self._definition_highlight_duration_ms
+            )
         )
         self._suggest_delay_ms = int(gs.get("editor.suggestion_delay_ms", self._suggest_delay_ms))
         self._suggest_min_chars = int(
@@ -775,29 +779,73 @@ class CodeEditor:
         shortcuts = {k: stored.get(k, v) for k, v in defaults.items()}
 
         self._shortcut_bindings = {
-            "new_file": self.window.bind(self._tk_shortcut(shortcuts["new_file"]), lambda e: self._new_file()),
-            "open_file": self.window.bind(self._tk_shortcut(shortcuts["open_file"]), lambda e: self._open_file()),
-            "open_project": self.window.bind(self._tk_shortcut(shortcuts["open_project"]), lambda e: self._open_project()),
-            "save_file": self.window.bind(self._tk_shortcut(shortcuts["save_file"]), lambda e: self._save_file()),
-            "save_file_as": self.window.bind(self._tk_shortcut(shortcuts["save_file_as"]), lambda e: self._save_file_as()),
-            "run_check": self.window.bind(self._tk_shortcut(shortcuts["run_check"]), lambda e: self._run_check()),
-            "run_code": self.window.bind(self._tk_shortcut(shortcuts["run_code"]), lambda e: self._run_code()),
-            "clear_output": self.window.bind(self._tk_shortcut(shortcuts["clear_output"]), lambda e: self._clear_output()),
+            "new_file": self.window.bind(
+                self._tk_shortcut(shortcuts["new_file"]), lambda e: self._new_file()
+            ),
+            "open_file": self.window.bind(
+                self._tk_shortcut(shortcuts["open_file"]), lambda e: self._open_file()
+            ),
+            "open_project": self.window.bind(
+                self._tk_shortcut(shortcuts["open_project"]), lambda e: self._open_project()
+            ),
+            "save_file": self.window.bind(
+                self._tk_shortcut(shortcuts["save_file"]), lambda e: self._save_file()
+            ),
+            "save_file_as": self.window.bind(
+                self._tk_shortcut(shortcuts["save_file_as"]), lambda e: self._save_file_as()
+            ),
+            "run_check": self.window.bind(
+                self._tk_shortcut(shortcuts["run_check"]), lambda e: self._run_check()
+            ),
+            "run_code": self.window.bind(
+                self._tk_shortcut(shortcuts["run_code"]), lambda e: self._run_code()
+            ),
+            "clear_output": self.window.bind(
+                self._tk_shortcut(shortcuts["clear_output"]), lambda e: self._clear_output()
+            ),
             "undo": self.window.bind(self._tk_shortcut(shortcuts["undo"]), lambda e: self._undo()),
             "redo": self.window.bind(self._tk_shortcut(shortcuts["redo"]), lambda e: self._redo()),
-            "find": self.window.bind(self._tk_shortcut(shortcuts["find"]), lambda e: self._open_find()),
-            "replace": self.window.bind(self._tk_shortcut(shortcuts["replace"]), lambda e: self._open_replace()),
-            "goto_line": self.window.bind(self._tk_shortcut(shortcuts["goto_line"]), lambda e: self._goto_line()),
-            "goto_definition": self.window.bind(self._tk_shortcut(shortcuts["goto_definition"]), lambda e: self._goto_definition()),
-            "find_references": self.window.bind(self._tk_shortcut(shortcuts["find_references"]), lambda e: self._find_references()),
-            "reparse": self.window.bind(self._tk_shortcut(shortcuts["reparse"]), lambda e: self._reparse()),
-            "apply_highlight": self.window.bind(self._tk_shortcut(shortcuts["apply_highlight"]), lambda e: self._apply_highlight()),
-            "trigger_suggestions": self.window.bind(self._tk_shortcut(shortcuts["trigger_suggestions"]), lambda e: self._show_suggestions()),
-            "show_documentation": self.window.bind(self._tk_shortcut(shortcuts["show_documentation"]), lambda e: self._show_documentation()),
-            "toggle_comment": self.window.bind(self._tk_shortcut(shortcuts["toggle_comment"]), lambda e: self._toggle_comment()),
-            "close_tab": self.window.bind(self._tk_shortcut(shortcuts["close_tab"]), lambda e: self._close_active_tab()),
-            "next_tab": self.window.bind(self._tk_shortcut(shortcuts["next_tab"]), lambda e: self._next_tab()),
-            "prev_tab": self.window.bind(self._tk_shortcut(shortcuts["prev_tab"]), lambda e: self._prev_tab()),
+            "find": self.window.bind(
+                self._tk_shortcut(shortcuts["find"]), lambda e: self._open_find()
+            ),
+            "replace": self.window.bind(
+                self._tk_shortcut(shortcuts["replace"]), lambda e: self._open_replace()
+            ),
+            "goto_line": self.window.bind(
+                self._tk_shortcut(shortcuts["goto_line"]), lambda e: self._goto_line()
+            ),
+            "goto_definition": self.window.bind(
+                self._tk_shortcut(shortcuts["goto_definition"]), lambda e: self._goto_definition()
+            ),
+            "find_references": self.window.bind(
+                self._tk_shortcut(shortcuts["find_references"]), lambda e: self._find_references()
+            ),
+            "reparse": self.window.bind(
+                self._tk_shortcut(shortcuts["reparse"]), lambda e: self._reparse()
+            ),
+            "apply_highlight": self.window.bind(
+                self._tk_shortcut(shortcuts["apply_highlight"]), lambda e: self._apply_highlight()
+            ),
+            "trigger_suggestions": self.window.bind(
+                self._tk_shortcut(shortcuts["trigger_suggestions"]),
+                lambda e: self._show_suggestions(),
+            ),
+            "show_documentation": self.window.bind(
+                self._tk_shortcut(shortcuts["show_documentation"]),
+                lambda e: self._show_documentation(),
+            ),
+            "toggle_comment": self.window.bind(
+                self._tk_shortcut(shortcuts["toggle_comment"]), lambda e: self._toggle_comment()
+            ),
+            "close_tab": self.window.bind(
+                self._tk_shortcut(shortcuts["close_tab"]), lambda e: self._close_active_tab()
+            ),
+            "next_tab": self.window.bind(
+                self._tk_shortcut(shortcuts["next_tab"]), lambda e: self._next_tab()
+            ),
+            "prev_tab": self.window.bind(
+                self._tk_shortcut(shortcuts["prev_tab"]), lambda e: self._prev_tab()
+            ),
         }
 
     @staticmethod

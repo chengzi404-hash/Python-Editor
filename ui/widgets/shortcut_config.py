@@ -14,7 +14,9 @@ from .list_view import UListView
 
 
 class UShortcutConfigWindow(UDialog):
-    def __init__(self, parent, settings_manager: SettingsManager, on_apply: Callable[[], None] | None = None):
+    def __init__(
+        self, parent, settings_manager: SettingsManager, on_apply: Callable[[], None] | None = None
+    ):
         self._settings = settings_manager
         self._on_apply = on_apply
         self._shortcuts: dict[str, str] = {}
@@ -54,19 +56,27 @@ class UShortcutConfigWindow(UDialog):
         btn_frame = tk.Frame(body, bg=theme.BG_PANEL)
         btn_frame.pack(fill=tk.X, padx=12, pady=12)
 
-        self._reset_btn = UButton(btn_frame, text=t("shortcut.reset"), variant="default", command=self._on_reset)
+        self._reset_btn = UButton(
+            btn_frame, text=t("shortcut.reset"), variant="default", command=self._on_reset
+        )
         self._reset_btn.pack(side=tk.LEFT)
 
-        self._reset_all_btn = UButton(btn_frame, text=t("shortcut.reset_all"), variant="default", command=self._on_reset_all)
+        self._reset_all_btn = UButton(
+            btn_frame, text=t("shortcut.reset_all"), variant="default", command=self._on_reset_all
+        )
         self._reset_all_btn.pack(side=tk.LEFT, padx=(8, 0))
 
         spacer = tk.Frame(btn_frame, bg=theme.BG_PANEL)
         spacer.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        self._save_btn = UButton(btn_frame, text=t("settings.button.save"), variant="primary", command=self._on_save)
+        self._save_btn = UButton(
+            btn_frame, text=t("settings.button.save"), variant="primary", command=self._on_save
+        )
         self._save_btn.pack(side=tk.RIGHT)
 
-        self._cancel_btn = UButton(btn_frame, text=t("settings.button.close"), variant="default", command=self.destroy)
+        self._cancel_btn = UButton(
+            btn_frame, text=t("settings.button.close"), variant="default", command=self.destroy
+        )
         self._cancel_btn.pack(side=tk.RIGHT, padx=(8, 0))
 
         self._load_shortcuts()

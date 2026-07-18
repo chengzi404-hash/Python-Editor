@@ -91,9 +91,9 @@ class TestJsonHighlighterExpert:
 
     def test_highlight_array(self):
         expert = JsonHighlighterExpert()
-        block = HighlightBlock(code='[1, 2, 3]')
+        block = HighlightBlock(code="[1, 2, 3]")
         result = expert.highlight(block)
-        assert result.code == '[1, 2, 3]'
+        assert result.code == "[1, 2, 3]"
         assert result.tokens is not None
         punctuation_tokens = [t for t in result.tokens if t.type == "punctuation"]
         assert len(punctuation_tokens) == 2

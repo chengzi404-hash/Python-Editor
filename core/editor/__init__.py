@@ -1,6 +1,6 @@
-"""``core.editor`` — 编辑器核心模块。
+"""``core.editor`` — Editor core module.
 
-提供文档模型、语言配置、UI 常量等基础数据结构。
+Provides document model, language configuration, UI constants and other basic data structures.
 """
 
 from .document import Document, _Debouncer

@@ -61,7 +61,9 @@ class _Handler(logging.Handler):
         self._max = max_entries
 
     def emit(self, record: logging.LogRecord) -> None:
-        ts = datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        ts = datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S.%f"
+        )[:-3]
         entry = {
             "timestamp": ts,
             "level": record.levelname,
