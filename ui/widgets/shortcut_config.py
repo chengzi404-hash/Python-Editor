@@ -24,6 +24,7 @@ class UShortcutConfigWindow(UDialog):
         self._capture_binding: str | None = None
 
         super().__init__(parent, title=t("dialog.title.shortcut_config"), width=550, height=450)
+        self._build_ui()
 
     def _build_ui(self):
         body = self.body
@@ -141,7 +142,7 @@ class UShortcutConfigWindow(UDialog):
 
     def _on_save(self):
         self._settings.global_settings.set("shortcuts.custom", self._shortcuts)
-        self._settings.save_global()
+        self._settings.global_settings.save()
         if self._on_apply:
             self._on_apply()
         self.destroy()
@@ -165,16 +166,42 @@ class UShortcutConfigWindow(UDialog):
 
         self._editing_index = index
         keys = list(self._shortcuts.keys())
-        key = keys[index]
+        action_key = keys[index]
 
-        self._capture_label.config(text=t("shortcut.press_new", action=t("shortcut.action_names", key=key) or key))
+        action_labels = {
+            "new_file": t("menu.file.new"),
+            "open_file": t("menu.file.open"),
+            "open_project": t("menu.file.open_project"),
+            "save_file": t("menu.file.save"),
+            "save_file_as": t("menu.file.save_as"),
+            "run_check": t("menu.file.check"),
+            "run_code": t("menu.file.run"),
+            "clear_output": t("menu.file.clear_output"),
+            "undo": t("menu.edit.undo"),
+            "redo": t("menu.edit.redo"),
+            "find": t("menu.edit.find"),
+            "replace": t("menu.edit.replace"),
+            "goto_line": t("menu.edit.goto_line"),
+            "goto_definition": t("menu.query.goto_definition"),
+            "find_references": t("menu.query.find_references"),
+            "reparse": t("menu.query.reparse"),
+            "apply_highlight": t("menu.query.refresh_highlight"),
+            "trigger_suggestions": t("menu.query.trigger_suggestions"),
+            "show_documentation": t("menu.help.docs"),
+            "toggle_comment": t("menu.edit.toggle_comment"),
+            "close_tab": t("menu.file.close_tab"),
+            "next_tab": t("shortcut.next_tab"),
+            "prev_tab": t("shortcut.prev_tab"),
+        }
+        action_name = action_labels.get(action_key, action_key)
+        self._capture_label.config(text=t("shortcut.press_new", action=action_name))
         self._capture_label.pack(fill=tk.X, padx=12, pady=(4, 0))
 
-        self._capture_binding = self.window.bind("<Key>", self._on_key_capture, add="+")
+        self._capture_binding = self.bind("<Key>", self._on_key_capture, add="+")
 
     def _cancel_capture(self):
         if self._capture_binding is not None:
-            self.window.unbind("<Key>", self._capture_binding)
+            self.unbind("<Key>", self._capture_binding)
             self._capture_binding = None
         self._editing_index = None
         self._capture_label.pack_forget()
@@ -183,12 +210,15 @@ class UShortcutConfigWindow(UDialog):
         if self._editing_index is None:
             return
 
+        state_val = getattr(event, "state", 0)
+        if isinstance(state_val, str):
+            state_val = 0
         modifiers = []
-        if event.state & 0x1:
+        if state_val & 0x1:
             modifiers.append("Shift")
-        if event.state & 0x4:
+        if state_val & 0x4:
             modifiers.append("Control")
-        if event.state & 0x8:
+        if state_val & 0x8:
             modifiers.append("Alt")
 
         key_name = event.keysym
@@ -196,25 +226,21 @@ class UShortcutConfigWindow(UDialog):
             return
 
         if key_name == "Tab":
-            if event.state & 0x1:
+            if state_val & 0x1:
                 modifiers.append("Shift")
-                key_name = "Tab"
-            else:
-                key_name = "Tab"
         elif key_name == "space":
             key_name = "Space"
         elif len(key_name) == 1:
             key_name = key_name.upper()
 
-        if modifiers or key_name not in ("Tab",):
-            if "Control" in modifiers and key_name == "Slash":
-                key_name = "Slash"
+        if "Control" in modifiers and key_name == "Slash":
+            key_name = "Slash"
 
         shortcut_str = "+".join(modifiers + [key_name])
 
         keys = list(self._shortcuts.keys())
-        key = keys[self._editing_index]
-        self._shortcuts[key] = shortcut_str
+        shortcut_key = keys[self._editing_index]
+        self._shortcuts[shortcut_key] = shortcut_str
 
         self._cancel_capture()
         self._refresh_list()

@@ -18,6 +18,7 @@ from .progressbar import UProgressBar
 from .radiobutton import URadioButton
 from .scrollbar import UScrollBar
 from .settings_nav import NavSelection, USettingsNavBar
+from .shortcut_config import UShortcutConfigWindow
 from .sidebar import ActivityBar, ActivityBarItem, SideBar
 from .slider import USlider
 from .tab_bar import Tab, TabBar
@@ -55,6 +56,7 @@ __all__ = [
     "URadioButton",
     "UScrollBar",
     "USettingsNavBar",
+    "UShortcutConfigWindow",
     "USlider",
     "UTabView",
     "UText",

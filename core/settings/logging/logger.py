@@ -219,6 +219,7 @@ def configure_logging(
     log_dir: str | None = None,
     max_bytes: int = 5 * 1024 * 1024,
     backup_count: int = 5,
+    file_enabled: bool = True,
 ) -> None:
     """Configure global logging behavior in one call.
 
@@ -228,6 +229,7 @@ def configure_logging(
         log_dir: Directory for log files, defaults to ``<project root>/logs``.
         max_bytes: Max bytes per log file before rotation.
         backup_count: Number of rotated backup files to retain.
+        file_enabled: Deprecated, ignored (logs written to file on crash only).
     """
     global _configured, _excepthook_registered
 
