@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import datetime
 import logging
-import logging.handlers
 import os
 import sys
 import threading
@@ -22,21 +21,20 @@ class LogLevel(IntEnum):
     CRITICAL = logging.CRITICAL  # 50
 
 
-# Global logger dict, cached by name
 _loggers: dict[str, Logger] = {}
 _loggers_lock = threading.Lock()
 
-# Global configuration handle (set once, shared by all new loggers)
 _configured = False
 _config_lock = threading.Lock()
 _config: dict = {
     "level": LogLevel.INFO,
-    "file_enabled": True,
     "console_enabled": True,
-    "max_bytes": 5 * 1024 * 1024,  # 5 MB
+    "max_bytes": 5 * 1024 * 1024,
     "backup_count": 5,
-    "_dir": None,  # Log directory path (str)
+    "_dir": None,
 }
+
+_excepthook_registered = False
 
 
 def _default_log_dir() -> str:
@@ -58,24 +56,28 @@ class _Handler(logging.Handler):
     def __init__(self, max_entries: int = 500):
         super().__init__()
         self._entries: list[dict] = []
+        self._raw_entries: list[str] = []
         self._lock = threading.RLock()
         self._max = max_entries
 
     def emit(self, record: logging.LogRecord) -> None:
+        ts = datetime.datetime.fromtimestamp(record.created, tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         entry = {
-            "timestamp": datetime.datetime.fromtimestamp(
-                record.created,
-                tz=datetime.timezone.utc,
-            ).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+            "timestamp": ts,
             "level": record.levelname,
             "name": record.name,
             "message": record.getMessage(),
             "exc_text": record.exc_text if hasattr(record, "exc_text") else None,
         }
+        raw = f"{ts}  [{record.levelname}]  {record.name}  {record.getMessage()}"
+        if record.exc_text:
+            raw += f"\n{record.exc_text}"
         with self._lock:
             self._entries.append(entry)
+            self._raw_entries.append(raw)
             if len(self._entries) > self._max:
                 self._entries.pop(0)
+                self._raw_entries.pop(0)
 
     def get_entries(self, level: int | None = None) -> list[dict]:
         """Return log entries; when level is None, return all."""
@@ -84,9 +86,14 @@ class _Handler(logging.Handler):
                 return list(self._entries)
             return [e for e in self._entries if e["level_int"] >= level]
 
+    def get_raw_entries(self) -> list[str]:
+        with self._lock:
+            return list(self._raw_entries)
+
     def clear(self) -> None:
         with self._lock:
             self._entries.clear()
+            self._raw_entries.clear()
 
     @property
     def level_int(self) -> int:
@@ -95,7 +102,7 @@ class _Handler(logging.Handler):
 
 
 class Logger:
-    """Unified log wrapper: writes to file + console + in-memory ring buffer simultaneously."""
+    """Unified log wrapper: writes to console + in-memory ring buffer; file log on crash only."""
 
     _instances: ClassVar[dict[str, Logger]] = {}
 
@@ -111,7 +118,6 @@ class Logger:
                 datefmt="%H:%M:%S",
             )
         )
-        self._file_handler: logging.handlers.RotatingFileHandler | None = None
         self._console_handler: logging.StreamHandler | None = None
         self._lock = threading.Lock()
         self._configure_handlers()
@@ -119,13 +125,11 @@ class Logger:
     def _configure_handlers(self) -> None:
         """Mount / unmount handlers according to global config."""
         with self._lock:
-            # Clear all existing handlers first (config may have changed)
             self._py_logger.handlers.clear()
 
             level = _config["level"].value
             self._py_logger.setLevel(level)
 
-            # In-memory handler (always present, for UI to read)
             self._py_logger.addHandler(self._handler)
 
             if _config["console_enabled"]:
@@ -138,39 +142,20 @@ class Logger:
                     )
                 self._py_logger.addHandler(self._console_handler)
 
-            if _config["file_enabled"]:
-                log_dir = _ensure_log_dir()
-                filename = os.path.join(log_dir, f"{self.name}.log")
-                if self._file_handler is None:
-                    self._file_handler = logging.handlers.RotatingFileHandler(
-                        filename,
-                        maxBytes=_config["max_bytes"],
-                        backupCount=_config["backup_count"],
-                        encoding="utf-8",
-                    )
-                    self._file_handler.setFormatter(
-                        logging.Formatter(
-                            "%(asctime)s  [%(levelname)s]  %(name)s  %(message)s",
-                            datefmt="%Y-%m-%d %H:%M:%S",
-                        )
-                    )
-                else:
-                    # Level or filename may have changed, recreate
-                    self._py_logger.removeHandler(self._file_handler)
-                    self._file_handler.close()
-                    self._file_handler = logging.handlers.RotatingFileHandler(
-                        filename,
-                        maxBytes=_config["max_bytes"],
-                        backupCount=_config["backup_count"],
-                        encoding="utf-8",
-                    )
-                    self._file_handler.setFormatter(
-                        logging.Formatter(
-                            "%(asctime)s  [%(levelname)s]  %(name)s  %(message)s",
-                            datefmt="%Y-%m-%d %H:%M:%S",
-                        )
-                    )
-                self._py_logger.addHandler(self._file_handler)
+    def _write_crash_log(self) -> None:
+        """Write in-memory logs to file (called only on crash)."""
+        log_dir = _ensure_log_dir()
+        filename = os.path.join(log_dir, f"{self.name}.log")
+        raw_entries = self._handler.get_raw_entries()
+        if not raw_entries:
+            return
+        try:
+            with open(filename, "a", encoding="utf-8") as f:
+                f.write("\n".join(raw_entries))
+                if raw_entries:
+                    f.write("\n")
+        except OSError:
+            pass
 
     def debug(self, msg: str, *args, **kwargs) -> None:
         self._py_logger.debug(msg, *args, **kwargs)
@@ -213,9 +198,23 @@ class Logger:
 # ---------------------------------------------------------------------------
 
 
+def _crash_write_all() -> None:
+    """Write crash logs for all loggers to their respective files."""
+    for logger in list(_loggers.values()):
+        logger._write_crash_log()
+
+
+def _global_excepthook(exc_type, exc_value, exc_traceback) -> None:
+    """Global exception hook: writes crash logs before propagating."""
+    if exc_type is KeyboardInterrupt:
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    _crash_write_all()
+    sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+
 def configure_logging(
     level: str | LogLevel = "INFO",
-    file_enabled: bool = True,
     console_enabled: bool = True,
     log_dir: str | None = None,
     max_bytes: int = 5 * 1024 * 1024,
@@ -225,19 +224,17 @@ def configure_logging(
 
     Args:
         level: Log level (DEBUG/INFO/WARNING/ERROR/CRITICAL or corresponding string).
-        file_enabled: Whether to write file logs.
         console_enabled: Whether to output to console (stdout).
         log_dir: Directory for log files, defaults to ``<project root>/logs``.
         max_bytes: Max bytes per log file before rotation.
         backup_count: Number of rotated backup files to retain.
     """
-    global _configured
+    global _configured, _excepthook_registered
 
     with _config_lock:
         if isinstance(level, str):
             level = LogLevel[level.upper()]
         _config["level"] = level
-        _config["file_enabled"] = file_enabled
         _config["console_enabled"] = console_enabled
         if log_dir is not None:
             _config["_dir"] = log_dir
@@ -245,7 +242,10 @@ def configure_logging(
         _config["backup_count"] = backup_count
         _configured = True
 
-    # Reconfigure handlers for all existing logger instances
+    if not _excepthook_registered:
+        sys.excepthook = _global_excepthook
+        _excepthook_registered = True
+
     for logger in list(_loggers.values()):
         logger._configure_handlers()
 
@@ -266,7 +266,7 @@ def get_logger(name: str = "app") -> Logger:
     """Get (or create) a named Logger instance.
 
     Args:
-        name: Logger name, also the log filename (``<name>.log``).
+        name: Logger name.
 
     Returns:
         Logger instance. The same name always returns the same instance.
@@ -280,10 +280,6 @@ def get_logger(name: str = "app") -> Logger:
 
 
 def shutdown() -> None:
-    """Call before program exit to flush and close all file handlers.
-
-    Python's logging module calls shutdown automatically at atexit;
-    this only flushes our custom logger instance buffers.
-    """
+    """Flush all logger handlers on shutdown."""
     for logger in list(_loggers.values()):
         logger.flush()

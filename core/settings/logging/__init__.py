@@ -1,6 +1,6 @@
 """``modules.logging`` — Unified logging module.
 
-Supports multiple log levels, file logging, console output, and rotation archiving.
+Supports multiple log levels, console output, and crash-only file logging.
 """
 
 from .logger import (
