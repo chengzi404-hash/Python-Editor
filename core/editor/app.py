@@ -978,7 +978,7 @@ class CodeEditor:
     def _stream_insert_into_editor(self, path: str, total_size: int, doc_id: str) -> None:
         chunk_size = 64 * 1024
         try:
-            f = open(path, encoding="utf-8", errors="replace")  # noqa: SIM115 - held across deferred after() callbacks
+            f = open(path, encoding="utf-8", errors="replace")  # noqa: SIM115
         except OSError as e:
             tk.messagebox.showerror(t("dialog.title.open_failed"), str(e), parent=self.window)
             self._large_file_mode = False
@@ -2601,7 +2601,6 @@ class CodeEditor:
             self._append_output(f"{t('output.check_unsupported', lang=lang)}\n")
 
     def _check_python_code(self, code: str) -> None:
-        python_path = sys.executable
         temp_path = None
         try:
             with tempfile.NamedTemporaryFile(

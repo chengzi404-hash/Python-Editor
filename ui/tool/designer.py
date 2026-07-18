@@ -325,12 +325,12 @@ class _SidebarTabBar(tk.Frame):
                 cursor="hand2",
             )
             btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
-            btn.bind("<Button-1>", lambda e: self._select(idx))
-            btn.bind("<Enter>", lambda e: btn.config(bg=theme.BG_PANEL))
+            btn.bind("<Button-1>", lambda e, i=idx: self._select(i))  # type: ignore[misc]
+            btn.bind("<Enter>", lambda e, b=btn: b.config(bg=theme.BG_PANEL))  # type: ignore[misc]
             btn.bind(
                 "<Leave>",
-                lambda e: btn.config(
-                    bg=theme.BG_PANEL if idx == self._active else theme.BG_TITLE
+                lambda e, b=btn, i=idx: b.config(  # type: ignore[misc]
+                    bg=theme.BG_PANEL if i == self._active else theme.BG_TITLE
                 ),
             )
             self._buttons.append(btn)

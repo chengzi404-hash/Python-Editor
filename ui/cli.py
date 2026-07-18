@@ -359,7 +359,9 @@ def _prompt(question: str, default: str = "", *, required: bool = False, validat
         return ans
 
 
-def _prompt_choice(question: str, choices: list[str], default: str | None = None, *, index_from: int = 1) -> str:
+def _prompt_choice(
+    question: str, choices: list[str], default: str | None = None, *, index_from: int = 1
+) -> str:
     if default is None:
         default = choices[0]
     if default not in choices:

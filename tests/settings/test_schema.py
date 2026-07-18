@@ -146,9 +146,18 @@ class TestSettingSpecValidation:
 class TestSettingsSchemaCollection:
     def test_multiple_specs(self):
         specs = (
-            SettingSpec(key="ui.theme", type=SettingValueType.CHOICE, default="Dark", choices=("Dark", "Light")),
-            SettingSpec(key="ui.font_size", type=SettingValueType.INTEGER, default=10, min=6, max=72),
-            SettingSpec(key="editor.tab_size", type=SettingValueType.INTEGER, default=4, min=1, max=16),
+            SettingSpec(
+                key="ui.theme",
+                type=SettingValueType.CHOICE,
+                default="Dark",
+                choices=("Dark", "Light"),
+            ),
+            SettingSpec(
+                key="ui.font_size", type=SettingValueType.INTEGER, default=10, min=6, max=72
+            ),
+            SettingSpec(
+                key="editor.tab_size", type=SettingValueType.INTEGER, default=4, min=1, max=16
+            ),
         )
         schema = SettingsSchema(specs)
         assert len(schema) == 3

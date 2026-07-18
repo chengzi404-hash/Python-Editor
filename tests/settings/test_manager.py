@@ -161,7 +161,9 @@ class TestSettingsManager:
         project_path = os.path.join(temp_dir, "project.json")
         global_settings = GlobalSettings(path=global_path, auto_load=False)
         project_settings = ProjectSettings(root=temp_dir, path=project_path, auto_load=False)
-        manager = SettingsManager(global_settings=global_settings, project_settings=project_settings)
+        manager = SettingsManager(
+            global_settings=global_settings, project_settings=project_settings
+        )
         manager.set(SettingsScope.GLOBAL, "editor.tab_size", 8)
         manager.set(SettingsScope.PROJECT, "project.tab_size", 8)
         manager.save_all()
