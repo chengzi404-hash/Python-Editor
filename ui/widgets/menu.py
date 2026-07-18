@@ -488,3 +488,197 @@ class UMenuBar(tk.Frame):
                 btn.config(bg=theme.BG_TITLE, fg=theme.FG_PRIMARY, font=theme.MENU_FONT)
         with contextlib.suppress(tk.TclError):
             self.config(bg=theme.BG_TITLE)
+
+
+class UContextMenu(tk.Toplevel):
+    """Styled context menu with hover effects and theme support."""
+
+    _ITEM_HEIGHT = 22
+    _SEP_HEIGHT = 1
+    _MIN_WIDTH = 160
+
+    def __init__(self, parent, *, bg=theme.BG_PANEL, **kwargs):
+        super().__init__(parent, **kwargs)
+        self.overrideredirect(True)
+        self.configure(bg=bg)
+        self._bg = bg
+        self._items: list[_ContextMenuItem | None] = []
+        self._hovered_index: int = -1
+        self._root_bind: str | None = None
+
+        self._inner = tk.Frame(
+            self,
+            bg=bg,
+            highlightthickness=1,
+            highlightbackground=theme.BORDER,
+            bd=0,
+        )
+        self._inner.pack(fill=tk.BOTH, expand=True)
+
+    def add_command(
+        self,
+        label: str,
+        command: Callable | None = None,
+        shortcut: str = "",
+        icon: str = "",
+    ) -> None:
+        item = _ContextMenuItem(
+            self._inner,
+            kind="command",
+            label=label,
+            shortcut=shortcut,
+            icon=icon,
+            command=command,
+            bg=self._bg,
+        )
+        item.pack(fill=tk.X, padx=2, pady=1)
+        self._items.append(item)
+
+    def add_separator(self) -> None:
+        sep = tk.Frame(self._inner, bg=theme.BORDER, height=1)
+        sep.pack(fill=tk.X, padx=8, pady=4)
+        self._items.append(None)
+
+    def show(self, x: int, y: int) -> None:
+        self.update_idletasks()
+        w = max(self.winfo_reqwidth() + 4, self._MIN_WIDTH)
+        h = self.winfo_reqheight()
+
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        if y + h > sh:
+            y = max(0, sh - h)
+        if x + w > sw:
+            x = max(0, sw - w)
+        if x < 0:
+            x = 0
+
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.deiconify()
+        self.grab_set()
+
+        try:
+            top = self.winfo_toplevel()
+            self._root_bind = top.bind("<Button-1>", self._on_root_click, add="+")
+        except tk.TclError:
+            self._root_bind = None
+
+    def _on_root_click(self, e: tk.Event | None = None) -> None:
+        if e is None:
+            return
+        try:
+            mx, my = self.winfo_rootx(), self.winfo_rooty()
+            mw, mh = self.winfo_width(), self.winfo_height()
+            if mx <= e.x_root <= mx + mw and my <= e.y_root <= my + mh:
+                return
+        except tk.TclError:
+            pass
+        self._close()
+
+    def _close(self) -> None:
+        if self._root_bind is not None:
+            try:
+                top = self.winfo_toplevel()
+                top.unbind("<Button-1>", self._root_bind)
+            except tk.TclError:
+                pass
+            self._root_bind = None
+        self.grab_release()
+        self.withdraw()
+
+    def _on_leave(self) -> None:
+        self._close()
+
+    def _apply_theme(self) -> None:
+        try:
+            self.configure(bg=self._bg)
+            self._inner.config(bg=self._bg, highlightbackground=theme.BORDER)
+            for item in self._items:
+                if item is not None:
+                    item._apply_theme()
+        except tk.TclError:
+            pass
+
+
+class _ContextMenuItem(tk.Frame):
+    """Single context menu item with hover effect."""
+
+    def __init__(
+        self,
+        parent,
+        *,
+        kind: str,
+        label: str,
+        shortcut: str = "",
+        icon: str = "",
+        command: Callable | None = None,
+        bg: str,
+    ):
+        super().__init__(parent, bg=bg, height=26)
+        self.pack_propagate(False)
+        self._kind = kind
+        self._command = command
+        self._bg = bg
+
+        self._icon_label = tk.Label(
+            self,
+            text=icon,
+            bg=bg,
+            fg=theme.FG_SECONDARY,
+            font=theme.MENU_FONT,
+            width=2,
+            anchor="center",
+        )
+        self._icon_label.pack(side=tk.LEFT, padx=(8, 0))
+
+        self._text_label = tk.Label(
+            self,
+            text=label,
+            bg=bg,
+            fg=theme.FG_PRIMARY,
+            font=theme.MENU_FONT,
+            anchor="w",
+        )
+        self._text_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(4, 6), pady=4)
+
+        self._shortcut_label = tk.Label(
+            self,
+            text=shortcut,
+            bg=bg,
+            fg=theme.FG_TERTIARY,
+            font=theme.MENU_FONT,
+            anchor="e",
+        )
+        self._shortcut_label.pack(side=tk.RIGHT, padx=(6, 8))
+
+        self.bind("<Button-1>", self._on_click)
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+
+    def _on_click(self, e=None) -> None:
+        if self._command:
+            self._command()
+
+    def _on_enter(self, e=None) -> None:
+        with contextlib.suppress(tk.TclError):
+            self.config(bg=theme.BLUE)
+        for w in self.winfo_children():
+            if isinstance(w, tk.Label):
+                with contextlib.suppress(tk.TclError):
+                    w.config(bg=theme.BLUE, fg=theme.FG_PRIMARY)
+
+    def _on_leave(self, e=None) -> None:
+        with contextlib.suppress(tk.TclError):
+            self.config(bg=self._bg)
+        for w in self.winfo_children():
+            if isinstance(w, tk.Label):
+                with contextlib.suppress(tk.TclError):
+                    w.config(bg=self._bg, fg=theme.FG_PRIMARY)
+
+    def _apply_theme(self) -> None:
+        with contextlib.suppress(tk.TclError):
+            self.config(bg=self._bg)
+        for w in self.winfo_children():
+            if isinstance(w, tk.Label):
+                with contextlib.suppress(tk.TclError):
+                    w.config(bg=self._bg)

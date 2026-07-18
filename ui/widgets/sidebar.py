@@ -17,7 +17,7 @@ from .icons import ICON_SIZE, draw_icon
 
 
 class ActivityBarItem(tk.Frame):
-    """Single Activity Bar icon button."""
+    """Single Activity Bar icon button with hover and active indicator."""
 
     def __init__(
         self,
@@ -32,7 +32,7 @@ class ActivityBarItem(tk.Frame):
             parent,
             width=36,
             height=36,
-            bg="#1e1e1e",
+            bg=theme.BG_BASE,
             highlightthickness=0,
             bd=0,
             takefocus=False,
@@ -45,12 +45,15 @@ class ActivityBarItem(tk.Frame):
 
         self.pack_propagate(False)
 
-        # Icon canvas
+        self._active_indicator = tk.Frame(self, bg=theme.TITLE_ACCENT, width=3)
+        self._active_indicator.place(x=0, rely=0.5, relheight=0.6, anchor="w")
+        self._active_indicator.lower()
+
         self._canvas = tk.Canvas(
             self,
             width=ICON_SIZE,
             height=ICON_SIZE,
-            bg="#1e1e1e",
+            bg=theme.BG_BASE,
             highlightthickness=0,
             bd=0,
             takefocus=False,
@@ -59,7 +62,6 @@ class ActivityBarItem(tk.Frame):
 
         self._render_icon()
 
-        # Hover effect
         self.bind("<Enter>", self._on_enter)
         self.bind("<Leave>", self._on_leave)
         self.bind("<Button-1>", self._on_click)
@@ -74,9 +76,14 @@ class ActivityBarItem(tk.Frame):
         return str(theme.FG_PRIMARY if self._is_active else theme.FG_TERTIARY)
 
     def _update_colors(self):
-        self.config(bg="#1e1e1e")
-        self._canvas.config(bg="#1e1e1e")
+        self.config(bg=theme.BG_BASE)
+        self._canvas.config(bg=theme.BG_BASE)
         self._render_icon()
+        if self._is_active:
+            self._active_indicator.lift()
+            self._active_indicator.config(bg=theme.TITLE_ACCENT)
+        else:
+            self._active_indicator.lower()
 
     def _on_enter(self, _):
         if not self._is_active:
@@ -84,6 +91,8 @@ class ActivityBarItem(tk.Frame):
             self._canvas.config(bg=theme.BG_RAISED)
             self._canvas.delete("all")
             draw_icon(self._canvas, self._icon_name, theme.FG_SECONDARY)
+        else:
+            self._active_indicator.config(bg=theme.BLUE_HOVER)
 
     def _on_leave(self, _):
         self._update_colors()

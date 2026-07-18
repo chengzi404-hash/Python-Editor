@@ -40,6 +40,7 @@ from ui.widgets import (
     Tab,
     TabBar,
     UButton,
+    UContextMenu,
     UFrame,
     ULabel,
     UMenuBar,
@@ -242,67 +243,70 @@ class CodeEditor:
         self._update_tab_bar()
 
     def _tab_context_menu(self, doc_id: str, x_root: int, y_root: int) -> None:
-        menu = tk.Menu(self.window, tearoff=0)
-        menu.add_command(label="Close", command=lambda: self._tab_close(doc_id))
-        menu.add_command(label="Close Others", command=lambda: self._close_other_tabs(doc_id))
-        menu.add_command(label="Close All", command=self._close_all_tabs)
-        try:
-            menu.tk_popup(x_root, y_root)
-        finally:
-            menu.grab_release()
+        menu = UContextMenu(self.window)
+        menu.add_command(
+            label=t("sidebar.tab.close", default="Close"),
+            command=lambda: self._tab_close(doc_id),
+        )
+        menu.add_command(
+            label=t("sidebar.tab.close_others", default="Close Others"),
+            command=lambda: self._close_other_tabs(doc_id),
+        )
+        menu.add_command(
+            label=t("sidebar.tab.close_all", default="Close All"),
+            command=self._close_all_tabs,
+        )
+        menu.show(x_root, y_root)
 
     def _show_editor_context_menu(self, event: tk.Event) -> None:
         """Show the editor right-click context menu."""
-        menu = tk.Menu(self.window, tearoff=0)
+        menu = UContextMenu(self.window)
 
         menu.add_command(
             label=t("menu.edit.undo"),
             command=self._undo,
-            accelerator="Ctrl+Z",
+            shortcut="Ctrl+Z",
         )
         menu.add_command(
             label=t("menu.edit.redo"),
             command=self._redo,
-            accelerator="Ctrl+Y",
+            shortcut="Ctrl+Y",
         )
         menu.add_separator()
         menu.add_command(
             label=t("menu.edit.cut"),
             command=self._cut,
-            accelerator="Ctrl+X",
+            shortcut="Ctrl+X",
         )
         menu.add_command(
             label=t("menu.edit.copy"),
             command=self._copy,
-            accelerator="Ctrl+C",
+            shortcut="Ctrl+C",
         )
         menu.add_command(
             label=t("menu.edit.paste"),
             command=self._paste,
-            accelerator="Ctrl+V",
+            shortcut="Ctrl+V",
         )
         menu.add_separator()
         menu.add_command(
             label=t("menu.edit.select_all"),
             command=self._select_all,
-            accelerator="Ctrl+A",
+            shortcut="Ctrl+A",
         )
         menu.add_separator()
         menu.add_command(
             label=t("menu.edit.find"),
             command=self._open_find,
-            accelerator="Ctrl+F",
+            shortcut="Ctrl+F",
         )
         menu.add_command(
             label=t("menu.edit.replace"),
             command=self._open_replace,
-            accelerator="Ctrl+H",
+            shortcut="Ctrl+H",
         )
 
-        try:
-            menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            menu.grab_release()
+        menu.show(event.x_root, event.y_root)
 
     def _close_other_tabs(self, keep_id: str) -> None:
         for did in [d for d in self._documents if d != keep_id]:

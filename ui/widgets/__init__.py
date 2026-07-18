@@ -13,7 +13,7 @@ from .git_card import GitCard
 from .label import ULabel
 from .line_number import LineNumberCanvas
 from .list_view import UListView
-from .menu import UMenu, UMenuBar
+from .menu import UContextMenu, UMenu, UMenuBar
 from .progressbar import UProgressBar
 from .radiobutton import URadioButton
 from .scrollbar import UScrollBar
@@ -41,6 +41,7 @@ __all__ = [
     "UButton",
     "UCheckButton",
     "UComboBox",
+    "UContextMenu",
     "UDialog",
     "UEditorSuggestion",
     "UEntry",

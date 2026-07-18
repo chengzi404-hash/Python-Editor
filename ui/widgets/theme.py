@@ -47,7 +47,7 @@ class Theme:
     TITLE_ACCENT: str = "#0a84ff"
 
     TITLE_FONT: tuple = ("Comic Sans MS", 10)
-    MENU_FONT: tuple = ("Arial", 10)
+    MENU_FONT: tuple = ("Arial", 9)
     LABEL_FONT: tuple = ("Arial", 10)
     LABEL_FONT_BOLD: tuple = ("Arial", 10, "bold")
     LABEL_FONT_SMALL: tuple = ("Arial", 9)
