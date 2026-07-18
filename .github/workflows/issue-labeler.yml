@@ -1,0 +1,49 @@
+name: issue-labeler
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  label:
+    name: Label issue
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Label issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = (issue.body || '').toLowerCase();
+            const title = (issue.title || '').toLowerCase();
+            const labels = [];
+
+            const rules = [
+              { pattern: /bug|错误|崩溃|crash|fix me|defect/, label: 'bug', mode: 'any' },
+              { pattern: /feature|功能|enhancement|新功能/, label: 'enhancement', mode: 'any' },
+              { pattern: /docs?|文档|readme|说明/, label: 'documentation', mode: 'any' },
+              { pattern: /question|疑问|问题咨询/, label: 'question', mode: 'any' },
+              { pattern: /duplicate|重复|已存在/, label: 'duplicate', mode: 'any' },
+              { pattern: /invalid|无效|无效的/, label: 'invalid', mode: 'any' },
+              { pattern: /wontfix|won't fix|不会修复/, label: 'wontfix', mode: 'any' },
+              { pattern: /help wanted|需要帮助/, label: 'help wanted', mode: 'any' },
+              { pattern: /good first issue|初学者|新手/, label: 'good first issue', mode: 'any' },
+            ];
+
+            for (const rule of rules) {
+              if (rule.mode === 'any' && (body.match(rule.pattern) || title.match(rule.pattern))) {
+                labels.push(rule.label);
+              }
+            }
+
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels
+              });
+            }
