@@ -4,6 +4,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from core.settings.i18n import t
+
 from . import theme
 
 
@@ -245,20 +247,9 @@ class UEditorSuggestion(tk.Toplevel):
             y = 0
         self.geometry(f"+{int(x)}+{int(y)}")
 
-    _KIND_LABELS: dict[str, str] = {
-        "keyword": "关键字",
-        "builtin": "内置",
-        "function": "函数",
-        "method": "方法",
-        "class": "类",
-        "variable": "变量",
-        "attribute": "属性",
-        "module": "模块",
-    }
-
     @staticmethod
     def _kind_text(kind: str) -> str:
-        return UEditorSuggestion._KIND_LABELS.get(kind, kind)
+        return t(f"suggestion.kind.{kind}", default=kind)
 
     def _rebuild_rows(self) -> None:
         for row in self._row_widgets:

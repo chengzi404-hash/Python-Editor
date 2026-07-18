@@ -464,5 +464,14 @@
   "shortcut.action_names.toggle_comment": "Toggle Comment",
   "shortcut.action_names.close_tab": "Close Tab",
   "shortcut.action_names.next_tab": "Next Tab",
-  "shortcut.action_names.prev_tab": "Previous Tab"
+  "shortcut.action_names.prev_tab": "Previous Tab",
+
+  "suggestion.kind.keyword": "keyword",
+  "suggestion.kind.builtin": "builtin",
+  "suggestion.kind.function": "function",
+  "suggestion.kind.method": "method",
+  "suggestion.kind.class": "class",
+  "suggestion.kind.variable": "variable",
+  "suggestion.kind.attribute": "attribute",
+  "suggestion.kind.module": "module"
 }

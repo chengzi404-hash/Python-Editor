@@ -464,5 +464,14 @@
   "shortcut.action_names.toggle_comment": "切换注释",
   "shortcut.action_names.close_tab": "关闭标签",
   "shortcut.action_names.next_tab": "下一个标签",
-  "shortcut.action_names.prev_tab": "上一个标签"
+  "shortcut.action_names.prev_tab": "上一个标签",
+
+  "suggestion.kind.keyword": "关键字",
+  "suggestion.kind.builtin": "内置",
+  "suggestion.kind.function": "函数",
+  "suggestion.kind.method": "方法",
+  "suggestion.kind.class": "类",
+  "suggestion.kind.variable": "变量",
+  "suggestion.kind.attribute": "属性",
+  "suggestion.kind.module": "模块"
 }
