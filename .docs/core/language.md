@@ -354,8 +354,8 @@ property / attribute tables used when the live DOM is not yet known:
 
 | Name | Source |
 | --- | --- |
-| `KEYWORDS` | `data/suggestions/python/keywords_*.json` |
-| `BUILTIN_FUNCTIONS` | `data/suggestions/python/builtins_*.json` |
+| `KEYWORDS` | `data/suggestions/keywords_*.json` |
+| `BUILTIN_FUNCTIONS` | `data/suggestions/builtins_*.json` |
 | `BUILTIN_CLASSES` | same file as builtins |
 | `BUILTIN_PROPERTIES` | same file as builtins |
 | `BUILTIN_ATTRS` | same file as builtins |

@@ -1,6 +1,4 @@
 from .base import DOMScope, SuggestionBlock, SuggestionExpert, SuggestionItem
-from .c import CSuggestionExpert
-from .cpp import CppSuggestionExpert
 from .python import (
     BUILTIN_ATTRS,
     BUILTIN_CLASSES,
@@ -17,8 +15,6 @@ __all__ = [
     "BUILTIN_PROPERTIES",
     # Builtin sets
     "KEYWORDS",
-    "CSuggestionExpert",
-    "CppSuggestionExpert",
     "DOMScope",
     "PythonSuggestionExpert",
     "SuggestionBlock",

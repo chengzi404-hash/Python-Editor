@@ -37,7 +37,7 @@ def _load_suggestion_list(lang: str, category: str) -> list[tuple[str, int]]:
 
     # Try language-specific file first, then fallback to en_US
     for lang_code in (lang, "en_US"):
-        filepath = suggestions_path("python", f"{category}_{lang_code}.json")
+        filepath = suggestions_path(f"{category}_{lang_code}.json")
         if os.path.exists(filepath):
             try:
                 with open(filepath, encoding="utf-8") as f:
