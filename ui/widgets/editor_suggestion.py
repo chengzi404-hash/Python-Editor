@@ -59,7 +59,7 @@ class UEditorSuggestion(tk.Toplevel):
         self._row_widgets: list[tk.Frame] = []
         self._row_widgets_map: dict[
             tk.Frame,
-            tuple[list[tk.Widget], tk.Label | None, tk.Label | None],
+            tuple[list[tk.Widget], tk.Label | None, tk.Label | None, tk.Label | None],
         ] = {}
         self._selected_index = -1
         self._scroll_offset = 0
@@ -94,7 +94,6 @@ class UEditorSuggestion(tk.Toplevel):
         self.bind("<Down>", lambda e: self.select_next())
         self.bind("<Up>", lambda e: self.select_prev())
         self.bind("<Return>", lambda e: self._commit())
-        self.bind("<Tab>", lambda e: self._commit())
         self.bind("<Escape>", lambda e: self.hide())
 
         if grab_focus:
@@ -140,7 +139,7 @@ class UEditorSuggestion(tk.Toplevel):
         if self._owner_top is not None:
             self._root_bind = self._owner_top.bind("<Button-1>", self._on_root_click, add="+")
 
-        self.attributes("-topmost", True)
+        self.attributes("-topmost", False)
         self.deiconify()
         if self._grab_focus:
             self.focus_set()
@@ -246,6 +245,21 @@ class UEditorSuggestion(tk.Toplevel):
             y = 0
         self.geometry(f"+{int(x)}+{int(y)}")
 
+    _KIND_LABELS: dict[str, str] = {
+        "keyword": "关键字",
+        "builtin": "内置",
+        "function": "函数",
+        "method": "方法",
+        "class": "类",
+        "variable": "变量",
+        "attribute": "属性",
+        "module": "模块",
+    }
+
+    @staticmethod
+    def _kind_text(kind: str) -> str:
+        return UEditorSuggestion._KIND_LABELS.get(kind, kind)
+
     def _rebuild_rows(self) -> None:
         for row in self._row_widgets:
             row.destroy()
@@ -269,6 +283,19 @@ class UEditorSuggestion(tk.Toplevel):
         )
         row.pack_propagate(False)
 
+        kind_label: tk.Label | None = None
+        label_text = self._kind_text(item.kind)
+        if label_text:
+            kind_label = tk.Label(
+                row,
+                text=label_text,
+                bg=theme.BG_PANEL,
+                fg=theme.FG_SECONDARY,
+                font=theme.LABEL_FONT_SMALL,
+                anchor="w",
+            )
+            kind_label.pack(side=tk.LEFT, padx=(self._PAD_X, 2), pady=3)
+
         label = tk.Label(
             row,
             text=item.label,
@@ -277,9 +304,11 @@ class UEditorSuggestion(tk.Toplevel):
             font=theme.MONO_FONT,
             anchor="w",
         )
-        label.pack(side=tk.LEFT, padx=(self._PAD_X, 6), pady=3)
+        label.pack(side=tk.LEFT, padx=(4 if kind_label else self._PAD_X, 6), pady=3)
 
         widgets: list[tk.Widget] = [row, label]
+        if kind_label:
+            widgets.append(kind_label)
         detail_label: tk.Label | None = None
 
         if self._show_detail and item.detail:
@@ -298,7 +327,7 @@ class UEditorSuggestion(tk.Toplevel):
             w.bind("<Button-1>", lambda e, i=idx: self._on_row_click(i))
             w.bind("<Enter>", lambda e, i=idx: self._set_hover(i))
 
-        self._row_widgets_map[row] = (widgets, label, detail_label)
+        self._row_widgets_map[row] = (widgets, label, detail_label, kind_label)
         return row
 
     def _set_hover(self, idx: int) -> None:
@@ -341,7 +370,9 @@ class UEditorSuggestion(tk.Toplevel):
         for i, row in enumerate(self._row_widgets):
             selected = i == self._selected_index
             bg = theme.BLUE if selected else theme.BG_PANEL
-            widgets, main_label, detail_label = self._row_widgets_map.get(row, ([row], None, None))
+            widgets, main_label, detail_label, _ = self._row_widgets_map.get(
+                row, ([row], None, None, None)
+            )
             for w in widgets:
                 with contextlib.suppress(tk.TclError):
                     w.config(bg=bg)
@@ -411,7 +442,9 @@ class UEditorSuggestion(tk.Toplevel):
             font=theme.LABEL_FONT_SMALL,
         )
         for row in self._row_widgets:
-            widgets, main_label, detail_label = self._row_widgets_map.get(row, ([row], None, None))
+            widgets, main_label, detail_label, _ = self._row_widgets_map.get(
+                row, ([row], None, None, None)
+            )
             for w in widgets:
                 with contextlib.suppress(tk.TclError):
                     w.config(bg=theme.BG_PANEL)

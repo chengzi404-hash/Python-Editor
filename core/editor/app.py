@@ -1325,8 +1325,17 @@ class CodeEditor:
         if self._suggestion_popup and self._suggestion_popup.winfo_exists():
             if event and event.keysym in ("Escape",):
                 self._suggestion_popup.hide()
-            elif event and event.keysym in ("Down", "Up", "Return", "Tab"):
-                return
+            elif event and event.keysym == "Down":
+                self._suggestion_popup.select_next()
+                return "break"
+            elif event and event.keysym == "Up":
+                self._suggestion_popup.select_prev()
+                return "break"
+            elif event and event.keysym in ("Return", "Tab"):
+                item = self._suggestion_popup.selected()
+                self._suggestion_popup.hide()
+                if item is not None:
+                    self._on_suggestion_select(item)
 
     def _on_click(self, event=None):
         self._update_status()
@@ -1483,7 +1492,7 @@ class CodeEditor:
                 max_visible=max_visible,
                 show_detail=False,
                 show_description=False,
-                grab_focus=True,
+                grab_focus=False,
             )
             self._suggestion_popup.show(attach_to=self._editor._text, index=tk.INSERT)
 
