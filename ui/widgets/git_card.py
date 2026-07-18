@@ -19,6 +19,8 @@ import subprocess
 import tkinter as tk
 from collections.abc import Callable
 
+from core.settings.i18n import t
+
 from . import theme
 from .button import UButton
 from .frame import UFrame
@@ -52,7 +54,7 @@ class GitCard(UFrame):
         self,
         parent,
         *,
-        title: str = "SOURCE CONTROL",
+        title: str | None = None,
         workspace_root: str | None = None,
         on_file_click: Callable[[str, str], None] | None = None,
         on_refresh: Callable[[], None] | None = None,
@@ -61,7 +63,7 @@ class GitCard(UFrame):
         kwargs.setdefault("variant", "panel")
         super().__init__(parent, **kwargs)
 
-        self._title = title
+        self._title = title if title is not None else t("sidebar.git.title")
         self._workspace_root = workspace_root or ""
         self._on_file_click = on_file_click
         self._on_refresh = on_refresh
@@ -76,7 +78,7 @@ class GitCard(UFrame):
         self._unstaged: list[dict] = []
 
         # Commit editor state
-        self._msg_placeholder = "Message  (Ctrl+Enter to commit)"
+        self._msg_placeholder = t("sidebar.git.msg_placeholder")
         self._has_placeholder = True
 
         self._build()
@@ -136,7 +138,7 @@ class GitCard(UFrame):
         # Branch name (mono font, reflecting "code/identifier" semantics)
         self._branch_label = ULabel(
             row,
-            text="No repository",
+            text=t("sidebar.git.no_repository"),
             variant="primary",
             bg=theme.BG_PANEL,
             font=theme.MONO_FONT,
@@ -161,7 +163,7 @@ class GitCard(UFrame):
         # Primary action: Commit (blue fill, variant='primary')
         self._btn_commit = UButton(
             bar,
-            text="✓ Commit",
+            text=t("sidebar.git.commit"),
             command=self._on_commit,
             variant="primary",
             width=88,
@@ -186,7 +188,7 @@ class GitCard(UFrame):
         # Secondary group: Pull / Push (right-aligned, right to left)
         self._btn_pull = UButton(
             bar,
-            text="↓ Pull",
+            text=t("sidebar.git.pull"),
             command=self._on_pull,
             variant="default",
             width=64,
@@ -197,7 +199,7 @@ class GitCard(UFrame):
 
         self._btn_push = UButton(
             bar,
-            text="↑ Push",
+            text=t("sidebar.git.push"),
             command=self._on_push,
             variant="default",
             width=64,
@@ -256,7 +258,7 @@ class GitCard(UFrame):
         self._amend_var = tk.BooleanVar(value=False)
         self._amend_check = tk.Checkbutton(
             footer,
-            text="Amend last commit",
+            text=t("sidebar.git.amend"),
             variable=self._amend_var,
             bg=theme.BG_PANEL,
             fg=theme.FG_SECONDARY,
@@ -273,7 +275,7 @@ class GitCard(UFrame):
 
         hint = ULabel(
             footer,
-            text="Ctrl+↵ commit",
+            text=t("sidebar.git.commit_hint"),
             variant="tertiary",
             bg=theme.BG_PANEL,
             font=theme.LABEL_FONT_SMALL,
@@ -318,8 +320,8 @@ class GitCard(UFrame):
         self._staged_frame.grid(row=0, column=0, sticky="nsew")
         self._build_section_header(
             self._staged_frame,
-            title="STAGED CHANGES",
-            empty_hint="No staged files",
+            title=t("sidebar.git.staged_changes"),
+            empty_hint=t("sidebar.git.no_staged"),
         )
         self._staged_view = UListView(
             self._staged_frame,
@@ -335,8 +337,8 @@ class GitCard(UFrame):
         self._unstaged_frame.grid(row=1, column=0, sticky="nsew")
         self._build_section_header(
             self._unstaged_frame,
-            title="CHANGES",
-            empty_hint="Working tree clean",
+            title=t("sidebar.git.changes"),
+            empty_hint=t("sidebar.git.working_clean"),
         )
         self._unstaged_view = UListView(
             self._unstaged_frame,
@@ -508,7 +510,7 @@ class GitCard(UFrame):
     def refresh(self) -> None:
         """Refetch Git status."""
         if not self._workspace_root:
-            self._set_idle("No repository")
+            self._set_idle(t("sidebar.git.no_repository"))
             return
 
         try:
@@ -516,9 +518,9 @@ class GitCard(UFrame):
             if self._on_refresh:
                 self._on_refresh()
         except FileNotFoundError:
-            self._set_idle("Git not found")
+            self._set_idle(t("sidebar.git.git_not_found"))
         except Exception:
-            self._set_idle("Error")
+            self._set_idle(t("sidebar.git.error"))
 
     def _run_git_checks(self) -> None:
         ws = self._workspace_root
@@ -535,7 +537,7 @@ class GitCard(UFrame):
         if self._branch:
             self._branch_label.config(text=self._branch)
         else:
-            self._branch_label.config(text="(detached)")
+            self._branch_label.config(text=t("sidebar.git.detached"))
 
         # Remote
         r = subprocess.run(
@@ -631,21 +633,21 @@ class GitCard(UFrame):
         # Section count + empty state hint
         self._staged_count_label.config(text=f"· {staged}" if staged else "")
         self._unstaged_count_label.config(text=f"· {unstaged}" if unstaged else "")
-        self._staged_hint_label.config(text="" if staged else "No staged files")
-        self._unstaged_hint_label.config(text="" if unstaged else "Working tree clean")
+        self._staged_hint_label.config(text="" if staged else t("sidebar.git.no_staged"))
+        self._unstaged_hint_label.config(text="" if unstaged else t("sidebar.git.working_clean"))
 
         # Bottom status bar: status dot + text
         if staged or unstaged:
             self._status_dot.config(bg=theme.YELLOW)
             parts = []
             if staged:
-                parts.append(f"{staged} staged")
+                parts.append(f"{staged}{t('sidebar.git.staged_count')}")
             if unstaged:
-                parts.append(f"{unstaged} changed")
+                parts.append(f"{unstaged}{t('sidebar.git.changed_count')}")
             self._stats_label.config(text="  ·  ".join(parts))
         else:
             self._status_dot.config(bg=theme.GREEN)
-            self._stats_label.config(text="Working tree clean")
+            self._stats_label.config(text=t("sidebar.git.working_clean"))
 
         # Ahead/behind chip
         if self._ahead > 0:
@@ -670,8 +672,8 @@ class GitCard(UFrame):
         try:
             self._staged_count_label.config(text="")
             self._unstaged_count_label.config(text="")
-            self._staged_hint_label.config(text="No staged files")
-            self._unstaged_hint_label.config(text="Working tree clean")
+            self._staged_hint_label.config(text=t("sidebar.git.no_staged"))
+            self._unstaged_hint_label.config(text=t("sidebar.git.working_clean"))
         except tk.TclError:
             pass
         self._status_dot.config(bg=theme.FG_TERTIARY)
@@ -717,7 +719,7 @@ class GitCard(UFrame):
         amend = self._amend_var.get()
 
         if not msg and not amend:
-            showinfo("Commit", "Type a commit message or check Amend.")
+            showinfo(t("sidebar.git.dialog.commit_title"), t("sidebar.git.dialog.commit_msg"))
             return
 
         # Amend but no message filled, use last commit subject
@@ -725,7 +727,7 @@ class GitCard(UFrame):
         if amend and not msg:
             effective_msg = self._last_commit_subject
             if not effective_msg:
-                showerror("Amend", "No previous commit message to amend.")
+                showerror(t("sidebar.git.dialog.amend_title"), t("sidebar.git.dialog.amend_msg"))
                 return
 
         try:
@@ -748,13 +750,13 @@ class GitCard(UFrame):
                 self._set_placeholder()
                 self.refresh()
             else:
-                showerror("Commit Error", r.stderr or "Unknown error")
+                showerror(t("sidebar.git.dialog.commit_error_title"), r.stderr or "Unknown error")
         except Exception as e:
-            showerror("Commit Error", str(e))
+            showerror(t("sidebar.git.dialog.commit_error_title"), str(e))
 
     def _on_push(self) -> None:
         if not self._has_remote:
-            showinfo("Push", "No remote repository configured.")
+            showinfo(t("sidebar.git.dialog.push_title"), t("sidebar.git.dialog.push_msg"))
             return
         try:
             r = subprocess.run(
@@ -767,13 +769,13 @@ class GitCard(UFrame):
             if r.returncode == 0:
                 self.refresh()
             else:
-                showerror("Push Error", r.stderr or "Unknown error")
+                showerror(t("sidebar.git.dialog.push_error_title"), r.stderr or "Unknown error")
         except Exception as e:
-            showerror("Push Error", str(e))
+            showerror(t("sidebar.git.dialog.push_error_title"), str(e))
 
     def _on_pull(self) -> None:
         if not self._has_remote:
-            showinfo("Pull", "No remote repository configured.")
+            showinfo(t("sidebar.git.dialog.pull_title"), t("sidebar.git.dialog.pull_msg"))
             return
         try:
             r = subprocess.run(
@@ -786,9 +788,9 @@ class GitCard(UFrame):
             if r.returncode == 0:
                 self.refresh()
             else:
-                showerror("Pull Error", r.stderr or "Unknown error")
+                showerror(t("sidebar.git.dialog.pull_error_title"), r.stderr or "Unknown error")
         except Exception as e:
-            showerror("Pull Error", str(e))
+            showerror(t("sidebar.git.dialog.pull_error_title"), str(e))
 
     # ─────────────────────────── public read API ───────────────────────────
 

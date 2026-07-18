@@ -14,6 +14,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from core.settings.i18n import t
+
 from . import theme
 from .frame import UFrame
 from .label import ULabel
@@ -255,7 +257,7 @@ class DebugCard(UFrame):
         self,
         parent,
         *,
-        title: str = "DEBUG",
+        title: str | None = None,
         workspace_root: str | None = None,
         on_breakpoint_click: Callable[[str, int], None] | None = None,
         on_debug_output: Callable[[str, str], None] | None = None,
@@ -264,7 +266,7 @@ class DebugCard(UFrame):
         kwargs.setdefault("variant", "panel")
         super().__init__(parent, **kwargs)
 
-        self._title = title
+        self._title = title if title is not None else t("sidebar.debug")
         self._workspace_root = workspace_root or ""
         self._on_breakpoint_click = on_breakpoint_click
         self._on_debug_output: Callable[[str, str], None] | None = on_debug_output
@@ -308,7 +310,7 @@ class DebugCard(UFrame):
 
         self._status_label = ULabel(
             self._status_frame,
-            text="Ready",
+            text=t("sidebar.debug.ready"),
             variant="secondary",
             bg=theme.BG_PANEL,
         )
@@ -329,26 +331,36 @@ class DebugCard(UFrame):
             "activeforeground": theme.FG_PRIMARY,
         }
 
-        self._btn_start = tk.Button(control_frame, text="▶ Start", width=7, **btn_kwargs)
+        self._btn_start = tk.Button(
+            control_frame, text=t("sidebar.debug.start"), width=7, **btn_kwargs
+        )
         self._btn_start.pack(side=tk.LEFT, padx=2)
         self._btn_start.bind("<Button-1>", lambda _: self._on_start())
 
-        self._btn_continue = tk.Button(control_frame, text="▶ Continue", width=8, **btn_kwargs)
+        self._btn_continue = tk.Button(
+            control_frame, text=t("sidebar.debug.continue"), width=8, **btn_kwargs
+        )
         self._btn_continue.pack(side=tk.LEFT, padx=2)
         self._btn_continue.bind("<Button-1>", lambda _: self._on_continue())
         self._btn_continue.config(state="disabled")
 
-        self._btn_step_over = tk.Button(control_frame, text="⤷ Over", width=6, **btn_kwargs)
+        self._btn_step_over = tk.Button(
+            control_frame, text=t("sidebar.debug.step_over"), width=6, **btn_kwargs
+        )
         self._btn_step_over.pack(side=tk.LEFT, padx=2)
         self._btn_step_over.bind("<Button-1>", lambda _: self._on_step_over())
         self._btn_step_over.config(state="disabled")
 
-        self._btn_step_into = tk.Button(control_frame, text="⤵ Into", width=6, **btn_kwargs)
+        self._btn_step_into = tk.Button(
+            control_frame, text=t("sidebar.debug.step_into"), width=6, **btn_kwargs
+        )
         self._btn_step_into.pack(side=tk.LEFT, padx=2)
         self._btn_step_into.bind("<Button-1>", lambda _: self._on_step_into())
         self._btn_step_into.config(state="disabled")
 
-        self._btn_stop = tk.Button(control_frame, text="⬛ Stop", width=6, **btn_kwargs)
+        self._btn_stop = tk.Button(
+            control_frame, text=t("sidebar.debug.stop"), width=6, **btn_kwargs
+        )
         self._btn_stop.pack(side=tk.LEFT, padx=2)
         self._btn_stop.bind("<Button-1>", lambda _: self._on_stop())
         self._btn_stop.config(state="disabled")
@@ -360,10 +372,10 @@ class DebugCard(UFrame):
         # Variables panel
         self._variables_panel_frame = tk.Frame(panels_frame, bg=theme.BG_PANEL)
         self._variables_panel_frame.grid(row=0, column=0, sticky="nsew")
-        self._build_section("VARIABLES", self._variables_panel_frame)
+        self._build_section(t("sidebar.debug.variables"), self._variables_panel_frame)
         self._variables_view = UListView(
             self._variables_panel_frame,
-            columns=["Name", "Value"],
+            columns=[t("sidebar.debug.col_name"), t("sidebar.debug.col_value")],
             column_widths={"Name": 120, "Value": 120},
             show_header=True,
         )
@@ -372,10 +384,14 @@ class DebugCard(UFrame):
         # Call stack panel
         self._stack_panel_frame = tk.Frame(panels_frame, bg=theme.BG_PANEL)
         self._stack_panel_frame.grid(row=1, column=0, sticky="nsew")
-        self._build_section("CALL STACK", self._stack_panel_frame)
+        self._build_section(t("sidebar.debug.call_stack"), self._stack_panel_frame)
         self._call_stack_view = UListView(
             self._stack_panel_frame,
-            columns=["#", "Function", "Location"],
+            columns=[
+                t("sidebar.debug.col_num"),
+                t("sidebar.debug.col_function"),
+                t("sidebar.debug.col_location"),
+            ],
             column_widths={"#": 30, "Function": 100, "Location": 100},
             show_header=True,
         )
@@ -384,10 +400,10 @@ class DebugCard(UFrame):
         # Breakpoints panel
         self._breakpoints_panel_frame = tk.Frame(panels_frame, bg=theme.BG_PANEL)
         self._breakpoints_panel_frame.grid(row=2, column=0, sticky="nsew")
-        self._build_section("BREAKPOINTS", self._breakpoints_panel_frame)
+        self._build_section(t("sidebar.debug.breakpoints"), self._breakpoints_panel_frame)
         self._breakpoints_view = UListView(
             self._breakpoints_panel_frame,
-            columns=["", "File", "Line"],
+            columns=["", t("sidebar.debug.col_file"), t("sidebar.debug.col_line")],
             column_widths={"": 20, "File": 120, "Line": 40},
             show_header=True,
         )
@@ -423,15 +439,15 @@ class DebugCard(UFrame):
         """Set debug state: 'stopped', 'running', 'paused'."""
         if state == "running":
             self._status_indicator.config(bg=theme.GREEN)
-            self._status_label.config(text="Running")
+            self._status_label.config(text=t("sidebar.debug.running"))
             self._enable_running_controls()
         elif state == "paused":
             self._status_indicator.config(bg=theme.YELLOW)
-            self._status_label.config(text="Paused")
+            self._status_label.config(text=t("sidebar.debug.paused"))
             self._enable_paused_controls()
         else:
             self._status_indicator.config(bg=theme.FG_TERTIARY)
-            self._status_label.config(text="Ready")
+            self._status_label.config(text=t("sidebar.debug.ready"))
             self._enable_stopped_controls()
 
     def _enable_stopped_controls(self) -> None:

@@ -9,6 +9,8 @@ import contextlib
 import tkinter as tk
 from collections.abc import Callable
 
+from core.settings.i18n import t
+
 from . import theme
 from .file_tree import UFileTree
 from .frame import UFrame
@@ -22,14 +24,14 @@ class ExplorerCard(UFrame):
         self,
         parent,
         *,
-        title: str = "EXPLORER",
+        title: str | None = None,
         on_activate: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
         kwargs.setdefault("variant", "panel")
         super().__init__(parent, **kwargs)
 
-        self._title = title
+        self._title = title if title is not None else t("sidebar.explorer")
         self._on_activate = on_activate
 
         self._build()
