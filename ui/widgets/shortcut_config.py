@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Callable
+from collections.abc import Callable
 
 from core.settings.i18n import t
 from core.settings.settings import SettingsManager
@@ -9,7 +9,6 @@ from core.settings.settings import SettingsManager
 from . import theme
 from .button import UButton
 from .dialog import UDialog
-from .frame import UFrame
 from .label import ULabel
 from .list_view import UListView
 
@@ -41,6 +40,7 @@ class UShortcutConfigWindow(UDialog):
             columns=[col_action, col_shortcut],
             column_widths={col_action: 200, col_shortcut: 150},
             show_header=True,
+            on_select=self._on_list_select,
         )
         self._list_view.pack(fill=tk.BOTH, expand=True, padx=12, pady=(12, 0))
 
@@ -63,10 +63,10 @@ class UShortcutConfigWindow(UDialog):
         spacer = tk.Frame(btn_frame, bg=theme.BG_PANEL)
         spacer.pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        self._save_btn = UButton(btn_frame, text=t("dialog.button.save"), variant="primary", command=self._on_save)
+        self._save_btn = UButton(btn_frame, text=t("settings.button.save"), variant="primary", command=self._on_save)
         self._save_btn.pack(side=tk.RIGHT)
 
-        self._cancel_btn = UButton(btn_frame, text=t("dialog.button.cancel"), variant="default", command=self.destroy)
+        self._cancel_btn = UButton(btn_frame, text=t("settings.button.close"), variant="default", command=self.destroy)
         self._cancel_btn.pack(side=tk.RIGHT, padx=(8, 0))
 
         self._load_shortcuts()
@@ -160,6 +160,9 @@ class UShortcutConfigWindow(UDialog):
         self._shortcuts = dict(self._default_shortcuts)
         self._refresh_list()
 
+    def _on_list_select(self, index: int, data: dict):
+        self._start_capture(index)
+
     def _start_capture(self, index: int):
         if self._editing_index is not None:
             self._cancel_capture()
@@ -210,33 +213,37 @@ class UShortcutConfigWindow(UDialog):
         if self._editing_index is None:
             return
 
-        state_val = getattr(event, "state", 0)
-        if isinstance(state_val, str):
-            state_val = 0
-        modifiers = []
-        if state_val & 0x1:
-            modifiers.append("Shift")
-        if state_val & 0x4:
-            modifiers.append("Control")
-        if state_val & 0x8:
-            modifiers.append("Alt")
-
         key_name = event.keysym
         if key_name in ("Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R"):
             return
 
+        state_val = getattr(event, "state", 0)
+        if isinstance(state_val, str):
+            state_val = 0
+
+        # Bitmask constants for modifier detection (platform-independent)
+        # SHIFT=0x1, CONTROL=0x4, ALT=0x20000 (not 0x8 which is NumLock on Windows)
+        _mod_shift = 0x1
+        _mod_ctrl = 0x4
+        _mod_alt = 0x20000
+        modifiers = []
+        if state_val & _mod_shift:
+            modifiers.append("Shift")
+        if state_val & _mod_ctrl:
+            modifiers.append("Ctrl")
+        if state_val & _mod_alt:
+            modifiers.append("Alt")
+
         if key_name == "Tab":
-            if state_val & 0x1:
-                modifiers.append("Shift")
-        elif key_name == "space":
+            modifiers.append("Shift")
+        elif key_name.lower() == "space":
             key_name = "Space"
+        elif key_name.lower() == "slash":
+            key_name = "Slash"
         elif len(key_name) == 1:
             key_name = key_name.upper()
 
-        if "Control" in modifiers and key_name == "Slash":
-            key_name = "Slash"
-
-        shortcut_str = "+".join(modifiers + [key_name])
+        shortcut_str = "+".join([*modifiers, key_name])
 
         keys = list(self._shortcuts.keys())
         shortcut_key = keys[self._editing_index]
@@ -268,6 +275,10 @@ def _tk_shortcut(spec: str) -> str:
         "meta": "Meta",
     }
     mod_str = "-".join(mapping.get(m.lower(), m.capitalize()) for m in mods)
+    if key.lower() == "space":
+        key = "space"
+    elif key.lower() == "slash":
+        key = "/"
     if mod_str:
         return f"<{mod_str}-{key}>"
     return f"<{key}>"

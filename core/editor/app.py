@@ -44,6 +44,7 @@ from ui.widgets import (
     UFrame,
     ULabel,
     UMenuBar,
+    UShortcutConfigWindow,
     UText,
     theme,
     ui_theme_marketplace,
@@ -215,6 +216,7 @@ class CodeEditor:
         if doc_id == self._active_id:
             return
         self._switch_document(doc_id)
+        self._emit(HookEvents.EDITOR_TAB_CHANGED, doc_id)
 
     def _tab_close(self, doc_id: str) -> None:
         if doc_id not in self._documents:
@@ -744,29 +746,85 @@ class CodeEditor:
         self._plugin_menu.add_command(t("menu.plugins.marketplace"), self._open_plugin_marketplace)
 
     def _bind_shortcuts(self):
-        self.window.bind("<Control-n>", lambda e: self._new_file())
-        self.window.bind("<Control-o>", lambda e: self._open_file())
-        self.window.bind("<Control-Shift-O>", lambda e: self._open_project())
-        self.window.bind("<Control-s>", lambda e: self._save_file())
-        self.window.bind("<Control-Shift-S>", lambda e: self._save_file_as())
-        self.window.bind("<Control-r>", lambda e: self._run_check())
-        self.window.bind("<F5>", lambda e: self._run_code())
-        self.window.bind("<Control-l>", lambda e: self._clear_output())
-        self.window.bind("<Control-z>", lambda e: self._undo())
-        self.window.bind("<Control-y>", lambda e: self._redo())
-        self.window.bind("<Control-f>", lambda e: self._open_find())
-        self.window.bind("<Control-h>", lambda e: self._open_replace())
-        self.window.bind("<Control-g>", lambda e: self._goto_line())
-        self.window.bind("<F12>", lambda e: self._goto_definition())
-        self.window.bind("<Shift-F12>", lambda e: self._find_references())
-        self.window.bind("<F6>", lambda e: self._reparse())
-        self.window.bind("<F7>", lambda e: self._apply_highlight())
-        self.window.bind("<Control-space>", lambda e: self._show_suggestions())
-        self.window.bind("<F1>", lambda e: self._show_documentation())
-        self.window.bind("<Control-slash>", lambda e: self._toggle_comment())
-        self.window.bind("<Control-w>", lambda e: self._close_active_tab())
-        self.window.bind("<Control-Tab>", lambda e: self._next_tab())
-        self.window.bind("<Control-Shift-Tab>", lambda e: self._prev_tab())
+        stored = self._settings.global_settings.get("shortcuts.custom", {})
+        defaults = {
+            "new_file": "Ctrl+N",
+            "open_file": "Ctrl+O",
+            "open_project": "Ctrl+Shift+O",
+            "save_file": "Ctrl+S",
+            "save_file_as": "Ctrl+Shift+S",
+            "run_check": "Ctrl+R",
+            "run_code": "F5",
+            "clear_output": "Ctrl+L",
+            "undo": "Ctrl+Z",
+            "redo": "Ctrl+Y",
+            "find": "Ctrl+F",
+            "replace": "Ctrl+H",
+            "goto_line": "Ctrl+G",
+            "goto_definition": "F12",
+            "find_references": "Shift+F12",
+            "reparse": "F6",
+            "apply_highlight": "F7",
+            "trigger_suggestions": "Ctrl+Space",
+            "show_documentation": "F1",
+            "toggle_comment": "Ctrl+Slash",
+            "close_tab": "Ctrl+W",
+            "next_tab": "Ctrl+Tab",
+            "prev_tab": "Ctrl+Shift+Tab",
+        }
+        shortcuts = {k: stored.get(k, v) for k, v in defaults.items()}
+
+        self._shortcut_bindings = {
+            "new_file": self.window.bind(self._tk_shortcut(shortcuts["new_file"]), lambda e: self._new_file()),
+            "open_file": self.window.bind(self._tk_shortcut(shortcuts["open_file"]), lambda e: self._open_file()),
+            "open_project": self.window.bind(self._tk_shortcut(shortcuts["open_project"]), lambda e: self._open_project()),
+            "save_file": self.window.bind(self._tk_shortcut(shortcuts["save_file"]), lambda e: self._save_file()),
+            "save_file_as": self.window.bind(self._tk_shortcut(shortcuts["save_file_as"]), lambda e: self._save_file_as()),
+            "run_check": self.window.bind(self._tk_shortcut(shortcuts["run_check"]), lambda e: self._run_check()),
+            "run_code": self.window.bind(self._tk_shortcut(shortcuts["run_code"]), lambda e: self._run_code()),
+            "clear_output": self.window.bind(self._tk_shortcut(shortcuts["clear_output"]), lambda e: self._clear_output()),
+            "undo": self.window.bind(self._tk_shortcut(shortcuts["undo"]), lambda e: self._undo()),
+            "redo": self.window.bind(self._tk_shortcut(shortcuts["redo"]), lambda e: self._redo()),
+            "find": self.window.bind(self._tk_shortcut(shortcuts["find"]), lambda e: self._open_find()),
+            "replace": self.window.bind(self._tk_shortcut(shortcuts["replace"]), lambda e: self._open_replace()),
+            "goto_line": self.window.bind(self._tk_shortcut(shortcuts["goto_line"]), lambda e: self._goto_line()),
+            "goto_definition": self.window.bind(self._tk_shortcut(shortcuts["goto_definition"]), lambda e: self._goto_definition()),
+            "find_references": self.window.bind(self._tk_shortcut(shortcuts["find_references"]), lambda e: self._find_references()),
+            "reparse": self.window.bind(self._tk_shortcut(shortcuts["reparse"]), lambda e: self._reparse()),
+            "apply_highlight": self.window.bind(self._tk_shortcut(shortcuts["apply_highlight"]), lambda e: self._apply_highlight()),
+            "trigger_suggestions": self.window.bind(self._tk_shortcut(shortcuts["trigger_suggestions"]), lambda e: self._show_suggestions()),
+            "show_documentation": self.window.bind(self._tk_shortcut(shortcuts["show_documentation"]), lambda e: self._show_documentation()),
+            "toggle_comment": self.window.bind(self._tk_shortcut(shortcuts["toggle_comment"]), lambda e: self._toggle_comment()),
+            "close_tab": self.window.bind(self._tk_shortcut(shortcuts["close_tab"]), lambda e: self._close_active_tab()),
+            "next_tab": self.window.bind(self._tk_shortcut(shortcuts["next_tab"]), lambda e: self._next_tab()),
+            "prev_tab": self.window.bind(self._tk_shortcut(shortcuts["prev_tab"]), lambda e: self._prev_tab()),
+        }
+
+    @staticmethod
+    def _tk_shortcut(spec: str) -> str:
+        parts = [p.strip() for p in spec.split("+") if p.strip()]
+        if not parts:
+            return "<>"
+        key = parts[-1]
+        mods = parts[:-1]
+        mapping = {
+            "ctrl": "Control",
+            "control": "Control",
+            "shift": "Shift",
+            "alt": "Alt",
+            "meta": "Meta",
+        }
+        mod_str = "-".join(mapping.get(m.lower(), m.capitalize()) for m in mods)
+        if key.lower() == "space":
+            key = "space"
+        elif key.lower() == "slash":
+            key = "/"
+        if mod_str:
+            return f"<{mod_str}-{key}>"
+        return f"<{key}>"
+
+    def _rebind_shortcuts(self):
+        self._bind_shortcuts()
 
     def _lang_var(self) -> tk.StringVar:
         if not hasattr(self, "_lang_tk_var") or self._lang_tk_var is None:
@@ -884,6 +942,7 @@ class CodeEditor:
         self._editor._text.bind("<KeyPress>", self._on_key_press)
         self._editor._text.bind("<ButtonRelease-1>", self._on_click)
         self._editor._text.bind("<FocusIn>", self._on_focus_in)
+        self._editor._text.bind("<FocusOut>", self._on_focus_out)
         self._editor._text.bind("<Button-3>", self._show_editor_context_menu)
         self._editor._text.config(undo=True)
 
@@ -1135,6 +1194,7 @@ class CodeEditor:
         self._schedule_autosave()
         self._mark_dirty()
         self._emit_content_changed()
+        self._emit_selection_changed()
 
     def _schedule_highlight(self) -> None:
         if not self._highlighting_enabled:
@@ -1224,11 +1284,27 @@ class CodeEditor:
         self._update_status()
         self._cancel_pending_suggestions()
         self._emit_cursor_moved()
+        self._emit_selection_changed()
+
+    def _emit_selection_changed(self) -> None:
+        try:
+            selection = self._editor._text.selection_get()
+        except tk.TclError:
+            selection = ""
+        last = getattr(self, "_last_selection", None)
+        if last == selection:
+            return
+        self._last_selection = selection
+        self._emit(HookEvents.EDITOR_SELECTION_CHANGED, selection)
 
     def _on_focus_in(self, event=None):
         self._update_status()
         self._cancel_pending_suggestions()
         self._emit_cursor_moved()
+        self._emit(HookEvents.EDITOR_FOCUS_CHANGED, True)
+
+    def _on_focus_out(self, event=None):
+        self._emit(HookEvents.EDITOR_FOCUS_CHANGED, False)
 
     def _emit_cursor_moved(self) -> None:
         try:
@@ -1591,6 +1667,7 @@ class CodeEditor:
 
     def _save_to_path(self, path: str):
         code = self._editor.get("1.0", "end-1c")
+        self._emit(HookEvents.EDITOR_BEFORE_SAVE, path)
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(code)
@@ -2187,6 +2264,7 @@ class CodeEditor:
                 self._theme_tk_var.set(name)
             self._status_label.config(text=t("status.theme", name=name))
             self._force_redraw()
+            self._emit(HookEvents.EDITOR_THEME_CHANGED, name)
             app_logger.info(f"Theme changed to: {name}")
         except Exception as e:
             app_logger.error(f"Failed to set theme {name}: {e}")
@@ -2625,6 +2703,7 @@ class CodeEditor:
         self._append_output(f"{t('output.running')}...\n")
         self._status_label.config(text=t("status.running"))
         lang = self._lang
+        self._emit(HookEvents.EDITOR_BEFORE_RUN, lang)
         if lang == "Python":
             self._run_python_code(code)
         elif lang in ("C", "C++"):
@@ -2700,26 +2779,8 @@ class CodeEditor:
         )
 
     def _show_shortcuts(self):
-        shortcuts = "\n".join(
-            [
-                "Ctrl+N: New File",
-                "Ctrl+O: Open File",
-                "Ctrl+S: Save",
-                "Ctrl+Shift+S: Save As",
-                "Ctrl+W: Close Tab",
-                "Ctrl+Tab: Next Tab",
-                "Ctrl+Shift+Tab: Previous Tab",
-                "Ctrl+F: Find",
-                "Ctrl+H: Replace",
-                "Ctrl+G: Go to Line",
-                "F5: Run",
-                "Ctrl+R: Check",
-                "Ctrl+Z: Undo",
-                "Ctrl+Y: Redo",
-                "Ctrl+/ : Toggle Comment",
-            ]
-        )
-        tk.messagebox.showinfo(t("dialog.title.shortcuts"), shortcuts, parent=self.window)
+        win = UShortcutConfigWindow(self.window, self._settings, on_apply=self._rebind_shortcuts)
+        win.wait_window()
 
     def _show_about(self):
         tk.messagebox.showinfo(

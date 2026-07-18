@@ -23,6 +23,11 @@ Each event is described by :class:`HookSpec`, plugin callbacks receive positiona
 * ``editor:run_started`` —— ``(lang: str, temp_path: str)``
 * ``editor:run_finished`` —— ``(lang: str, returncode: int, stdout: str, stderr: str)``
 * ``editor:check_finished`` —— ``(lang: str, issues: list)``
+* ``editor:tab_changed`` —— ``(tab_id: str)``
+* ``editor:focus_changed`` —— ``(focused: bool)``
+* ``editor:selection_changed`` —— ``(selection: str)``
+* ``editor:before_run`` —— ``(lang: str)``
+* ``editor:before_save`` —— ``(path: str)``
 * ``editor:closing`` —— ``()``
 """
 
@@ -43,6 +48,12 @@ class HookEvents:
     EDITOR_RUN_STARTED = "editor:run_started"
     EDITOR_RUN_FINISHED = "editor:run_finished"
     EDITOR_CHECK_FINISHED = "editor:check_finished"
+    EDITOR_THEME_CHANGED = "editor:theme_changed"
+    EDITOR_TAB_CHANGED = "editor:tab_changed"
+    EDITOR_FOCUS_CHANGED = "editor:focus_changed"
+    EDITOR_SELECTION_CHANGED = "editor:selection_changed"
+    EDITOR_BEFORE_RUN = "editor:before_run"
+    EDITOR_BEFORE_SAVE = "editor:before_save"
     EDITOR_CLOSING = "editor:closing"
 
 
@@ -80,6 +91,36 @@ HOOK_SPECS = (
         HookEvents.EDITOR_CHECK_FINISHED,
         ("lang", "issues"),
         "Static check finished, issues is a list of issue objects",
+    ),
+    HookSpec(
+        HookEvents.EDITOR_THEME_CHANGED,
+        ("name",),
+        "Theme changed (ui.theme setting updated)",
+    ),
+    HookSpec(
+        HookEvents.EDITOR_TAB_CHANGED,
+        ("tab_id",),
+        "Active tab/document changed",
+    ),
+    HookSpec(
+        HookEvents.EDITOR_FOCUS_CHANGED,
+        ("focused",),
+        "Editor focus changed (True=gained, False=lost)",
+    ),
+    HookSpec(
+        HookEvents.EDITOR_SELECTION_CHANGED,
+        ("selection",),
+        "Text selection changed (selected text string)",
+    ),
+    HookSpec(
+        HookEvents.EDITOR_BEFORE_RUN,
+        ("lang",),
+        "Triggered right before code execution starts",
+    ),
+    HookSpec(
+        HookEvents.EDITOR_BEFORE_SAVE,
+        ("path",),
+        "Triggered right before a file is saved",
     ),
     HookSpec(HookEvents.EDITOR_CLOSING, (), "Editor is about to close"),
 )
