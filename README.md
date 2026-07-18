@@ -1,189 +1,72 @@
 # Python Editor
 
+[![Quality](https://github.com/chengzi404-hash/Python-Editor/actions/workflows/quality.yml/badge.svg)](https://github.com/chengzi404-hash/Python-Editor/actions/workflows/quality.yml)
+[![Test](https://github.com/chengzi404-hash/Python-Editor/actions/workflows/pytest.yml/badge.svg)](https://github.com/chengzi404-hash/Python-Editor/actions/workflows/pytest.yml)
+[![License](https://img.shields.io/github/license/chengzi404-hash/Python-Editor)](LICENSE)
+
 <div align="center">
-<i>A Tkinter-based code editor with syntax highlighting, auto-completion, and plugin support.</i>
+  一款简洁高效的 Python 代码编辑器，支持语法高亮、自动补全、代码检查与多语言执行。
 </div>
 
-[![code-quality](https://github.com/chengzi404-hash/Python-Editor/actions/workflows/quality.yml/badge.svg)](https://github.com/chengzi404-hash/Python-Editor/actions/workflows/quality.yml)
-[![pytest](https://github.com/chengzi404-hash/Python-Editor/actions/workflows/pytest.yml/badge.svg)](https://github.com/chengzi404-hash/Python-Editor/actions/workflows/pytest.yml)
+## ✨ 核心亮点
 
-## Features
+- **开箱即用** — 无需复杂配置，直接运行 `python main.py` 即可启动
+- **多语言支持** — 支持 Python、JSON、XML、YAML、C/C++、Log 等文件类型
+- **智能补全** — Python、C/C++ 上下文感知代码建议
+- **代码质量检查** — 集成 Flake8、Pyright、py_compile
+- **一键运行** — 支持 venv、conda、系统 Python 环境选择
+- **插件扩展** — 丰富的插件生态，轻松自定义功能
+- **双语界面** — 中文 / English 界面实时切换
 
-- **Multi-Document Editing** - Tab-based interface with multiple open files
-- **Syntax Highlighting** - Python, JSON, XML, YAML, C/C++, and log files
-- **Auto-Completion** - Context-aware suggestions for Python, C, and C++
-- **Code Checking** - Flake8, Pyright, and py_compile integration
-- **Code Execution** - Run code with streaming output in selected Python environment
-- **Python Environment Management** - Detect and manage venv, conda, and system Python
-- **Plugin System** - Extensible architecture with hook-based events
-- **Internationalization** - Chinese (zh_CN) and English (en_US) locales
-- **Theme System** - Dark, Light, and Solarized Dark themes
-- **Settings** - Global and project-scoped configuration
-
-## Quick Start
+## 🚀 快速开始
 
 ```bash
 python main.py
 ```
 
-## Project Structure
+## 📋 主要功能
 
-```
-python-editor/
-├── main.py                    # Entry point - CodeEditor class
-├── modules/                   # Core packages
-│   ├── Uui/                   # UI framework (widgets, web, CLI)
-│   ├── highlighter/           # Syntax highlighting engine
-│   ├── checker/               # Code checking (flake8, pyright)
-│   ├── runner/                # Code execution
-│   ├── plugins/               # Plugin system
-│   ├── settings/              # Configuration management
-│   ├── i18n/                  # Internationalization
-│   ├── suggestion/            # Auto-completion
-│   └── logging/               # Logging system
-├── data/                     # Static data
-│   ├── i18n/locales/         # Translation files (zh_CN.json, en_US.json)
-│   └── suggestions/          # Language suggestions data
-├── tests/                    # Pytest test suite
-└── .github/workflows/        # CI/CD workflows
-```
+### 多文档编辑
+Tab 栏支持多个文件同时打开与切换
 
-## Architecture
+### 语法高亮
+为 Python、JSON、XML、YAML、C/C++、Log 等文件提供彩色语法显示
 
-### Uui - UI Framework
+### 智能补全
+基于代码上下文自动弹出补全建议
 
-Tkinter widget wrappers providing consistent theming and behavior:
+### 代码检查
+集成 Flake8、Pyright、py_compile 进行静态分析
 
-| Widget | Description |
-|--------|-------------|
-| `Window` | Custom titlebar with minimize/maximize/close |
-| `UText` | Code editor with line numbers and scrollbar |
-| `TabBar` | Multi-document tab management |
-| `SideBar` | Explorer, Debug, and Git cards |
-| `UButton` | Styled buttons (primary, default, ghost, danger) |
-| `theme` | Dark, Light, Solarized Dark themes |
+### 一键运行
+支持 venv、conda 和系统 Python 环境快速切换执行
 
-### Highlighter
+### 插件系统
+提供钩子事件机制，可扩展编辑器的自定义功能
 
-Regex-based tokenization with language-specific experts:
+### 主题切换
+支持 Dark、Light、Solarized Dark 三种主题外观
 
-```python
-class HighlighterExpert(ABC):
-    def highlight(self, block: HighlightBlock) -> HighlightBlock: ...
-```
+### 国际化
+内置中文和英文两种语言，可实时切换界面显示
 
-- **PythonHighlighterExpert** - Uses DOM cache for library symbol resolution
-- **JsonHighlighterExpert**, **XmlHighlighterExpert**, **YamlHighlighterExpert**
-- **LogHighlighterExpert** - Timestamp and log level highlighting
-- **CcppHighlighterExpert** - C/C++ syntax
+## ⚙️ 配置与数据
 
-### Checker
+| 类型 | 路径 |
+|------|------|
+| 全局配置 | `~/.python-editor/settings.json` |
+| 项目配置 | `<project>/.editorconfig` |
+| 全局插件 | `~/.python-editor/plugins/` |
+| 项目插件 | `<project>/plugins/` |
 
-Chain-based code validation:
+## ✅ 质量保障
 
-```python
-class Checker(ABC):
-    def check(self, path: str) -> Output: ...
+- **测试覆盖** — 280+ 自动化测试用例
+- **持续集成** — Python 3.10~3.12 多版本测试
+- **代码规范** — Ruff + MyPy 严格检查
 
-# Available checkers
-Flake8Checker      # Linting
-PyrightChecker     # Type checking
-CPythonChecker      # Syntax validation
-```
+---
 
-### Runner
-
-Asynchronous code execution with streaming output:
-
-```python
-def stream_command(cmd, *, timeout_s=30.0, line_callback=None, done_callback=None)
-```
-
-Temporary files are created for code execution using the selected Python environment.
-
-### Plugin System
-
-Hook-based extensibility:
-
-```python
-@dataclass(frozen=True)
-class PluginManifest:
-    id: str
-    name: str
-    version: str = "0.0.0"
-
-# Plugin entry point
-def register(ctx: PluginContext) -> None:
-    ctx.add_command(menu="Plugins", label="My Command", callback=my_callback)
-    ctx.on(HookEvents.EDITOR_FILE_OPENED, on_file_opened)
-```
-
-**Hook Events:**
-- `EDITOR_FILE_OPENED`, `EDITOR_FILE_SAVED`, `EDITOR_FILE_CREATED`
-- `EDITOR_CONTENT_CHANGED`, `EDITOR_LANGUAGE_CHANGED`
-- `EDITOR_RUN_STARTED`, `EDITOR_RUN_FINISHED`
-- `EDITOR_CLOSING`
-
-**Plugin Locations:**
-- Global: `~/.python-editor/plugins/`
-- Project: `<project>/plugins/`
-
-### Settings
-
-Two-tier configuration system:
-
-```python
-class SettingsScope(Enum):
-    GLOBAL = "global"    # User-wide, stored in ~/.python-editor/
-    PROJECT = "project"  # Per-project, stored in <root>/.editorconfig
-```
-
-Key settings categories:
-- `ui.*` - theme, highlight_theme, font_family, font_size
-- `editor.*` - tab_size, auto_save, highlight_delay_ms
-- `completion.*` - enabled, min_chars_before_trigger, max_suggestions
-- `runner.*` - clear_output_before_run, stream_output, timeout_ms
-
-### i18n
-
-Key-based translation with runtime switching:
-
-```python
-def t(key: str, default: str | None = None, **kwargs) -> str
-# Example: t("menu.file.new") -> "New"
-```
-
-Supported locales: `zh_CN` (default), `en_US` (fallback)
-
-## Configuration
-
-Global settings: `~/.python-editor/settings.json`
-Project settings: `<project>/.editorconfig`
-
-## Testing
-
-```bash
-pytest tests/
-```
-
-## CI/CD
-
-**Quality Workflow:** `ruff check` → `ruff format --check` → `mypy`
-
-**Test Workflow:** Runs on Python 3.10–3.12, Ubuntu and Windows
-
-## Entry Point
-
-```python
-if __name__ == "__main__":
-    editor = CodeEditor()
-    editor.run()
-```
-
-Main initialization sequence:
-1. Configure logging
-2. Create window (custom or native titlebar)
-3. Initialize settings (global + project)
-4. Setup i18n translator
-5. Build UI (menubar, toolbar, editor, output panel, status bar)
-6. Load plugins
+<div align="center">
+  Made with ❤️ by <a href="https://github.com/chengzi404-hash">chengzi404-hash</a>
+</div>
