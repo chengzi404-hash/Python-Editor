@@ -522,13 +522,18 @@ class UContextMenu(tk.Toplevel):
         shortcut: str = "",
         icon: str = "",
     ) -> None:
+        def wrapped_command():
+            if command:
+                command()
+            self._close()
+
         item = _ContextMenuItem(
             self._inner,
             kind="command",
             label=label,
             shortcut=shortcut,
             icon=icon,
-            command=command,
+            command=wrapped_command,
             bg=self._bg,
         )
         item.pack(fill=tk.X, padx=2, pady=1)
@@ -583,8 +588,14 @@ class UContextMenu(tk.Toplevel):
             except tk.TclError:
                 pass
             self._root_bind = None
-        self.grab_release()
-        self.withdraw()
+        try:
+            self.grab_release()
+        except tk.TclError:
+            pass
+        try:
+            self.withdraw()
+        except tk.TclError:
+            pass
 
     def _on_leave(self) -> None:
         self._close()
@@ -652,8 +663,17 @@ class _ContextMenuItem(tk.Frame):
         self._shortcut_label.pack(side=tk.RIGHT, padx=(6, 8))
 
         self.bind("<Button-1>", self._on_click)
+        self._icon_label.bind("<Button-1>", self._on_click)
+        self._text_label.bind("<Button-1>", self._on_click)
+        self._shortcut_label.bind("<Button-1>", self._on_click)
         self.bind("<Enter>", self._on_enter)
         self.bind("<Leave>", self._on_leave)
+        self._icon_label.bind("<Enter>", self._on_enter)
+        self._icon_label.bind("<Leave>", self._on_leave)
+        self._text_label.bind("<Enter>", self._on_enter)
+        self._text_label.bind("<Leave>", self._on_leave)
+        self._shortcut_label.bind("<Enter>", self._on_enter)
+        self._shortcut_label.bind("<Leave>", self._on_leave)
 
     def _on_click(self, e=None) -> None:
         if self._command:

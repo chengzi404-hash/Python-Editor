@@ -111,6 +111,8 @@ class CodeEditor:
 
         self._large_file_mode: bool = False
         self._stream_epoch: int = 0
+        self._highlighted_line: int | None = None
+        self._highlighted_line_color: str = theme.YELLOW
 
         self._font_family_tk_var: tk.StringVar | None = None
         self._font_size_tk_var: tk.IntVar | None = None
@@ -294,17 +296,20 @@ class CodeEditor:
             command=self._select_all,
             shortcut="Ctrl+A",
         )
-        menu.add_separator()
-        menu.add_command(
-            label=t("menu.edit.find"),
-            command=self._open_find,
-            shortcut="Ctrl+F",
-        )
-        menu.add_command(
-            label=t("menu.edit.replace"),
-            command=self._open_replace,
-            shortcut="Ctrl+H",
-        )
+
+        word = self._get_word_under_cursor(event.x, event.y)
+        if word:
+            menu.add_separator()
+            menu.add_command(
+                label=t("menu.query.goto_definition"),
+                command=self._goto_definition,
+                shortcut="F12",
+            )
+            menu.add_command(
+                label=t("menu.query.find_references"),
+                command=self._find_references,
+                shortcut="Shift+F12",
+            )
 
         menu.show(event.x_root, event.y_root)
 
@@ -1242,8 +1247,13 @@ class CodeEditor:
             hl_tokens = HIGHLIGHT_TOKENS
 
         text = self._editor._text
+
+        highlight_line = getattr(self, "_highlighted_line", None)
+        highlight_color = getattr(self, "_highlighted_line_color", theme.YELLOW)
+
         for tag in text.tag_names():
-            text.tag_delete(tag)
+            if tag != "definition_highlight":
+                text.tag_delete(tag)
 
         for token_type, style in hl_tokens.items():
             text.tag_configure(token_type, **style)
@@ -1253,6 +1263,31 @@ class CodeEditor:
             end = self._index_from_pos(token.end)
             tag = token.type if token.type in hl_tokens else "identifier"
             text.tag_add(tag, start, end)
+
+        if highlight_line is not None:
+            text.tag_config("definition_highlight", background=highlight_color, foreground=theme.BG_BASE)
+            text.tag_add("definition_highlight", f"{highlight_line}.0", f"{highlight_line}.end")
+
+    def highlight_line(self, line_no: int, color: str | None = None) -> None:
+        """Highlight a specific line with an optional color.
+
+        Args:
+            line_no: Line number to highlight (1-indexed)
+            color: Background color for the highlight, defaults to theme.YELLOW
+        """
+        text = self._editor._text
+        self._highlighted_line = line_no
+        self._highlighted_line_color = color if color is not None else theme.YELLOW
+        text.tag_config("definition_highlight", background=self._highlighted_line_color, foreground=theme.BG_BASE)
+        text.tag_remove("definition_highlight", "1.0", "end")
+        text.tag_add("definition_highlight", f"{line_no}.0", f"{line_no}.end")
+
+    def clear_highlight(self) -> None:
+        """Clear the line highlight."""
+        self._highlighted_line = None
+        self._highlighted_line_color = theme.YELLOW
+        text = self._editor._text
+        text.tag_remove("definition_highlight", "1.0", "end")
 
     def _show_suggestions(self):
         if self._large_file_mode:
@@ -1314,11 +1349,14 @@ class CodeEditor:
         text.insert(f"{line}.{word_start}", item.insert)
         self._apply_highlight()
 
-    def _get_word_under_cursor(self) -> str:
-        """Get the identifier (word) currently under the cursor."""
+    def _get_word_under_cursor(self, x: int | None = None, y: int | None = None) -> str:
+        """Get the identifier (word) at cursor position or at given coordinates."""
         text = self._editor._text
         try:
-            cursor = text.index(tk.INSERT)
+            if x is not None and y is not None:
+                cursor = text.index(f"@{x},{y}")
+            else:
+                cursor = text.index(tk.INSERT)
         except Exception:
             return ""
         line, col = map(int, cursor.split("."))
@@ -1834,11 +1872,10 @@ class CodeEditor:
             return
         # Jump to the first definition
         target_line, _ = definitions[0]
+        self._definition_highlight_line = target_line
         self._editor._text.mark_set(tk.INSERT, f"{target_line}.0")
         self._editor._text.see(tk.INSERT)
-        self._editor._text.tag_remove("sel", "1.0", "end")
-        # Highlight the definition line
-        self._editor._text.tag_add("sel", f"{target_line}.0", f"{target_line}.end")
+        self.highlight_line(target_line)
         self._status_label.config(text=t("status.goto_definition", line=target_line))
 
     def _find_references(self):
