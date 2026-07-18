@@ -1483,6 +1483,7 @@ class CodeEditor:
                 max_visible=max_visible,
                 show_detail=False,
                 show_description=False,
+                grab_focus=True,
             )
             self._suggestion_popup.show(attach_to=self._editor._text, index=tk.INSERT)
 

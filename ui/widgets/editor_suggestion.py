@@ -144,6 +144,7 @@ class UEditorSuggestion(tk.Toplevel):
         self.deiconify()
         if self._grab_focus:
             self.focus_set()
+            self.grab_set()
 
     def hide(self) -> None:
         if UEditorSuggestion._active is self:
@@ -152,6 +153,8 @@ class UEditorSuggestion(tk.Toplevel):
             with contextlib.suppress(tk.TclError):
                 self._owner_top.unbind("<Button-1>", self._root_bind)
             self._root_bind = None
+        with contextlib.suppress(tk.TclError):
+            self.grab_release()
         with contextlib.suppress(tk.TclError):
             self.withdraw()
 
@@ -331,13 +334,8 @@ class UEditorSuggestion(tk.Toplevel):
                 row.pack_forget()
 
     def _update_footer_visibility(self) -> None:
-        has_desc = self._show_description and any(it.description for it in self._items)
-        if has_desc:
-            self._sep.pack(fill=tk.X, padx=4)
-            self._footer.pack(fill=tk.X)
-        else:
-            self._sep.pack_forget()
-            self._footer.pack_forget()
+        self._sep.pack(fill=tk.X, padx=4)
+        self._footer.pack(fill=tk.X)
 
     def _refresh_selection(self) -> None:
         for i, row in enumerate(self._row_widgets):
@@ -357,11 +355,12 @@ class UEditorSuggestion(tk.Toplevel):
 
     def _update_footer(self) -> None:
         item = self.selected()
-        if item and item.description:
-            width = max(self.winfo_width() - 2 * self._PAD_X, 1)
-            self._footer.config(text=item.description, wraplength=width)
+        width = max(self.winfo_width() - 2 * self._PAD_X, 1)
+        if item and self._show_description and item.description:
+            text = f"{item.description}   |   ↑↓ Navigate   Tab Select   Esc Close"
         else:
-            self._footer.config(text="")
+            text = "↑↓ Navigate   Tab Select   Esc Close"
+        self._footer.config(text=text, wraplength=width)
 
     def _on_root_click(self, event: tk.Event) -> None:
         try:
