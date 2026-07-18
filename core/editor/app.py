@@ -1,5 +1,6 @@
 import contextlib
 import os
+import re
 import sys
 import tempfile
 import tkinter as tk
@@ -247,6 +248,59 @@ class CodeEditor:
         menu.add_command(label="Close All", command=self._close_all_tabs)
         try:
             menu.tk_popup(x_root, y_root)
+        finally:
+            menu.grab_release()
+
+    def _show_editor_context_menu(self, event: tk.Event) -> None:
+        """Show the editor right-click context menu."""
+        menu = tk.Menu(self.window, tearoff=0)
+
+        menu.add_command(
+            label=t("menu.edit.undo"),
+            command=self._undo,
+            accelerator="Ctrl+Z",
+        )
+        menu.add_command(
+            label=t("menu.edit.redo"),
+            command=self._redo,
+            accelerator="Ctrl+Y",
+        )
+        menu.add_separator()
+        menu.add_command(
+            label=t("menu.edit.cut"),
+            command=self._cut,
+            accelerator="Ctrl+X",
+        )
+        menu.add_command(
+            label=t("menu.edit.copy"),
+            command=self._copy,
+            accelerator="Ctrl+C",
+        )
+        menu.add_command(
+            label=t("menu.edit.paste"),
+            command=self._paste,
+            accelerator="Ctrl+V",
+        )
+        menu.add_separator()
+        menu.add_command(
+            label=t("menu.edit.select_all"),
+            command=self._select_all,
+            accelerator="Ctrl+A",
+        )
+        menu.add_separator()
+        menu.add_command(
+            label=t("menu.edit.find"),
+            command=self._open_find,
+            accelerator="Ctrl+F",
+        )
+        menu.add_command(
+            label=t("menu.edit.replace"),
+            command=self._open_replace,
+            accelerator="Ctrl+H",
+        )
+
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
         finally:
             menu.grab_release()
 
@@ -807,6 +861,7 @@ class CodeEditor:
         self._editor._text.bind("<KeyPress>", self._on_key_press)
         self._editor._text.bind("<ButtonRelease-1>", self._on_click)
         self._editor._text.bind("<FocusIn>", self._on_focus_in)
+        self._editor._text.bind("<Button-3>", self._show_editor_context_menu)
         self._editor._text.config(undo=True)
 
     def _on_sidebar_select(self, card_id: str) -> None:
@@ -1255,6 +1310,86 @@ class CodeEditor:
         text.insert(f"{line}.{word_start}", item.insert)
         self._apply_highlight()
 
+    def _get_word_under_cursor(self) -> str:
+        """Get the identifier (word) currently under the cursor."""
+        text = self._editor._text
+        try:
+            cursor = text.index(tk.INSERT)
+        except Exception:
+            return ""
+        line, col = map(int, cursor.split("."))
+        line_text = text.get(f"{line}.0", f"{line}.end")
+        if not line_text or col >= len(line_text):
+            return ""
+        start = col
+        while start > 0 and (line_text[start - 1].isalnum() or line_text[start - 1] == "_"):
+            start -= 1
+        end = col
+        while end < len(line_text) and (line_text[end].isalnum() or line_text[end] == "_"):
+            end += 1
+        word = line_text[start:end]
+        if word and (word[0].isalpha() or word[0] == "_"):
+            return word
+        return ""
+
+    def _find_symbol_definitions(self, code: str, symbol: str) -> list[tuple[int, str]]:
+        """Find all definition locations (line_no, line_text) for a symbol in code.
+        Uses regex to find class/function definitions, variable assignments,
+        and import statements. Returns list sorted by line number.
+        """
+        results: list[tuple[int, str]] = []
+        lines = code.split("\n")
+
+        for ln, line_text in enumerate(lines, start=1):
+            stripped = line_text.strip()
+            # Skip comments and empty lines
+            if not stripped or stripped.startswith("#"):
+                continue
+
+            # Class definition: class Symbol(...):
+            m = re.match(
+                r"^\s*class\s+(" + re.escape(symbol) + r")\s*(?:\([^()]*\))?\s*:",
+                line_text,
+            )
+            if m:
+                results.append((ln, line_text))
+                continue
+
+            # Function/method definition: def symbol(...):
+            m = re.match(
+                r"^\s*(?:async\s+)?def\s+(" + re.escape(symbol) + r")\s*\(",
+                line_text,
+            )
+            if m:
+                results.append((ln, line_text))
+                continue
+
+            # Import: import symbol or from ... import symbol
+            m = re.match(r"^\s*import\s+.*\b" + re.escape(symbol) + r"\b", line_text)
+            if m:
+                results.append((ln, line_text))
+                continue
+            m = re.match(r"^\s*from\s+\S+\s+import\s+.*\b" + re.escape(symbol) + r"\b", line_text)
+            if m:
+                results.append((ln, line_text))
+                continue
+
+            # Variable/attribute assignment: symbol = ... or self.symbol = ...
+            assign_pattern = re.compile(
+                r"(?:^|\s)(?:self\.)?\b" + re.escape(symbol) + r"\s*(?::\s*[^=]+)?\s*=\s*"
+            )
+            if assign_pattern.search(line_text):
+                results.append((ln, line_text))
+                continue
+
+            # Class/function decorator assignment (e.g., @symbol)
+            decorator_pattern = re.compile(r"^\s*@" + re.escape(symbol) + r"\b")
+            if decorator_pattern.match(line_text):
+                results.append((ln, line_text))
+                continue
+
+        return results
+
     def _index_from_pos(self, pos):
         code = self._editor.get("1.0", "end-1c")
         line = 1
@@ -1676,25 +1811,292 @@ class CodeEditor:
                 text.insert(line_start, "# ")
 
     def _goto_definition(self):
-        tk.messagebox.showinfo(
-            t("dialog.title.goto_definition"),
-            t("dialog.goto_definition.not_implemented"),
-            parent=self.window,
-        )
+        """Jump to the definition of the symbol under the cursor."""
+        if self._large_file_mode:
+            return
+        code = self._editor.get("1.0", "end-1c")
+        if not code.strip():
+            return
+        word = self._get_word_under_cursor()
+        if not word:
+            return
+        definitions = self._find_symbol_definitions(code, word)
+        if not definitions:
+            tk.messagebox.showinfo(
+                t("dialog.title.goto_definition"),
+                t("dialog.goto_definition.not_found", symbol=word),
+                parent=self.window,
+            )
+            return
+        # Jump to the first definition
+        target_line, _ = definitions[0]
+        self._editor._text.mark_set(tk.INSERT, f"{target_line}.0")
+        self._editor._text.see(tk.INSERT)
+        self._editor._text.tag_remove("sel", "1.0", "end")
+        # Highlight the definition line
+        self._editor._text.tag_add("sel", f"{target_line}.0", f"{target_line}.end")
+        self._status_label.config(text=t("status.goto_definition", line=target_line))
 
     def _find_references(self):
-        tk.messagebox.showinfo(
-            t("dialog.title.find_references"),
-            t("dialog.find_references.not_implemented"),
-            parent=self.window,
-        )
+        """Find all references of the symbol under the cursor in the current file."""
+        if self._large_file_mode:
+            return
+        code = self._editor.get("1.0", "end-1c")
+        if not code.strip():
+            return
+        word = self._get_word_under_cursor()
+        if not word:
+            return
+
+        # Search for all occurrences of the word (as a whole word)
+        pattern = re.compile(r"\b" + re.escape(word) + r"\b")
+        matches: list[tuple[int, str]] = []
+        for ln, line_text in enumerate(code.split("\n"), start=1):
+            if pattern.search(line_text):
+                matches.append((ln, line_text.strip()))
+
+        if not matches:
+            tk.messagebox.showinfo(
+                t("dialog.title.find_references"),
+                t("dialog.find_references.not_found", symbol=word),
+                parent=self.window,
+            )
+            return
+
+        # Build a results popup
+        self._show_references_dialog(word, matches)
 
     def _find_documentation(self):
-        tk.messagebox.showinfo(
-            t("dialog.title.find_documentation"),
-            t("dialog.find_documentation.not_implemented"),
-            parent=self.window,
+        """Show documentation for the symbol under the cursor via Python introspection."""
+        if self._lang != "Python":
+            tk.messagebox.showinfo(
+                t("dialog.title.find_documentation"),
+                t("dialog.find_documentation.unsupported_lang", lang=self._lang),
+                parent=self.window,
+            )
+            return
+        word = self._get_word_under_cursor()
+        if not word:
+            return
+
+        doc = self._lookup_documentation(word)
+        if doc is None:
+            tk.messagebox.showinfo(
+                t("dialog.title.find_documentation"),
+                t("dialog.find_documentation.not_found", symbol=word),
+                parent=self.window,
+            )
+            return
+
+        # Show documentation in a scrolled messagebox-style dialog
+        dlg = tk.Toplevel(self.window)
+        dlg.title(t("dialog.title.find_documentation") + f": {word}")
+        dlg.configure(bg=theme.BG_PANEL)
+        dlg.transient(self.window)
+        dlg.geometry("520x400")
+        dlg.minsize(360, 200)
+
+        header = ULabel(
+            dlg,
+            text=f"**{word}**  " + doc.get("type", ""),
+            bg=theme.BG_PANEL,
+            fg=theme.FG_PRIMARY,
+            font=(self._font_family, self._font_size + 2, "bold"),
         )
+        header.pack(fill="x", padx=12, pady=(12, 4))
+
+        sig_frame = UFrame(dlg, bg=theme.BG_PANEL)
+        sig_frame.pack(fill="x", padx=12, pady=(0, 4))
+        sig = doc.get("signature", "")
+        if sig:
+            ULabel(
+                sig_frame,
+                text=sig,
+                bg=theme.BG_PANEL,
+                fg=theme.FG_ACCENT,
+                font=("Consolas", self._font_size),
+            ).pack(anchor="w")
+
+        # Docstring text area
+        text_frame = UFrame(dlg, bg=theme.BG_BASE)
+        text_frame.pack(fill="both", expand=True, padx=12, pady=(0, 8))
+
+        doc_text = tk.Text(
+            text_frame,
+            wrap="word",
+            bg=theme.BG_BASE,
+            fg=theme.FG_PRIMARY,
+            font=(self._font_family, self._font_size),
+            relief="flat",
+            padx=8,
+            pady=8,
+        )
+        doc_text.pack(fill="both", expand=True)
+        doc_text.insert("1.0", doc.get("doc", t("dialog.find_documentation.no_doc")))
+        doc_text.config(state="disabled")
+
+        # Scrollbar
+        scrollbar = tk.Scrollbar(text_frame, command=doc_text.yview)
+        scrollbar.pack(side="right", fill="y")
+        doc_text.config(yscrollcommand=scrollbar.set)
+
+        # Source info
+        source = doc.get("source", "")
+        if source:
+            ULabel(
+                dlg,
+                text=t("dialog.find_documentation.from_module", module=source),
+                bg=theme.BG_PANEL,
+                fg=theme.FG_DIM,
+                font=(self._font_family, self._font_size - 1),
+            ).pack(fill="x", padx=12, pady=(0, 4))
+
+        close_btn = UButton(
+            dlg,
+            text=t("find.close"),
+            command=dlg.destroy,
+            variant="primary",
+            width=80,
+            height=28,
+        )
+        close_btn.pack(pady=(0, 12))
+
+        dlg.wait_window()
+
+    def _lookup_documentation(self, symbol: str) -> dict | None:
+        """Try to introspect a Python symbol and return its documentation info.
+
+        Returns dict with keys: 'doc', 'type', 'signature', 'source'
+        or None if unresolvable.
+        """
+        parts = symbol.split(".")
+        result: dict = {}
+        try:
+            # Try importing the top-level module
+            top = parts[0]
+            namespace = __import__(top)
+            obj = namespace
+            # Walk the dotted path
+            for part in parts[1:]:
+                obj = getattr(obj, part)
+            result["doc"] = (getattr(obj, "__doc__", "") or "").strip()
+            result["type"] = type(obj).__name__
+            if hasattr(obj, "__module__"):
+                result["source"] = getattr(obj, "__module__", "")
+            if callable(obj):
+                import inspect
+
+                try:
+                    sig = str(inspect.signature(obj))
+                    if sig != "()" or parts[0] == symbol:
+                        result["signature"] = f"{symbol}{sig}"
+                except (ValueError, TypeError):
+                    pass
+            return result if result.get("doc") or result.get("signature") else None
+        except (ImportError, AttributeError, SyntaxError):
+            pass
+
+        # Fallback: check builtins
+        import builtins
+
+        obj = getattr(builtins, symbol, None)
+        if obj is not None:
+            result["doc"] = (getattr(obj, "__doc__", "") or "").strip()
+            result["type"] = type(obj).__name__
+            result["source"] = "builtins"
+            return result
+
+        return None
+
+    def _show_references_dialog(self, word: str, matches: list[tuple[int, str]]):
+        """Display a dialog listing all reference locations."""
+        dlg = tk.Toplevel(self.window)
+        dlg.title(t("dialog.title.find_references") + f": {word}")
+        dlg.configure(bg=theme.BG_PANEL)
+        dlg.transient(self.window)
+        dlg.geometry("560x360")
+        dlg.minsize(360, 200)
+
+        top_frame = UFrame(dlg, bg=theme.BG_PANEL)
+        top_frame.pack(fill="x", padx=10, pady=(10, 4))
+        ULabel(
+            top_frame,
+            text=t("dialog.find_references.count", symbol=word, count=len(matches)),
+            bg=theme.BG_PANEL,
+            fg=theme.FG_PRIMARY,
+            font=(self._font_family, self._font_size),
+        ).pack(anchor="w")
+
+        list_frame = UFrame(dlg, bg=theme.BG_BASE)
+        list_frame.pack(fill="both", expand=True, padx=10, pady=(0, 8))
+
+        scrollbar = tk.Scrollbar(list_frame, orient="vertical")
+        scrollbar.pack(side="right", fill="y")
+
+        listbox = tk.Listbox(
+            list_frame,
+            bg=theme.BG_BASE,
+            fg=theme.FG_PRIMARY,
+            selectbackground=theme.BG_SELECTED,
+            selectforeground=theme.FG_PRIMARY,
+            font=("Consolas", self._font_size),
+            yscrollcommand=scrollbar.set,
+            relief="flat",
+            highlightthickness=0,
+        )
+        listbox.pack(fill="both", expand=True, side="left")
+        scrollbar.config(command=listbox.yview)
+
+        for ln, text_content in matches:
+            display = f"  {ln:>4} | {text_content[:80]}"
+            listbox.insert("end", display)
+
+        def on_select(_=None):
+            selection = listbox.curselection()
+            if not selection:
+                return
+            idx = selection[0]
+            target_line, _ = matches[idx]
+            self._editor._text.mark_set(tk.INSERT, f"{target_line}.0")
+            self._editor._text.see(tk.INSERT)
+            self._editor._text.tag_remove("sel", "1.0", "end")
+            self._editor._text.tag_add("sel", f"{target_line}.0", f"{target_line}.end")
+            dlg.destroy()
+            self._update_status()
+
+        listbox.bind("<Double-Button-1>", on_select)
+        listbox.bind("<Return>", on_select)
+
+        btn_frame = UFrame(dlg, bg=theme.BG_PANEL)
+        btn_frame.pack(fill="x", padx=10, pady=(0, 10))
+
+        UButton(
+            btn_frame,
+            text=t("find.find_next"),
+            command=on_select,
+            variant="primary",
+            width=80,
+            height=28,
+        ).pack(side="left", padx=(0, 6))
+
+        UButton(
+            btn_frame,
+            text=t("find.close"),
+            command=dlg.destroy,
+            variant="default",
+            width=60,
+            height=28,
+        ).pack(side="left")
+
+        listbox.focus_set()
+        self._find_dialog = dlg  # reuse find_dialog tracking for singleton
+        dlg.protocol("WM_DELETE_WINDOW", lambda: self._cleanup_references_dialog(dlg))
+        dlg.wait_window()
+
+    def _cleanup_references_dialog(self, dlg):
+        if self._find_dialog is dlg:
+            self._find_dialog = None
+        dlg.destroy()
 
     def _reparse(self):
         self._apply_highlight()
