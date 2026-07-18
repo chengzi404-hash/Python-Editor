@@ -27,13 +27,15 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from core.settings.i18n import t
+
 from . import theme
 from .frame import UFrame
 from .label import ULabel
 from .tree_canvas import TreeCanvas
 
 if TYPE_CHECKING:
-    from modules.settings.base import SettingsSchema
+    from core.settings.settings.base import SettingsSchema
 
 
 # --------------------------------------------------------------------------
@@ -179,7 +181,7 @@ class USettingsNavBar(UFrame):
         # Lazy load SettingsScope enum; fallback to string on failure to ensure component can still
         # construct (e.g., in demo scenario detached from settings subsystem).
         try:
-            from modules.settings.base import SettingsScope
+            from core.settings.settings.base import SettingsScope
 
             self._SettingsScope = SettingsScope
         except Exception:  # pragma: no cover - defensive fallback
@@ -321,7 +323,7 @@ class USettingsNavBar(UFrame):
                 scope=scope,
                 group_key=g,
                 keys=(),
-                label=g,
+                label=t(f"settings.label.group.{g}", default=g),
             )
             self._node_data[group_iid] = g_sel
             # Group nodes also expanded: user clicking group can directly see leaves inside.
@@ -332,7 +334,7 @@ class USettingsNavBar(UFrame):
                     scope=scope,
                     group_key=g,
                     keys=(spec_key,),
-                    label=spec_label,
+                    label=t(f"settings.{spec_key}.label", default=spec_label),
                 )
                 self._node_data[leaf_iid] = leaf_sel
                 self._tree.add_node(leaf_iid, group_iid, data=leaf_sel)

@@ -15,6 +15,7 @@ logs/
 # Cache (runtime data like library DOM)
 cache/
 .mypy_cache/
+reasonix.toml
 
 # Test reports
 junit.xml

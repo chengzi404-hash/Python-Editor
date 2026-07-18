@@ -167,7 +167,8 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         self.columnconfigure(2, minsize=180)
 
     def _build_row(self, row: int, spec: SettingSpec) -> None:
-        label = ULabel(self, text=spec.label or spec.key, variant="primary")
+        label_text = t(f"settings.{spec.key}.label", default=spec.label or spec.key)
+        label = ULabel(self, text=label_text, variant="primary")
         label.grid(row=row, column=0, sticky="w", padx=(12, 6), pady=4)
 
         widget = self._make_widget(spec)
@@ -177,9 +178,10 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         if spec.type is SettingValueType.BUTTON:
             return
 
+        desc_text = t(f"settings.{spec.key}.desc", default=spec.description or "")
         desc = ULabel(
             self,
-            text=spec.description or "",
+            text=desc_text,
             variant="tertiary",
             font=theme.LABEL_FONT_SMALL,
             width=30,
@@ -405,6 +407,8 @@ class UProjectSettingsWindow:
             self._paned,
             title=t("settings.navbar.title"),
             on_select=self._on_nav_select,
+            scope_label_global=t("settings.label.group.global"),
+            scope_label_project=t("settings.label.group.project"),
         )
         self._paned.add(self._nav, minsize=160, stretch="never")
 

@@ -51,7 +51,7 @@ class JsonFileSettings(Settings):
         # because plugin IDs are dynamic and unknown at schema registration time.
         self._extras: dict[str, Any] = {}
 
-        if self._path is not None and auto_load:
+        if auto_load:
             try:
                 self.load()
             except Exception:
