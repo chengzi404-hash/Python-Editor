@@ -137,6 +137,16 @@ GLOBAL_SPECS: tuple = (
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
+        key="editor.definition_highlight_duration_ms",
+        type=SettingValueType.INTEGER,
+        default=3000,
+        label="Definition Highlight Duration",
+        description="How long to highlight the definition line after jumping, in milliseconds. 0=never auto-hide.",
+        min=0,
+        max=30000,
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
         key="editor.suggestion_delay_ms",
         type=SettingValueType.INTEGER,
         default=200,

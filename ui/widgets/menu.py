@@ -588,14 +588,10 @@ class UContextMenu(tk.Toplevel):
             except tk.TclError:
                 pass
             self._root_bind = None
-        try:
+        with contextlib.suppress(tk.TclError):
             self.grab_release()
-        except tk.TclError:
-            pass
-        try:
+        with contextlib.suppress(tk.TclError):
             self.withdraw()
-        except tk.TclError:
-            pass
 
     def _on_leave(self) -> None:
         self._close()

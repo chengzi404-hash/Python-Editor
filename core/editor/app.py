@@ -95,12 +95,14 @@ class CodeEditor:
         self._font_size = int(gs.get("ui.font_size", 10))
         self._tab_width = int(gs.get("editor.tab_size", 4))
         self._highlight_delay_ms = int(gs.get("editor.highlight_delay_ms", 300))
+        self._definition_highlight_duration_ms = int(gs.get("editor.definition_highlight_duration_ms", 3000))
         self._suggest_delay_ms = int(gs.get("editor.suggestion_delay_ms", 200))
         self._suggest_min_chars = int(gs.get("completion.min_chars_before_trigger", 1))
 
         self._highlight_debouncer = _Debouncer(self.window.after, self.window.after_cancel)
         self._suggest_debouncer = _Debouncer(self.window.after, self.window.after_cancel)
         self._autosave_debouncer = _Debouncer(self.window.after, self.window.after_cancel)
+        self._highlight_after_id: int | None = None
         self._autosave_format = gs.get("editor.auto_save_format", "{unix.seconds}")
         self._autosave_delay_ms = int(gs.get("editor.auto_save_delay_ms", 800))
         self._autosave_paths: dict[str, str] = {}
@@ -113,6 +115,8 @@ class CodeEditor:
         self._stream_epoch: int = 0
         self._highlighted_line: int | None = None
         self._highlighted_line_color: str = theme.YELLOW
+        self._context_click_x: int | None = None
+        self._context_click_y: int | None = None
 
         self._font_family_tk_var: tk.StringVar | None = None
         self._font_size_tk_var: tk.IntVar | None = None
@@ -298,6 +302,8 @@ class CodeEditor:
         )
 
         word = self._get_word_under_cursor(event.x, event.y)
+        self._context_click_x = event.x
+        self._context_click_y = event.y
         if word:
             menu.add_separator()
             menu.add_command(
@@ -410,6 +416,11 @@ class CodeEditor:
                 self._highlight_delay_ms = max(0, int(event.new))
             except (TypeError, ValueError):
                 self._highlight_delay_ms = 300
+        elif key == "editor.definition_highlight_duration_ms":
+            try:
+                self._definition_highlight_duration_ms = max(0, int(event.new))
+            except (TypeError, ValueError):
+                self._definition_highlight_duration_ms = 3000
         elif key == "editor.suggestion_delay_ms":
             try:
                 self._suggest_delay_ms = max(0, int(event.new))
@@ -436,6 +447,9 @@ class CodeEditor:
         self._tab_width = int(gs.get("editor.tab_size", self._tab_width))
         self._highlight_delay_ms = int(
             gs.get("editor.highlight_delay_ms", self._highlight_delay_ms)
+        )
+        self._definition_highlight_duration_ms = int(
+            gs.get("editor.definition_highlight_duration_ms", self._definition_highlight_duration_ms)
         )
         self._suggest_delay_ms = int(gs.get("editor.suggestion_delay_ms", self._suggest_delay_ms))
         self._suggest_min_chars = int(
@@ -1265,7 +1279,9 @@ class CodeEditor:
             text.tag_add(tag, start, end)
 
         if highlight_line is not None:
-            text.tag_config("definition_highlight", background=highlight_color, foreground=theme.BG_BASE)
+            text.tag_config(
+                "definition_highlight", background=highlight_color, foreground=theme.BG_BASE
+            )
             text.tag_add("definition_highlight", f"{highlight_line}.0", f"{highlight_line}.end")
 
     def highlight_line(self, line_no: int, color: str | None = None) -> None:
@@ -1275,12 +1291,30 @@ class CodeEditor:
             line_no: Line number to highlight (1-indexed)
             color: Background color for the highlight, defaults to theme.YELLOW
         """
+        if self._highlight_after_id is not None:
+            self.window.after_cancel(self._highlight_after_id)
+            self._highlight_after_id = None
+
         text = self._editor._text
         self._highlighted_line = line_no
         self._highlighted_line_color = color if color is not None else theme.YELLOW
-        text.tag_config("definition_highlight", background=self._highlighted_line_color, foreground=theme.BG_BASE)
+        text.tag_config(
+            "definition_highlight",
+            background=self._highlighted_line_color,
+            foreground=theme.BG_BASE,
+        )
         text.tag_remove("definition_highlight", "1.0", "end")
         text.tag_add("definition_highlight", f"{line_no}.0", f"{line_no}.end")
+
+        if self._definition_highlight_duration_ms > 0:
+
+            def _auto_clear():
+                self._highlight_after_id = None
+                self.clear_highlight()
+
+            self._highlight_after_id = self.window.after(
+                self._definition_highlight_duration_ms, _auto_clear
+            )
 
     def clear_highlight(self) -> None:
         """Clear the line highlight."""
@@ -1859,7 +1893,7 @@ class CodeEditor:
         code = self._editor.get("1.0", "end-1c")
         if not code.strip():
             return
-        word = self._get_word_under_cursor()
+        word = self._get_word_under_cursor(self._context_click_x, self._context_click_y)
         if not word:
             return
         definitions = self._find_symbol_definitions(code, word)
@@ -1872,7 +1906,7 @@ class CodeEditor:
             return
         # Jump to the first definition
         target_line, _ = definitions[0]
-        self._definition_highlight_line = target_line
+        self._highlighted_line = target_line
         self._editor._text.mark_set(tk.INSERT, f"{target_line}.0")
         self._editor._text.see(tk.INSERT)
         self.highlight_line(target_line)
@@ -1885,7 +1919,7 @@ class CodeEditor:
         code = self._editor.get("1.0", "end-1c")
         if not code.strip():
             return
-        word = self._get_word_under_cursor()
+        word = self._get_word_under_cursor(self._context_click_x, self._context_click_y)
         if not word:
             return
 
