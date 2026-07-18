@@ -1,0 +1,49 @@
+name: pr-labeler
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  label:
+    name: Label PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Label PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = (pr.body || '').toLowerCase();
+            const title = (pr.title || '').toLowerCase();
+            const labels = [];
+
+            const rules = [
+              { pattern: /bug|错误|崩溃|crash|fix me|defect/, label: 'bug' },
+              { pattern: /feature|功能|enhancement|新功能/, label: 'enhancement' },
+              { pattern: /docs?|文档|readme|说明/, label: 'documentation' },
+              { pattern: /question|疑问|问题咨询/, label: 'question' },
+              { pattern: /duplicate|重复|已存在/, label: 'duplicate' },
+              { pattern: /invalid|无效|无效的/, label: 'invalid' },
+              { pattern: /wontfix|won't fix|不会修复/, label: 'wontfix' },
+              { pattern: /help wanted|需要帮助/, label: 'help wanted' },
+              { pattern: /good first issue|初学者|新手/, label: 'good first issue' },
+            ];
+
+            for (const rule of rules) {
+              if (body.match(rule.pattern) || title.match(rule.pattern)) {
+                labels.push(rule.label);
+              }
+            }
+
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: labels
+              });
+            }
