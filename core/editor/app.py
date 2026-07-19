@@ -43,6 +43,7 @@ from ui.widgets import (
     UContextMenu,
     UFrame,
     ULabel,
+    UMarketplaceWindow,
     UMenuBar,
     UShortcutConfigWindow,
     UText,
@@ -748,6 +749,9 @@ class CodeEditor:
         self._plugin_menu = self._menubar.add_cascade(t("menu.plugins"))
         self._plugin_menu.add_command(t("menu.plugins.manage"), self._open_plugin_manager)
         self._plugin_menu.add_command(t("menu.plugins.marketplace"), self._open_plugin_marketplace)
+
+        self._marketplace_menu = self._menubar.add_cascade(t("menu.marketplace"))
+        self._marketplace_menu.add_command(t("menu.marketplace.browse"), self._open_marketplace)
 
     def _bind_shortcuts(self):
         stored = self._settings.global_settings.get("shortcuts.custom", {})
@@ -2376,6 +2380,9 @@ class CodeEditor:
                 t("dialog.ui_theme_marketplace.placeholder"),
                 parent=self.window,
             )
+
+    def _open_marketplace(self):
+        UMarketplaceWindow(self)
 
     def _open_plugin_marketplace(self):
         marketplace = plugin_marketplace.get_plugin_marketplace()

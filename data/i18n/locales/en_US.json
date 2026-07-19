@@ -68,12 +68,23 @@
   "menu.plugins.none": "(No plugins loaded)",
   "menu.plugins.empty": "(Empty)",
 
+  "menu.marketplace": "Marketplace",
+  "menu.marketplace.browse": "Browse Extensions...",
+
   "menu.language.zh_CN": "简体中文",
   "menu.language.en_US": "English",
 
   "panel.output": "  Output",
 
   "sidebar.explorer": "EXPLORER",
+
+  "sidebar.marketplace": "MARKETPLACE",
+  "sidebar.marketplace.plugins": "Plugins",
+  "sidebar.marketplace.plugins.desc": "Extend functionality with plugins",
+  "sidebar.marketplace.themes": "Themes",
+  "sidebar.marketplace.themes.desc": "Customize appearance",
+  "sidebar.marketplace.languages": "Languages",
+  "sidebar.marketplace.languages.desc": "Switch interface language",
 
   "sidebar.debug": "DEBUG",
   "sidebar.debug.ready": "Ready",
@@ -284,6 +295,26 @@
   "plugin.manager.msg.reload_failed": "Failed to reload",
   "plugin.manager.msg.details_title": "Details",
   "plugin.manager.msg.details_select": "Please select a plugin from either list",
+
+  "marketplace.title": "Marketplace",
+  "marketplace.categories": "Categories",
+  "marketplace.category.all": "All Extensions",
+  "marketplace.category.plugins": "Plugins",
+  "marketplace.category.themes": "Themes",
+  "marketplace.category.languages": "Languages",
+  "marketplace.category.selected": "Selected",
+  "marketplace.select_category": "Select a category to browse extensions",
+  "marketplace.placeholder": "Browse and install extensions",
+  "marketplace.placeholder_name": "Sample Extension",
+  "marketplace.placeholder_author": "Author Name",
+  "marketplace.placeholder_name2": "Another Extension",
+  "marketplace.placeholder_author2": "Another Author",
+  "marketplace.col.name": "Name",
+  "marketplace.col.author": "Author",
+  "marketplace.col.version": "Version",
+  "marketplace.selected": "Selected",
+  "marketplace.items_count": "Items",
+  "marketplace.no_items": "No items found",
 
   "window.title": "Python Editor",
 

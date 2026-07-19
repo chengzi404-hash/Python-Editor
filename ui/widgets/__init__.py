@@ -13,6 +13,7 @@ from .git_card import GitCard
 from .label import ULabel
 from .line_number import LineNumberCanvas
 from .list_view import UListView
+from .marketplace_window import UMarketplaceWindow
 from .menu import UContextMenu, UMenu, UMenuBar
 from .progressbar import UProgressBar
 from .radiobutton import URadioButton
@@ -50,6 +51,7 @@ __all__ = [
     "UFrame",
     "ULabel",
     "UListView",
+    "UMarketplaceWindow",
     "UMenu",
     "UMenuBar",
     "UProgressBar",

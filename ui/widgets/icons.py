@@ -99,10 +99,22 @@ def _draw_git(canvas: tk.Canvas, color: str) -> None:
     )
 
 
+def _draw_marketplace(canvas: tk.Canvas, color: str) -> None:
+    """Draw Marketplace icon on existing Canvas."""
+    pad = 3
+    bar_width = 3
+    bar_gap = 2
+    start_x = pad + 2
+    for i in range(3):
+        x = start_x + i * (bar_width + bar_gap)
+        canvas.create_rectangle(x, pad, x + bar_width, ICON_SIZE - pad, fill=color, outline=color)
+
+
 _DRAW_FUNCTIONS = {
     "explorer": _draw_explorer,
     "debug": _draw_debug,
     "git": _draw_git,
+    "marketplace": _draw_marketplace,
 }
 
 

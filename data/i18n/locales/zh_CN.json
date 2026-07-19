@@ -68,12 +68,23 @@
   "menu.plugins.none": "(尚未加载任何插件)",
   "menu.plugins.empty": "(空)",
 
+  "menu.marketplace": "市场",
+  "menu.marketplace.browse": "浏览扩展...",
+
   "menu.language.zh_CN": "简体中文",
   "menu.language.en_US": "English",
 
   "panel.output": "  输出",
 
   "sidebar.explorer": "资源管理器",
+
+  "sidebar.marketplace": "市场",
+  "sidebar.marketplace.plugins": "插件",
+  "sidebar.marketplace.plugins.desc": "扩展编辑器功能",
+  "sidebar.marketplace.themes": "主题",
+  "sidebar.marketplace.themes.desc": "自定义界面外观",
+  "sidebar.marketplace.languages": "语言",
+  "sidebar.marketplace.languages.desc": "切换界面语言",
 
   "sidebar.debug": "调试",
   "sidebar.debug.ready": "就绪",
@@ -284,6 +295,26 @@
   "plugin.manager.msg.reload_failed": "重载失败",
   "plugin.manager.msg.details_title": "查看详情",
   "plugin.manager.msg.details_select": "请先在左侧或右侧点击一行插件",
+
+  "marketplace.title": "市场",
+  "marketplace.categories": "分类",
+  "marketplace.category.all": "全部扩展",
+  "marketplace.category.plugins": "插件",
+  "marketplace.category.themes": "主题",
+  "marketplace.category.languages": "语言",
+  "marketplace.category.selected": "已选择",
+  "marketplace.select_category": "选择一个分类以浏览扩展",
+  "marketplace.placeholder": "浏览和安装扩展",
+  "marketplace.placeholder_name": "示例扩展",
+  "marketplace.placeholder_author": "作者名称",
+  "marketplace.placeholder_name2": "另一个扩展",
+  "marketplace.placeholder_author2": "另一位作者",
+  "marketplace.col.name": "名称",
+  "marketplace.col.author": "作者",
+  "marketplace.col.version": "版本",
+  "marketplace.selected": "已选择",
+  "marketplace.items_count": "项目数",
+  "marketplace.no_items": "未找到项目",
 
   "window.title": "Python Editor",
 
