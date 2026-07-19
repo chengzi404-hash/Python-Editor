@@ -158,6 +158,24 @@ def set_theme(name: str) -> None:
             cb(name)
 
 
+def set_tokens(tokens: dict[str, dict[str, Any]], *, name: str | None = None) -> None:
+    """Replace the active theme's token styles in-place.
+
+    Used by the UI theme system so that switching the application theme also
+    updates the code-area highlight colors. Notifies change listeners.
+    """
+    global _current_name
+    target_name = name or _current_name
+    target = _themes.get(target_name)
+    if target is None:
+        return
+    target.tokens = dict(tokens)
+    if target_name == _current_name:
+        for cb in list(_listeners):
+            with contextlib.suppress(Exception):
+                cb(_current_name)
+
+
 def on_change(callback: Callable[[str], None]) -> None:
     _listeners.append(callback)
 
@@ -204,6 +222,7 @@ __all__ = [
     "on_change",
     "register",
     "set_theme",
+    "set_tokens",
     "tokens",
     "unregister",
 ]

@@ -1,147 +1,78 @@
+"""UI theme registry.
+
+Themes are defined as JSON files under ``data/theme/`` and loaded at runtime.
+Each JSON file describes the full set of attributes consumed by widgets and
+the code-area highlighter (``CODE_HIGHLIGHTS``). See
+``data/theme/dark.json`` for the schema.
+"""
+
+from __future__ import annotations
+
 import contextlib
+import json
+import os
 import sys
 from collections.abc import Callable
+from typing import Any, ClassVar
 
 
 class Theme:
+    """A single UI theme. Attributes are populated from a JSON dict."""
+
     name: str = "Base"
 
-    BG_TITLE: str = "#000000"
-    BG_BASE: str = "#1e1e1e"
-    BG_PANEL: str = "#2a2a2a"
-    BG_RAISED: str = "#3a3a3a"
-    BG_HOVER: str = "#4a4a4a"
-    BG_ACTIVE: str = "#5a5a5a"
-    BG_INPUT: str = "#161616"
-    BG_DROPDOWN: str = "#2a2a2a"
+    CODE_HIGHLIGHTS: ClassVar[dict[str, dict[str, str]]] = {}
 
-    FG_PRIMARY: str = "#ffffff"
-    FG_SECONDARY: str = "#a0a0a0"
-    FG_TERTIARY: str = "#707070"
-    FG_DISABLED: str = "#505050"
+    def __init__(self, **attrs: Any) -> None:
+        for key, value in attrs.items():
+            setattr(self, key, value)
 
-    BORDER: str = "#3a3a3a"
-    BORDER_STRONG: str = "#5a5a5a"
-    BORDER_FOCUS: str = "#0a84ff"
-
-    RED: str = "#ff5f57"
-    RED_HOVER: str = "#ff7f77"
-    RED_DARK: str = "#d94540"
-
-    YELLOW: str = "#febc2e"
-    YELLOW_HOVER: str = "#ffcc4e"
-    YELLOW_DARK: str = "#cf9a10"
-
-    GREEN: str = "#28c840"
-    GREEN_HOVER: str = "#4ae060"
-    GREEN_DARK: str = "#1caa30"
-
-    BLUE: str = "#0a84ff"
-    BLUE_HOVER: str = "#3a9eff"
-    BLUE_DARK: str = "#0066cc"
-
-    PURPLE: str = "#bf5af2"
-
-    # Card title bar left accent bar (blue, 3px width)
-    TITLE_ACCENT_WIDTH: int = 3
-    TITLE_ACCENT: str = "#0a84ff"
-
-    TITLE_FONT: tuple = ("Comic Sans MS", 10)
-    MENU_FONT: tuple = ("Arial", 9)
-    LABEL_FONT: tuple = ("Arial", 10)
-    LABEL_FONT_BOLD: tuple = ("Arial", 10, "bold")
-    LABEL_FONT_SMALL: tuple = ("Arial", 9)
-    BUTTON_FONT: tuple = ("Arial", 10)
-    ICON_FONT: tuple = ("Arial Black", 9)
-    MONO_FONT: tuple = ("Consolas", 10)
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Theme:
+        payload = dict(data)
+        payload.pop("default", None)
+        return cls(**payload)
 
 
-class DarkTheme(Theme):
-    name = "Dark"
+def _load_themes_from_disk() -> list[Theme]:
+    """Load every ``*.json`` theme file from ``data/theme/``.
+
+    Files are sorted by name for deterministic ordering. The theme marked with
+    ``"default": true`` is placed first; if none is marked, the first sorted
+    entry is used as the initial active theme.
+    """
+    from core.data import theme_path
+
+    directory = theme_path()
+    if not os.path.isdir(directory):
+        return []
+
+    themes: list[Theme] = []
+    default_theme: Theme | None = None
+    for filename in sorted(os.listdir(directory)):
+        if not filename.endswith(".json"):
+            continue
+        full_path = os.path.join(directory, filename)
+        try:
+            with open(full_path, encoding="utf-8") as fh:
+                raw = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(raw, dict):
+            continue
+        theme_obj = Theme.from_dict(raw)
+        if raw.get("default") and default_theme is None:
+            default_theme = theme_obj
+        themes.append(theme_obj)
+
+    if default_theme is not None and themes and themes[0] is not default_theme:
+        themes.remove(default_theme)
+        themes.insert(0, default_theme)
+    return themes
 
 
-class LightTheme(Theme):
-    name = "Light"
-    BG_TITLE = "#e8e8e8"
-    BG_BASE = "#fafafa"
-    BG_PANEL = "#f0f0f0"
-    BG_RAISED = "#e0e0e0"
-    BG_HOVER = "#d8d8d8"
-    BG_ACTIVE = "#c0c0c0"
-    BG_INPUT = "#ffffff"
-    BG_DROPDOWN = "#ffffff"
-
-    FG_PRIMARY = "#1a1a1a"
-    FG_SECONDARY = "#555555"
-    FG_TERTIARY = "#888888"
-    FG_DISABLED = "#b0b0b0"
-
-    BORDER = "#d0d0d0"
-    BORDER_STRONG = "#a8a8a8"
-    BORDER_FOCUS = "#0066cc"
-
-    RED = "#dc3545"
-    RED_HOVER = "#e85565"
-    RED_DARK = "#a02a37"
-
-    YELLOW = "#d99700"
-    YELLOW_HOVER = "#e9a710"
-    YELLOW_DARK = "#a07000"
-
-    GREEN = "#2da745"
-    GREEN_HOVER = "#4dc765"
-    GREEN_DARK = "#1e8a37"
-
-    BLUE = "#0066cc"
-    BLUE_HOVER = "#1a80e0"
-    BLUE_DARK = "#004a99"
-
-    # Same color as BLUE in this theme
-    TITLE_ACCENT = "#0066cc"
-
-
-class SolarizedDarkTheme(Theme):
-    name = "Solarized Dark"
-    BG_TITLE = "#002b36"
-    BG_BASE = "#002b36"
-    BG_PANEL = "#073642"
-    BG_RAISED = "#0a4452"
-    BG_HOVER = "#0d5263"
-    BG_ACTIVE = "#106274"
-    BG_INPUT = "#01313d"
-    BG_DROPDOWN = "#073642"
-
-    FG_PRIMARY = "#fdf6e3"
-    FG_SECONDARY = "#93a1a1"
-    FG_TERTIARY = "#657b83"
-    FG_DISABLED = "#586e75"
-
-    BORDER = "#0a4452"
-    BORDER_STRONG = "#0d5263"
-    BORDER_FOCUS = "#268bd2"
-
-    RED = "#dc322f"
-    RED_HOVER = "#ec4240"
-    RED_DARK = "#a8221f"
-
-    YELLOW = "#b58900"
-    YELLOW_HOVER = "#c59910"
-    YELLOW_DARK = "#8a6900"
-
-    GREEN = "#859900"
-    GREEN_HOVER = "#95a910"
-    GREEN_DARK = "#657900"
-
-    BLUE = "#268bd2"
-    BLUE_HOVER = "#369be2"
-    BLUE_DARK = "#066ba2"
-
-    # Same color as BLUE in this theme
-    TITLE_ACCENT = "#268bd2"
-
-
-_themes: list[Theme] = [DarkTheme(), LightTheme(), SolarizedDarkTheme()]
-_current: Theme = _themes[0]
+_themes: list[Theme] = _load_themes_from_disk()
+_current: Theme = _themes[0] if _themes else Theme(name="Default")
 _listeners: list[Callable[[Theme], None]] = []
 
 
@@ -169,16 +100,40 @@ def off_change(callback: Callable[[Theme], None]) -> None:
         _listeners.remove(callback)
 
 
+def reload() -> None:
+    """Re-read themes from disk. The current theme is preserved by name."""
+    global _themes, _current
+    current_name = _current.name if _themes else None
+    _themes = _load_themes_from_disk()
+    if _themes:
+        restored = by_name(current_name) if current_name else None
+        _current = restored or _themes[0]
+
+
 def set_theme(theme_obj: Theme, *, refresh_root=None) -> None:
     global _current
     if _current is theme_obj:
         return
     _current = theme_obj
+    _sync_code_highlights(theme_obj)
     if refresh_root is not None:
         apply_theme_recursive(refresh_root)
     for cb in list(_listeners):
         with contextlib.suppress(Exception):
             cb(theme_obj)
+
+
+def _sync_code_highlights(theme_obj: Theme) -> None:
+    """Push this theme's CODE_HIGHLIGHTS into the highlighter."""
+    highlights = getattr(theme_obj, "CODE_HIGHLIGHTS", None)
+    if not highlights:
+        return
+    try:
+        from core.language.highlighter import themes as _highlight_themes
+    except Exception:
+        return
+    with contextlib.suppress(Exception):
+        _highlight_themes.set_tokens(highlights)
 
 
 def apply_theme_recursive(widget) -> None:
@@ -201,7 +156,7 @@ def __getattr__(name: str):
     try:
         return getattr(_current, name)
     except AttributeError:
-        raise AttributeError(f"theme has no attribute {name!r}")
+        raise AttributeError(f"theme has no attribute {name!r}") from None
 
 
 FOLLOW_SYSTEM_THEME: dict = {

@@ -22,6 +22,11 @@ def i18n_path(*parts: str) -> str:
     return os.path.join(_ROOT, "i18n", *parts)
 
 
+def theme_path(*parts: str) -> str:
+    """Return absolute path to ``data/theme/<parts>``."""
+    return os.path.join(_ROOT, "theme", *parts)
+
+
 def data_path(*parts: str) -> str:
     """Return absolute path to ``data/<parts>``."""
     return os.path.join(_ROOT, *parts)
@@ -52,4 +57,12 @@ def cache_path(*parts: str) -> str:
     return target
 
 
-__all__ = ["cache_dir", "cache_path", "data_dir", "data_path", "i18n_path", "suggestions_path"]
+__all__ = [
+    "cache_dir",
+    "cache_path",
+    "data_dir",
+    "data_path",
+    "i18n_path",
+    "suggestions_path",
+    "theme_path",
+]

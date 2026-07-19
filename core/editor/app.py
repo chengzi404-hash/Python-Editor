@@ -2326,6 +2326,9 @@ class CodeEditor:
                 self._theme_tk_var.set(name)
             self._status_label.config(text=t("status.theme", name=name))
             self._force_redraw()
+            if self._editor is not None:
+                self._cancel_pending_highlight()
+                self._apply_highlight()
             self._emit(HookEvents.EDITOR_THEME_CHANGED, name)
             app_logger.info(f"Theme changed to: {name}")
         except Exception as e:
