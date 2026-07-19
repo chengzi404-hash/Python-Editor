@@ -43,7 +43,7 @@
     "builtin": {"foreground": "#b58900"},
     "string": {"foreground": "#2aa198"},
     "number": {"foreground": "#d33682"},
-    "comment": {"foreground": "#586e75"},
+    "comment": {"foreground": "#586e75", "italic": true},
     "identifier": {"foreground": "#93a1a1"},
     "operator": {"foreground": "#93a1a1"},
     "punctuation": {"foreground": "#93a1a1"},
@@ -57,11 +57,11 @@
     "module": {"foreground": "#268bd2"},
     "key": {"foreground": "#93a1a1"},
     "tag": {"foreground": "#859900"},
-    "timestamp": {"foreground": "#586e75"},
+    "timestamp": {"foreground": "#586e75", "italic": true},
     "level_debug": {"foreground": "#586e75"},
     "level_info": {"foreground": "#268bd2"},
-    "level_warn": {"foreground": "#b58900"},
-    "level_error": {"foreground": "#dc322f"},
-    "level_critical": {"foreground": "#dc322f"}
+    "level_warn": {"foreground": "#b58900", "bold": true},
+    "level_error": {"foreground": "#dc322f", "bold": true},
+    "level_critical": {"foreground": "#dc322f", "bold": true}
   }
 }

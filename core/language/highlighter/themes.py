@@ -20,7 +20,7 @@ def _default_dark_tokens() -> dict[str, dict[str, Any]]:
         "builtin": {"foreground": "#dcdcaa"},
         "string": {"foreground": "#ce9178"},
         "number": {"foreground": "#b5cea8"},
-        "comment": {"foreground": "#6a9955"},
+        "comment": {"foreground": "#6a9955", "italic": True},
         "identifier": {"foreground": "#9cdcfe"},
         "operator": {"foreground": "#d4d4d4"},
         "punctuation": {"foreground": "#d4d4d4"},
@@ -34,12 +34,12 @@ def _default_dark_tokens() -> dict[str, dict[str, Any]]:
         "module": {"foreground": "#4fc1ff"},
         "key": {"foreground": "#9cdcfe"},
         "tag": {"foreground": "#569cd6"},
-        "timestamp": {"foreground": "#6a9955"},
+        "timestamp": {"foreground": "#6a9955", "italic": True},
         "level_debug": {"foreground": "#808080"},
         "level_info": {"foreground": "#4ec9b0"},
-        "level_warn": {"foreground": "#dcdcaa"},
-        "level_error": {"foreground": "#f44747"},
-        "level_critical": {"foreground": "#ff0000"},
+        "level_warn": {"foreground": "#dcdcaa", "bold": True},
+        "level_error": {"foreground": "#f44747", "bold": True},
+        "level_critical": {"foreground": "#ff0000", "bold": True},
     }
 
 
@@ -49,7 +49,7 @@ def _default_light_tokens() -> dict[str, dict[str, Any]]:
         "builtin": {"foreground": "#795e26"},
         "string": {"foreground": "#a31515"},
         "number": {"foreground": "#098658"},
-        "comment": {"foreground": "#008000"},
+        "comment": {"foreground": "#008000", "italic": True},
         "identifier": {"foreground": "#001080"},
         "operator": {"foreground": "#000000"},
         "punctuation": {"foreground": "#000000"},
@@ -63,12 +63,12 @@ def _default_light_tokens() -> dict[str, dict[str, Any]]:
         "module": {"foreground": "#008080"},
         "key": {"foreground": "#001080"},
         "tag": {"foreground": "#800000"},
-        "timestamp": {"foreground": "#008000"},
+        "timestamp": {"foreground": "#008000", "italic": True},
         "level_debug": {"foreground": "#808080"},
         "level_info": {"foreground": "#267f99"},
-        "level_warn": {"foreground": "#795e26"},
-        "level_error": {"foreground": "#ff0000"},
-        "level_critical": {"foreground": "#ff0000"},
+        "level_warn": {"foreground": "#795e26", "bold": True},
+        "level_error": {"foreground": "#ff0000", "bold": True},
+        "level_critical": {"foreground": "#ff0000", "bold": True},
     }
 
 
@@ -78,7 +78,7 @@ def _solarized_dark_tokens() -> dict[str, dict[str, Any]]:
         "builtin": {"foreground": "#b58900"},
         "string": {"foreground": "#2aa198"},
         "number": {"foreground": "#d33682"},
-        "comment": {"foreground": "#586e75"},
+        "comment": {"foreground": "#586e75", "italic": True},
         "identifier": {"foreground": "#93a1a1"},
         "operator": {"foreground": "#93a1a1"},
         "punctuation": {"foreground": "#93a1a1"},
@@ -92,12 +92,12 @@ def _solarized_dark_tokens() -> dict[str, dict[str, Any]]:
         "module": {"foreground": "#268bd2"},
         "key": {"foreground": "#93a1a1"},
         "tag": {"foreground": "#859900"},
-        "timestamp": {"foreground": "#586e75"},
+        "timestamp": {"foreground": "#586e75", "italic": True},
         "level_debug": {"foreground": "#586e75"},
         "level_info": {"foreground": "#268bd2"},
-        "level_warn": {"foreground": "#b58900"},
-        "level_error": {"foreground": "#dc322f"},
-        "level_critical": {"foreground": "#dc322f"},
+        "level_warn": {"foreground": "#b58900", "bold": True},
+        "level_error": {"foreground": "#dc322f", "bold": True},
+        "level_critical": {"foreground": "#dc322f", "bold": True},
     }
 
 

@@ -7,12 +7,12 @@ from core.language.highlighter import (
 )
 from core.language.suggestion import PythonSuggestionExpert
 
-HIGHLIGHT_TOKENS = {
+HIGHLIGHT_TOKENS: dict[str, dict] = {
     "keyword": {"foreground": "#569cd6"},
     "builtin": {"foreground": "#dcdcaa"},
     "string": {"foreground": "#ce9178"},
     "number": {"foreground": "#b5cea8"},
-    "comment": {"foreground": "#6a9955"},
+    "comment": {"foreground": "#6a9955", "italic": True},
     "identifier": {"foreground": "#9cdcfe"},
     "operator": {"foreground": "#d4d4d4"},
     "punctuation": {"foreground": "#d4d4d4"},
@@ -26,12 +26,12 @@ HIGHLIGHT_TOKENS = {
     "module": {"foreground": "#4fc1ff"},
     "key": {"foreground": "#9cdcfe"},
     "tag": {"foreground": "#569cd6"},
-    "timestamp": {"foreground": "#6a9955"},
+    "timestamp": {"foreground": "#6a9955", "italic": True},
     "level_debug": {"foreground": "#808080"},
     "level_info": {"foreground": "#4ec9b0"},
-    "level_warn": {"foreground": "#dcdcaa"},
-    "level_error": {"foreground": "#f44747"},
-    "level_critical": {"foreground": "#ff0000"},
+    "level_warn": {"foreground": "#dcdcaa", "bold": True},
+    "level_error": {"foreground": "#f44747", "bold": True},
+    "level_critical": {"foreground": "#ff0000", "bold": True},
 }
 
 LANG_CONFIG = {

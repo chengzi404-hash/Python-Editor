@@ -211,6 +211,11 @@ highlight_themes.current_name()         # 'Default Dark'
 highlight_themes.tokens()               # {'keyword': {'foreground': '#569cd6'}, ...}
 highlight_themes.tokens('Solarized Dark')
 
+# Each token style accepts the following keys:
+#   foreground:  hex color for the text
+#   bold:        bool — render the token with weight="bold"
+#   italic:      bool — render the token with slant="italic"
+
 # Mutation
 highlight_themes.set_theme('Default Light')
 

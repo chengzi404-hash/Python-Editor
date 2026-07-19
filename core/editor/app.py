@@ -1407,7 +1407,7 @@ class CodeEditor:
                 text.tag_delete(tag)
 
         for token_type, style in hl_tokens.items():
-            text.tag_configure(token_type, **style)
+            text.tag_configure(token_type, **self._tag_style_kwargs(style))
 
         for token in result.tokens:
             start = self._index_from_pos(token.start)
@@ -1420,6 +1420,24 @@ class CodeEditor:
                 "definition_highlight", background=highlight_color, foreground=theme.BG_BASE
             )
             text.tag_add("definition_highlight", f"{highlight_line}.0", f"{highlight_line}.end")
+
+    def _tag_style_kwargs(self, style: dict) -> dict:
+        """Convert a token style dict into kwargs accepted by Text.tag_configure.
+
+        ``bold`` and ``italic`` flags are translated into a Tk ``font`` tuple
+        built on top of the current editor font, so the underlying Text widget
+        does not receive unknown options.
+        """
+        kwargs = dict(style)
+        bold = bool(kwargs.pop("bold", False))
+        italic = bool(kwargs.pop("italic", False))
+        font: list = [self._font_family, self._font_size]
+        if bold:
+            font.append("bold")
+        if italic:
+            font.append("italic")
+        kwargs["font"] = tuple(font)
+        return kwargs
 
     def highlight_line(self, line_no: int, color: str | None = None) -> None:
         """Highlight a specific line with an optional color.
@@ -2466,6 +2484,34 @@ class CodeEditor:
     def _apply_editor_font(self):
         font = (self._font_family, self._font_size)
         self._editor._text.config(font=font)
+        self._refresh_tag_fonts()
+
+    def _refresh_tag_fonts(self) -> None:
+        """Re-apply font attributes to every configured highlight tag.
+
+        Tag fonts embed the editor's family and size at the time they were
+        configured, so a font change requires updating every tag — otherwise
+        already-highlighted text keeps the old metrics.
+        """
+        text = self._editor._text
+        for tag in text.tag_names():
+            if tag == "definition_highlight":
+                continue
+            style = self._current_tag_style(tag)
+            if style is None:
+                continue
+            with contextlib.suppress(Exception):
+                text.tag_configure(tag, **self._tag_style_kwargs(style))
+
+    def _current_tag_style(self, tag: str) -> dict | None:
+        """Return the current style dict for ``tag`` (without font kwargs)."""
+        hl_tokens: dict = highlight_themes.tokens() or HIGHLIGHT_TOKENS
+        if tag in hl_tokens:
+            return dict(hl_tokens[tag])
+        if tag == "identifier":
+            fallback: dict = {"foreground": theme.FG_PRIMARY}
+            return dict(hl_tokens.get("identifier", fallback))
+        return None
 
     def _set_tab_width(self, tw: int, *, persist: bool = True):
         self._tab_width = tw

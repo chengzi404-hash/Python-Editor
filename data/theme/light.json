@@ -43,7 +43,7 @@
     "builtin": {"foreground": "#795e26"},
     "string": {"foreground": "#a31515"},
     "number": {"foreground": "#098658"},
-    "comment": {"foreground": "#008000"},
+    "comment": {"foreground": "#008000", "italic": true},
     "identifier": {"foreground": "#001080"},
     "operator": {"foreground": "#000000"},
     "punctuation": {"foreground": "#000000"},
@@ -57,11 +57,11 @@
     "module": {"foreground": "#008080"},
     "key": {"foreground": "#001080"},
     "tag": {"foreground": "#800000"},
-    "timestamp": {"foreground": "#008000"},
+    "timestamp": {"foreground": "#008000", "italic": true},
     "level_debug": {"foreground": "#808080"},
     "level_info": {"foreground": "#267f99"},
-    "level_warn": {"foreground": "#795e26"},
-    "level_error": {"foreground": "#ff0000"},
-    "level_critical": {"foreground": "#ff0000"}
+    "level_warn": {"foreground": "#795e26", "bold": true},
+    "level_error": {"foreground": "#ff0000", "bold": true},
+    "level_critical": {"foreground": "#ff0000", "bold": true}
   }
 }
