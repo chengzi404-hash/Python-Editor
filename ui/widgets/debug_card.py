@@ -276,6 +276,10 @@ class DebugCard(UFrame):
         self._call_stack: list[dict[str, str]] = []
         self._breakpoints: list[dict[str, Any]] = []
 
+        self._debug_state: str = "stopped"
+        self._section_headers: list[tk.Widget] = []
+        self._section_labels: list[tk.Widget] = []
+
         self._build()
 
     def _build(self) -> None:
@@ -317,9 +321,9 @@ class DebugCard(UFrame):
         self._status_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
 
         # Debug control buttons
-        control_frame = tk.Frame(self, bg=theme.BG_PANEL, height=32)
-        control_frame.pack(fill=tk.X, padx=4, pady=(0, 4))
-        control_frame.pack_propagate(False)
+        self._control_frame = tk.Frame(self, bg=theme.BG_PANEL, height=32)
+        self._control_frame.pack(fill=tk.X, padx=4, pady=(0, 4))
+        self._control_frame.pack_propagate(False)
 
         btn_kwargs = {
             "bg": theme.BG_RAISED,
@@ -331,46 +335,53 @@ class DebugCard(UFrame):
             "activeforeground": theme.FG_PRIMARY,
         }
 
+        self._debug_buttons: list[tk.Button] = []
+
         self._btn_start = tk.Button(
-            control_frame, text=t("sidebar.debug.start"), width=7, **btn_kwargs
+            self._control_frame, text=t("sidebar.debug.start"), width=7, **btn_kwargs
         )
         self._btn_start.pack(side=tk.LEFT, padx=2)
         self._btn_start.bind("<Button-1>", lambda _: self._on_start())
+        self._debug_buttons.append(self._btn_start)
 
         self._btn_continue = tk.Button(
-            control_frame, text=t("sidebar.debug.continue"), width=8, **btn_kwargs
+            self._control_frame, text=t("sidebar.debug.continue"), width=8, **btn_kwargs
         )
         self._btn_continue.pack(side=tk.LEFT, padx=2)
         self._btn_continue.bind("<Button-1>", lambda _: self._on_continue())
         self._btn_continue.config(state="disabled")
+        self._debug_buttons.append(self._btn_continue)
 
         self._btn_step_over = tk.Button(
-            control_frame, text=t("sidebar.debug.step_over"), width=6, **btn_kwargs
+            self._control_frame, text=t("sidebar.debug.step_over"), width=6, **btn_kwargs
         )
         self._btn_step_over.pack(side=tk.LEFT, padx=2)
         self._btn_step_over.bind("<Button-1>", lambda _: self._on_step_over())
         self._btn_step_over.config(state="disabled")
+        self._debug_buttons.append(self._btn_step_over)
 
         self._btn_step_into = tk.Button(
-            control_frame, text=t("sidebar.debug.step_into"), width=6, **btn_kwargs
+            self._control_frame, text=t("sidebar.debug.step_into"), width=6, **btn_kwargs
         )
         self._btn_step_into.pack(side=tk.LEFT, padx=2)
         self._btn_step_into.bind("<Button-1>", lambda _: self._on_step_into())
         self._btn_step_into.config(state="disabled")
+        self._debug_buttons.append(self._btn_step_into)
 
         self._btn_stop = tk.Button(
-            control_frame, text=t("sidebar.debug.stop"), width=6, **btn_kwargs
+            self._control_frame, text=t("sidebar.debug.stop"), width=6, **btn_kwargs
         )
         self._btn_stop.pack(side=tk.LEFT, padx=2)
         self._btn_stop.bind("<Button-1>", lambda _: self._on_stop())
         self._btn_stop.config(state="disabled")
+        self._debug_buttons.append(self._btn_stop)
 
         # Panel container (using grid layout manager)
-        panels_frame = tk.Frame(self, bg=theme.BG_PANEL)
-        panels_frame.pack(fill=tk.BOTH, expand=True, side=tk.BOTTOM)
+        self._panels_frame = tk.Frame(self, bg=theme.BG_PANEL)
+        self._panels_frame.pack(fill=tk.BOTH, expand=True, side=tk.BOTTOM)
 
         # Variables panel
-        self._variables_panel_frame = tk.Frame(panels_frame, bg=theme.BG_PANEL)
+        self._variables_panel_frame = tk.Frame(self._panels_frame, bg=theme.BG_PANEL)
         self._variables_panel_frame.grid(row=0, column=0, sticky="nsew")
         self._build_section(t("sidebar.debug.variables"), self._variables_panel_frame)
         self._variables_view = UListView(
@@ -382,7 +393,7 @@ class DebugCard(UFrame):
         self._variables_view.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
 
         # Call stack panel
-        self._stack_panel_frame = tk.Frame(panels_frame, bg=theme.BG_PANEL)
+        self._stack_panel_frame = tk.Frame(self._panels_frame, bg=theme.BG_PANEL)
         self._stack_panel_frame.grid(row=1, column=0, sticky="nsew")
         self._build_section(t("sidebar.debug.call_stack"), self._stack_panel_frame)
         self._call_stack_view = UListView(
@@ -398,7 +409,7 @@ class DebugCard(UFrame):
         self._call_stack_view.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
 
         # Breakpoints panel
-        self._breakpoints_panel_frame = tk.Frame(panels_frame, bg=theme.BG_PANEL)
+        self._breakpoints_panel_frame = tk.Frame(self._panels_frame, bg=theme.BG_PANEL)
         self._breakpoints_panel_frame.grid(row=2, column=0, sticky="nsew")
         self._build_section(t("sidebar.debug.breakpoints"), self._breakpoints_panel_frame)
         self._breakpoints_view = UListView(
@@ -411,23 +422,26 @@ class DebugCard(UFrame):
         self._breakpoints_view._on_select_cb = self._on_breakpoint_select  # type: ignore
 
         # Grid weight for equal distribution
-        panels_frame.grid_rowconfigure(0, weight=1)
-        panels_frame.grid_rowconfigure(1, weight=1)
-        panels_frame.grid_rowconfigure(2, weight=1)
-        panels_frame.grid_columnconfigure(0, weight=1)
+        self._panels_frame.grid_rowconfigure(0, weight=1)
+        self._panels_frame.grid_rowconfigure(1, weight=1)
+        self._panels_frame.grid_rowconfigure(2, weight=1)
+        self._panels_frame.grid_columnconfigure(0, weight=1)
 
     def _build_section(self, title: str, frame: tk.Frame) -> None:
         section_header = tk.Frame(frame, bg=theme.BG_TITLE, height=22)
         section_header.pack(fill=tk.X)
         section_header.pack_propagate(False)
-        tk.Label(
+        self._section_headers.append(section_header)
+        section_label = tk.Label(
             section_header,
             text=f"  {title}",
             bg=theme.BG_TITLE,
             fg=theme.FG_SECONDARY,
             font=theme.LABEL_FONT_SMALL,
             anchor="w",
-        ).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        )
+        section_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self._section_labels.append(section_label)
 
     def set_workspace_root(self, path: str) -> None:
         """Set workspace root directory."""
@@ -437,6 +451,7 @@ class DebugCard(UFrame):
 
     def set_debug_state(self, state: str) -> None:
         """Set debug state: 'stopped', 'running', 'paused'."""
+        self._debug_state = state
         if state == "running":
             self._status_indicator.config(bg=theme.GREEN)
             self._status_label.config(text=t("sidebar.debug.running"))
@@ -618,6 +633,40 @@ class DebugCard(UFrame):
             self._title_accent.config(bg=theme.TITLE_ACCENT)
         self._status_frame.config(bg=theme.BG_PANEL)
         self._status_label.config(bg=theme.BG_PANEL)
+        if hasattr(self, "_control_frame"):
+            self._control_frame.config(bg=theme.BG_PANEL)
+        for btn in getattr(self, "_debug_buttons", []):
+            with contextlib.suppress(tk.TclError):
+                btn.config(
+                    bg=theme.BG_RAISED,
+                    fg=theme.FG_PRIMARY,
+                    activebackground=theme.BG_HOVER,
+                    activeforeground=theme.FG_PRIMARY,
+                )
+        if hasattr(self, "_panels_frame"):
+            self._panels_frame.config(bg=theme.BG_PANEL)
+        for panel_frame in (
+            getattr(self, "_variables_panel_frame", None),
+            getattr(self, "_stack_panel_frame", None),
+            getattr(self, "_breakpoints_panel_frame", None),
+        ):
+            if panel_frame is not None:
+                with contextlib.suppress(tk.TclError):
+                    panel_frame.config(bg=theme.BG_PANEL)
+        for section_header in getattr(self, "_section_headers", []):
+            with contextlib.suppress(tk.TclError):
+                section_header.config(bg=theme.BG_TITLE)
+        for section_label in getattr(self, "_section_labels", []):
+            with contextlib.suppress(tk.TclError):
+                section_label.config(bg=theme.BG_TITLE, fg=theme.FG_SECONDARY)
+        # Re-apply current debug state so status indicator color follows the new theme.
+        with contextlib.suppress(tk.TclError):
+            if self._debug_state == "running":
+                self._status_indicator.config(bg=theme.GREEN)
+            elif self._debug_state == "paused":
+                self._status_indicator.config(bg=theme.YELLOW)
+            else:
+                self._status_indicator.config(bg=theme.FG_TERTIARY)
 
 
 __all__ = ["DebugCard", "DebugLocation", "DebugSession", "VariableInfo"]

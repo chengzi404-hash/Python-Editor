@@ -29,6 +29,7 @@ class ULabel(tk.Label):
         self._explicit_bg = bg
         if bg is None:
             bg = self._parent_bg(parent)
+            self._explicit_bg = None
         kwargs.setdefault("fg", self._variant_fg(variant))
         kwargs.setdefault("bg", bg)
         kwargs.setdefault("font", font or theme.LABEL_FONT)
@@ -49,10 +50,7 @@ class ULabel(tk.Label):
         return theme.BG_BASE
 
     def _apply_theme(self):
-        if self._explicit_bg is not None:
-            bg = self._explicit_bg
-        else:
-            bg = self._parent_bg(self.master)
+        bg = self._parent_bg(self.master)
         self.config(
             fg=self._variant_fg(self._variant),
             bg=bg,

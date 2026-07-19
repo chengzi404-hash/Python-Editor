@@ -105,6 +105,9 @@ class ActivityBarItem(tk.Frame):
         self._is_active = active
         self._update_colors()
 
+    def _apply_theme(self):
+        self._update_colors()
+
 
 class ActivityBar(tk.Frame):
     """Vertical Activity Bar, containing multiple icon buttons."""
@@ -122,6 +125,7 @@ class ActivityBar(tk.Frame):
         self._items: dict[str, ActivityBarItem] = {}
         self._on_select = on_select
         self._active_id: str | None = None
+        self._spacer: tk.Frame | None = None
 
         self.pack_propagate(False)
 
@@ -136,8 +140,8 @@ class ActivityBar(tk.Frame):
             self._items[card_id] = item
 
         # Bottom spacer, to center icons
-        spacer = tk.Frame(self, bg=theme.BG_BASE)
-        spacer.pack(fill=tk.Y, expand=True)
+        self._spacer = tk.Frame(self, bg=theme.BG_BASE)
+        self._spacer.pack(fill=tk.Y, expand=True)
 
     def _handle_select(self, card_id: str):
         self._on_select(card_id)
@@ -150,6 +154,11 @@ class ActivityBar(tk.Frame):
             self._items[card_id].set_active(True)
 
     def _apply_theme(self):
+        with contextlib.suppress(tk.TclError):
+            self.config(bg=theme.BG_BASE)
+        if self._spacer is not None:
+            with contextlib.suppress(tk.TclError):
+                self._spacer.config(bg=theme.BG_BASE)
         for item in self._items.values():
             item._update_colors()
 

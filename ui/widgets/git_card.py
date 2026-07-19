@@ -81,6 +81,9 @@ class GitCard(UFrame):
         self._msg_placeholder = t("sidebar.git.msg_placeholder")
         self._has_placeholder = True
 
+        # Track git status state for theme refresh
+        self._is_idle: bool = True
+
         self._build()
 
     # ─────────────────────────── build ───────────────────────────
@@ -96,20 +99,20 @@ class GitCard(UFrame):
     # —— Title bar —— #
 
     def _build_title_bar(self) -> None:
-        header = tk.Frame(self, bg=theme.BG_TITLE, height=_TITLE_HEIGHT)
-        header.pack(fill=tk.X)
-        header.pack_propagate(False)
+        self._title_header = tk.Frame(self, bg=theme.BG_TITLE, height=_TITLE_HEIGHT)
+        self._title_header.pack(fill=tk.X)
+        self._title_header.pack_propagate(False)
 
         # Left accent bar -- visual anchor (color/width in theme.TITLE_ACCENT*)
         self._title_accent = tk.Frame(
-            header,
+            self._title_header,
             bg=theme.TITLE_ACCENT,
             width=theme.TITLE_ACCENT_WIDTH,
         )
         self._title_accent.pack(side=tk.LEFT, fill=tk.Y)
 
         self._title_label = ULabel(
-            header,
+            self._title_header,
             text=f"  {self._title}",
             variant="secondary",
             bg=theme.BG_TITLE,
@@ -120,12 +123,12 @@ class GitCard(UFrame):
     # —— Branch info row —— #
 
     def _build_branch_row(self) -> None:
-        row = tk.Frame(self, bg=theme.BG_PANEL)
-        row.pack(fill=tk.X, padx=_PANEL_PADDING_X, pady=(10, 6))
+        self._branch_row = tk.Frame(self, bg=theme.BG_PANEL)
+        self._branch_row.pack(fill=tk.X, padx=_PANEL_PADDING_X, pady=(10, 6))
 
         # Branch icon (drawn)
         self._branch_icon_canvas = tk.Canvas(
-            row,
+            self._branch_row,
             width=16,
             height=16,
             bg=theme.BG_PANEL,
@@ -137,7 +140,7 @@ class GitCard(UFrame):
 
         # Branch name (mono font, reflecting "code/identifier" semantics)
         self._branch_label = ULabel(
-            row,
+            self._branch_row,
             text=t("sidebar.git.no_repository"),
             variant="primary",
             bg=theme.BG_PANEL,
@@ -146,23 +149,23 @@ class GitCard(UFrame):
         self._branch_label.pack(side=tk.LEFT)
 
         # Right tracking chip (ahead/behind)
-        self._ahead_chip = self._make_chip(row, color=theme.GREEN)
+        self._ahead_chip = self._make_chip(self._branch_row, color=theme.GREEN)
         self._ahead_chip.pack(side=tk.RIGHT, padx=(4, 0))
         self._ahead_chip.pack_forget()
 
-        self._behind_chip = self._make_chip(row, color=theme.YELLOW)
+        self._behind_chip = self._make_chip(self._branch_row, color=theme.YELLOW)
         self._behind_chip.pack(side=tk.RIGHT, padx=(4, 0))
         self._behind_chip.pack_forget()
 
     # —— Action toolbar —— #
 
     def _build_toolbar(self) -> None:
-        bar = tk.Frame(self, bg=theme.BG_PANEL)
-        bar.pack(fill=tk.X, padx=_PANEL_PADDING_X, pady=(0, 6))
+        self._toolbar_frame = tk.Frame(self, bg=theme.BG_PANEL)
+        self._toolbar_frame.pack(fill=tk.X, padx=_PANEL_PADDING_X, pady=(0, 6))
 
         # Primary action: Commit (blue fill, variant='primary')
         self._btn_commit = UButton(
-            bar,
+            self._toolbar_frame,
             text=t("sidebar.git.commit"),
             command=self._on_commit,
             variant="primary",
@@ -175,7 +178,7 @@ class GitCard(UFrame):
 
         # Remote: refresh (right side)
         self._btn_refresh = UButton(
-            bar,
+            self._toolbar_frame,
             text="↻",
             command=self.refresh,
             variant="ghost",
@@ -187,7 +190,7 @@ class GitCard(UFrame):
 
         # Secondary group: Pull / Push (right-aligned, right to left)
         self._btn_pull = UButton(
-            bar,
+            self._toolbar_frame,
             text=t("sidebar.git.pull"),
             command=self._on_pull,
             variant="default",
@@ -198,7 +201,7 @@ class GitCard(UFrame):
         self._btn_pull.pack(side=tk.RIGHT, padx=(6, 0))
 
         self._btn_push = UButton(
-            bar,
+            self._toolbar_frame,
             text=t("sidebar.git.push"),
             command=self._on_push,
             variant="default",
@@ -211,21 +214,21 @@ class GitCard(UFrame):
     # —— Inline commit editor —— #
 
     def _build_commit_composer(self) -> None:
-        wrap = tk.Frame(self, bg=theme.BG_PANEL)
-        wrap.pack(fill=tk.X, padx=_PANEL_PADDING_X, pady=(0, 6))
+        self._composer_wrap = tk.Frame(self, bg=theme.BG_PANEL)
+        self._composer_wrap.pack(fill=tk.X, padx=_PANEL_PADDING_X, pady=(0, 6))
 
         # Border layer (using tk.Frame to simulate focus ring, grid wraps the real Text)
-        composer_frame = tk.Frame(
-            wrap,
+        self._composer_frame = tk.Frame(
+            self._composer_wrap,
             bg=theme.BORDER,
             bd=0,
             highlightthickness=0,
         )
-        composer_frame.pack(fill=tk.X)
+        self._composer_frame.pack(fill=tk.X)
 
         self._msg_var = tk.StringVar()
         self._msg_text = tk.Text(
-            composer_frame,
+            self._composer_frame,
             height=_COMPOSER_HEIGHT,
             bg=theme.BG_INPUT,
             fg=theme.FG_TERTIARY,
@@ -252,12 +255,12 @@ class GitCard(UFrame):
         self._msg_text.bind("<Button-1>", self._on_msg_focus_in, add="+")
 
         # Bottom row: Amend + shortcut hint
-        footer = tk.Frame(wrap, bg=theme.BG_PANEL)
-        footer.pack(fill=tk.X, pady=(4, 0))
+        self._composer_footer = tk.Frame(self._composer_wrap, bg=theme.BG_PANEL)
+        self._composer_footer.pack(fill=tk.X, pady=(4, 0))
 
         self._amend_var = tk.BooleanVar(value=False)
         self._amend_check = tk.Checkbutton(
-            footer,
+            self._composer_footer,
             text=t("sidebar.git.amend"),
             variable=self._amend_var,
             bg=theme.BG_PANEL,
@@ -273,24 +276,24 @@ class GitCard(UFrame):
         )
         self._amend_check.pack(side=tk.LEFT)
 
-        hint = ULabel(
-            footer,
+        self._composer_hint = ULabel(
+            self._composer_footer,
             text=t("sidebar.git.commit_hint"),
             variant="tertiary",
             bg=theme.BG_PANEL,
             font=theme.LABEL_FONT_SMALL,
         )
-        hint.pack(side=tk.RIGHT)
+        self._composer_hint.pack(side=tk.RIGHT)
 
     # —— Status bar —— #
 
     def _build_status_row(self) -> None:
-        row = tk.Frame(self, bg=theme.BG_PANEL, height=_STATUS_HEIGHT)
-        row.pack(fill=tk.X, padx=_PANEL_PADDING_X, pady=(2, 4))
-        row.pack_propagate(False)
+        self._status_row = tk.Frame(self, bg=theme.BG_PANEL, height=_STATUS_HEIGHT)
+        self._status_row.pack(fill=tk.X, padx=_PANEL_PADDING_X, pady=(2, 4))
+        self._status_row.pack_propagate(False)
 
         self._status_dot = tk.Frame(
-            row,
+            self._status_row,
             bg=theme.FG_TERTIARY,
             width=8,
             height=8,
@@ -301,7 +304,7 @@ class GitCard(UFrame):
         self._status_dot.pack(side=tk.LEFT, padx=(0, 6), pady=7)
 
         self._stats_label = ULabel(
-            row,
+            self._status_row,
             text="—",
             variant="secondary",
             bg=theme.BG_PANEL,
@@ -312,11 +315,11 @@ class GitCard(UFrame):
     # —— Two lists (STAGED / CHANGES) —— #
 
     def _build_lists(self) -> None:
-        panels = tk.Frame(self, bg=theme.BG_PANEL)
-        panels.pack(fill=tk.BOTH, expand=True, padx=4, pady=(0, 6))
+        self._lists_panels = tk.Frame(self, bg=theme.BG_PANEL)
+        self._lists_panels.pack(fill=tk.BOTH, expand=True, padx=4, pady=(0, 6))
 
         # Staged panel
-        self._staged_frame = tk.Frame(panels, bg=theme.BG_PANEL)
+        self._staged_frame = tk.Frame(self._lists_panels, bg=theme.BG_PANEL)
         self._staged_frame.grid(row=0, column=0, sticky="nsew")
         self._build_section_header(
             self._staged_frame,
@@ -333,7 +336,7 @@ class GitCard(UFrame):
         self._staged_view._on_select_cb = self._on_staged_select  # type: ignore
 
         # Changes panel
-        self._unstaged_frame = tk.Frame(panels, bg=theme.BG_PANEL)
+        self._unstaged_frame = tk.Frame(self._lists_panels, bg=theme.BG_PANEL)
         self._unstaged_frame.grid(row=1, column=0, sticky="nsew")
         self._build_section_header(
             self._unstaged_frame,
@@ -350,9 +353,9 @@ class GitCard(UFrame):
         self._unstaged_view._on_select_cb = self._on_unstaged_select  # type: ignore
 
         # Staged area slightly smaller, changes area slightly larger
-        panels.grid_rowconfigure(0, weight=2, uniform="git_rows")
-        panels.grid_rowconfigure(1, weight=3, uniform="git_rows")
-        panels.grid_columnconfigure(0, weight=1)
+        self._lists_panels.grid_rowconfigure(0, weight=2, uniform="git_rows")
+        self._lists_panels.grid_rowconfigure(1, weight=3, uniform="git_rows")
+        self._lists_panels.grid_columnconfigure(0, weight=1)
 
     # ─────────────────────────── helpers ───────────────────────────
 
@@ -384,6 +387,7 @@ class GitCard(UFrame):
         )
         lbl.pack()
         outer._label = lbl  # type: ignore[attr-defined]
+        outer._inner = inner  # type: ignore[attr-defined]
         outer._color = color  # type: ignore[attr-defined]
         return outer
 
@@ -464,6 +468,10 @@ class GitCard(UFrame):
         else:
             self._unstaged_count_label = count_lbl
             self._unstaged_hint_label = hint_lbl
+
+        if not hasattr(self, "_section_header_widgets"):
+            self._section_header_widgets: list[tuple[tk.Widget, ...]] = []
+        self._section_header_widgets.append((header, chevron, title_lbl, count_lbl))
 
     # —— Placeholder —— #
 
@@ -625,6 +633,7 @@ class GitCard(UFrame):
     def _refresh_views(self) -> None:
         staged = len(self._staged)
         unstaged = len(self._unstaged)
+        self._is_idle = False
 
         # Lists
         self._staged_view.set_data(self._staged)
@@ -677,6 +686,7 @@ class GitCard(UFrame):
         except tk.TclError:
             pass
         self._status_dot.config(bg=theme.FG_TERTIARY)
+        self._is_idle = True
         if hasattr(self, "_ahead_chip"):
             self._ahead_chip.pack_forget()
         if hasattr(self, "_behind_chip"):
@@ -813,12 +823,59 @@ class GitCard(UFrame):
             super()._apply_theme()
 
         try:
+            # Title bar
+            self._title_header.config(bg=theme.BG_TITLE)
             self._title_label.config(bg=theme.BG_TITLE, fg=theme.FG_SECONDARY)
             self._title_accent.config(bg=theme.TITLE_ACCENT)
+
+            # Branch row
+            self._branch_row.config(bg=theme.BG_PANEL)
             self._branch_label.config(bg=theme.BG_PANEL)
             self._branch_icon_canvas.config(bg=theme.BG_PANEL)
             self._draw_branch_icon()
+
+            # Chips
+            for chip in (self._ahead_chip, self._behind_chip):
+                chip.config(bg=theme.BG_RAISED)
+                chip._inner.config(bg=theme.BG_RAISED, highlightbackground=chip._color)  # type: ignore[attr-defined]
+                chip._label.config(bg=theme.BG_RAISED, fg=chip._color)  # type: ignore[attr-defined]
+
+            # Toolbar
+            self._toolbar_frame.config(bg=theme.BG_PANEL)
+
+            # Composer
+            self._composer_wrap.config(bg=theme.BG_PANEL)
+            self._composer_frame.config(bg=theme.BORDER)
+            self._composer_footer.config(bg=theme.BG_PANEL)
+            self._amend_check.config(
+                bg=theme.BG_PANEL,
+                fg=theme.FG_SECONDARY,
+                selectcolor=theme.BG_PANEL,
+                activebackground=theme.BG_PANEL,
+                activeforeground=theme.FG_PRIMARY,
+            )
+            self._composer_hint.config(bg=theme.BG_PANEL)
+
+            # Status row
+            self._status_row.config(bg=theme.BG_PANEL)
+            self._status_dot.config(bg=theme.FG_TERTIARY)
             self._stats_label.config(bg=theme.BG_PANEL)
+
+            # Lists panels
+            self._lists_panels.config(bg=theme.BG_PANEL)
+            self._staged_frame.config(bg=theme.BG_PANEL)
+            self._unstaged_frame.config(bg=theme.BG_PANEL)
+
+            # Section headers
+            for header, chevron, title_lbl, count_lbl in getattr(
+                self, "_section_header_widgets", []
+            ):
+                header.config(bg=theme.BG_TITLE)
+                chevron.config(bg=theme.BG_TITLE, fg=theme.FG_TERTIARY)
+                title_lbl.config(bg=theme.BG_TITLE, fg=theme.FG_SECONDARY)
+                count_lbl.config(bg=theme.BG_TITLE, fg=theme.FG_TERTIARY)
+
+            # Commit message text
             self._msg_text.config(
                 bg=theme.BG_INPUT,
                 insertbackground=theme.FG_PRIMARY,
@@ -828,6 +885,14 @@ class GitCard(UFrame):
                 self._msg_text.config(fg=theme.FG_TERTIARY)
             else:
                 self._msg_text.config(fg=theme.FG_PRIMARY)
+
+            # Re-apply status dot color based on current git state
+            if getattr(self, "_is_idle", True):
+                self._status_dot.config(bg=theme.FG_TERTIARY)
+            elif self._staged or self._unstaged:
+                self._status_dot.config(bg=theme.YELLOW)
+            else:
+                self._status_dot.config(bg=theme.GREEN)
         except tk.TclError:
             pass
 
