@@ -11,7 +11,7 @@ import sys
 
 # Windows Python 3.14 can lose the Tcl/Tk library path after repeated Tk
 # create/destroy cycles; pin it explicitly.
-_tcl_root = os.path.join(os.path.dirname(sys.executable), "tcl")
+_tcl_root = os.path.join(sys.base_prefix, "tcl")
 os.environ.setdefault("TCL_LIBRARY", os.path.join(_tcl_root, "tcl8.6"))
 os.environ.setdefault("TK_LIBRARY", os.path.join(_tcl_root, "tk8.6"))
 
