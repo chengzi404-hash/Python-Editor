@@ -69,7 +69,14 @@ class MenuBuilder:
         actions = host.actions
 
         bar = UMenuBar(host.window)
-        bar.pack(fill=tk.X, padx=0, pady=0)
+        # Insert the menu bar at the top of the window by packing it before the
+        # editor body (which has expand=True). Otherwise the body fills the
+        # window and pushes the menu bar to the bottom.
+        body = getattr(host, "_editor_body", None)
+        if body is not None:
+            bar.pack(fill=tk.X, padx=0, pady=0, before=body)
+        else:
+            bar.pack(fill=tk.X, padx=0, pady=0)
         self._menubar = bar
 
         file_menu = bar.add_cascade(t("menu.file"))
