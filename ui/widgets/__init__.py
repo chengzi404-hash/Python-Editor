@@ -24,6 +24,7 @@ from .sidebar import ActivityBar, ActivityBarItem, SideBar
 from .slider import USlider
 from .tab_bar import Tab, TabBar
 from .tab_view import UTabView
+from .terminal import UTerminal
 from .text import UText
 from .tree_canvas import TreeCanvas
 
@@ -61,6 +62,7 @@ __all__ = [
     "UShortcutConfigWindow",
     "USlider",
     "UTabView",
+    "UTerminal",
     "UText",
     "message_box",
     "theme",

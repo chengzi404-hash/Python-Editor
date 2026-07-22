@@ -281,6 +281,30 @@ GLOBAL_SPECS: tuple = (
         scope=SettingsScope.GLOBAL,
     ),
     SettingSpec(
+        key="terminal.shell_cmd",
+        type=SettingValueType.STRING,
+        default="",
+        label="Terminal Shell Command",
+        description=(
+            "Command (with arguments) used to launch the integrated terminal."
+            "Leave empty to use the default Windows PowerShell in interactive mode (`powershell.exe -NoLogo`)."
+            "Examples: `pwsh -NoLogo`, `cmd.exe /Q /K`, `bash -i`."
+            "Output encoding is detected per stream (UTF-8 by default, falling back to cp936 for Chinese Windows)."
+        ),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="terminal.auto_start",
+        type=SettingValueType.BOOLEAN,
+        default=True,
+        label="Auto-Start Terminal",
+        description=(
+            "Automatically launch the integrated shell when the editor starts."
+            "When off, the terminal stays idle until you press F5 or click the PowerShell button."
+        ),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
         key="startup.restore_files",
         type=SettingValueType.BOOLEAN,
         default=True,
