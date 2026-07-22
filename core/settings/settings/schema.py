@@ -383,6 +383,133 @@ GLOBAL_SPECS: tuple = (
         max=100,
         scope=SettingsScope.GLOBAL,
     ),
+    # ── AI ─────────────────────────────────────────────────────────────────
+    SettingSpec(
+        key="ai.provider",
+        type=SettingValueType.CHOICE,
+        default="auto",
+        label="AI Provider",
+        description=(
+            "Auto-detect picks a sensible default model from ai.base_url. "
+            "Choose explicit provider when your endpoint does not match a known pattern."
+        ),
+        choices=("auto", "openai", "anthropic", "google", "ollama", "custom"),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ai.base_url",
+        type=SettingValueType.STRING,
+        default="https://api.openai.com/v1",
+        label="AI Base URL",
+        description=(
+            "OpenAI-compatible endpoint root (no trailing slash). "
+            "Used for chat/completions, FIM and streaming. Provider auto-detected from URL host."
+        ),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ai.model",
+        type=SettingValueType.STRING,
+        default="",
+        label="AI Model",
+        description=(
+            "Model id sent in API requests. Empty = auto-pick based on ai.base_url "
+            "(gpt-4o-mini for openai.com, claude-3-5-sonnet-latest for anthropic.com, "
+            "gemini-1.5-flash for googleapis.com, qwen2.5-coder for ollama). "
+            "Set explicitly to override."
+        ),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ai.api_key",
+        type=SettingValueType.STRING,
+        default="",
+        label="AI API Key",
+        description=(
+            "Bearer token sent in the Authorization header. "
+            "Required for hosted providers; leave empty for local servers (Ollama, llama.cpp)."
+        ),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ai.max_content",
+        type=SettingValueType.INTEGER,
+        default=8000,
+        label="AI Max Content (chars)",
+        description=(
+            "Maximum characters of source code sent to the AI per request. "
+            "Larger values give the model more context but cost more tokens and increase latency."
+        ),
+        min=512,
+        max=200000,
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ai.timeout_s",
+        type=SettingValueType.INTEGER,
+        default=60,
+        label="AI Request Timeout (seconds)",
+        description="HTTP timeout for each AI request. Streaming chunks must arrive within this window.",
+        min=5,
+        max=600,
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ai.fim_enabled",
+        type=SettingValueType.BOOLEAN,
+        default=True,
+        label="AI FIM Tab Complete",
+        description=(
+            "When on, Alt+\\ sends the prefix/suffix around the cursor to the AI "
+            "and inserts the suggested completion."
+        ),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ai.fim_model",
+        type=SettingValueType.STRING,
+        default="",
+        label="AI FIM Model",
+        description=(
+            "Model id used for fill-in-the-middle (FIM) requests. "
+            "Empty = use the main ai.model. Useful when your chat model is too "
+            "large/slow for tab-completion and you prefer a smaller, faster model."
+        ),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ai.reasoning_effort",
+        type=SettingValueType.CHOICE,
+        default="",
+        label="AI Reasoning Effort",
+        description=(
+            "Controls how much the model \"thinks\" before responding. "
+            "\"off\" disables reasoning; \"low\" saves tokens; \"medium\" "
+            "balances speed and depth; \"high\" maximises reasoning quality. "
+            "Only supported by OpenAI o-series models (o1, o3, etc.)."
+        ),
+        choices=("", "off", "low", "medium", "high"),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ai.skills_marketplace_url",
+        type=SettingValueType.STRING,
+        default="",
+        label="AI Skills Marketplace URL",
+        description=(
+            "JSON index URL for the AI Skills / MCP marketplace. "
+            "Leave empty to use the bundled offline index. See docs/ai-skills.md for the schema."
+        ),
+        scope=SettingsScope.GLOBAL,
+    ),
+    SettingSpec(
+        key="ai.skills_marketplace",
+        type=SettingValueType.BUTTON,
+        default=None,
+        label="Browse AI Skills Marketplace...",
+        description="",
+        scope=SettingsScope.GLOBAL,
+    ),
     # ── Plugins ────────────────────────────────────────────────────────────
     SettingSpec(
         key="plugins.marketplace",

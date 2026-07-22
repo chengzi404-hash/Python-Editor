@@ -110,11 +110,66 @@ def _draw_marketplace(canvas: tk.Canvas, color: str) -> None:
         canvas.create_rectangle(x, pad, x + bar_width, ICON_SIZE - pad, fill=color, outline=color)
 
 
+def _draw_ai(canvas: tk.Canvas, color: str) -> None:
+    """Draw a sparkles / AI icon on existing Canvas."""
+    # Two 4-pointed sparkles — large on the upper-left, small on the lower-right.
+    pad = 3
+    cx1, cy1 = ICON_SIZE // 2 - 2, ICON_SIZE // 2 - 2
+    arm1 = 4
+    canvas.create_polygon(
+        [
+            cx1,
+            cy1 - arm1,
+            cx1 + 1,
+            cy1 - 1,
+            cx1 + arm1,
+            cy1,
+            cx1 + 1,
+            cy1 + 1,
+            cx1,
+            cy1 + arm1,
+            cx1 - 1,
+            cy1 + 1,
+            cx1 - arm1,
+            cy1,
+            cx1 - 1,
+            cy1 - 1,
+        ],
+        fill=color,
+        outline=color,
+    )
+    cx2, cy2 = ICON_SIZE - pad - 3, ICON_SIZE - pad - 3
+    arm2 = 2
+    canvas.create_polygon(
+        [
+            cx2,
+            cy2 - arm2,
+            cx2 + 1,
+            cy2 - 1,
+            cx2 + arm2,
+            cy2,
+            cx2 + 1,
+            cy2 + 1,
+            cx2,
+            cy2 + arm2,
+            cx2 - 1,
+            cy2 + 1,
+            cx2 - arm2,
+            cy2,
+            cx2 - 1,
+            cy2 - 1,
+        ],
+        fill=color,
+        outline=color,
+    )
+
+
 _DRAW_FUNCTIONS = {
     "explorer": _draw_explorer,
     "debug": _draw_debug,
     "git": _draw_git,
     "marketplace": _draw_marketplace,
+    "ai": _draw_ai,
 }
 
 

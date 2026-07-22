@@ -1,4 +1,6 @@
 from . import message_box, theme, ui_theme_marketplace
+from .ai_chat_card import AIChatCard
+from .ai_skills_window import AISkillsWindow
 from .button import UButton
 from .checkbutton import UCheckButton
 from .combobox import UComboBox
@@ -9,6 +11,7 @@ from .entry import UEntry
 from .explorer_card import ExplorerCard
 from .file_tree import UFileTree
 from .frame import UFrame
+from .ghost_text import UGhostText
 from .git_card import GitCard
 from .label import ULabel
 from .line_number import LineNumberCanvas
@@ -29,6 +32,8 @@ from .text import UText
 from .tree_canvas import TreeCanvas
 
 __all__ = [
+    "AIChatCard",
+    "AISkillsWindow",
     "ActivityBar",
     "ActivityBarItem",
     "CompletionItem",
@@ -50,6 +55,7 @@ __all__ = [
     "UEntry",
     "UFileTree",
     "UFrame",
+    "UGhostText",
     "ULabel",
     "UListView",
     "UMarketplaceWindow",

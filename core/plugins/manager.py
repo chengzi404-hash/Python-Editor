@@ -602,6 +602,64 @@ class PluginManager(PluginHostAPI):
                 value,
             )
 
+    @property
+    def editor(self) -> Any:
+        return self._editor
+
+    # ------------------------------------------------------------------
+    # Register built-in plugin
+    # ------------------------------------------------------------------
+
+    def register_builtin(self, plugin_id: str, module: Any) -> None:
+        """Programmatically register a built-in plugin module (not filesystem-based).
+
+        The module must define ``MANIFEST`` (a :class:`PluginManifest`) and
+        a ``register(ctx)`` function.  The plugin is treated as system-scoped.
+        """
+
+        from .api import PluginLoadError
+
+        manifest = getattr(module, "MANIFEST", None)
+        if not isinstance(manifest, PluginManifest):
+            raise PluginLoadError(
+                f"built-in plugin {plugin_id!r} missing a valid PluginManifest"
+            )
+        if plugin_id in self._plugins:
+            _log.warning("built-in plugin %r already loaded, skipping", plugin_id)
+            return
+
+        ctx = PluginContext(
+            plugin_id=manifest.id,
+            plugin_name=manifest.name,
+            host=self,
+        )
+        record = _PluginRecord(
+            manifest=manifest,
+            module=module,
+            ctx=ctx,
+            location="<built-in>",
+            scope="system",
+            enabled=True,
+        )
+        with self._lock:
+            self._plugins[manifest.id] = record
+
+        try:
+            register = getattr(module, "register", None)
+            if not callable(register):
+                raise PluginLoadError(
+                    f"built-in plugin {plugin_id!r} missing register(ctx) function"
+                )
+            register(ctx)
+        except Exception as exc:
+            tb = traceback.format_exc(limit=3)
+            _log.warning("built-in plugin %r register failed: %s\n%s", plugin_id, exc, tb)
+            record.error = f"register failed: {type(exc).__name__}: {exc}"
+            record.enabled = False
+            return
+
+        self._activate_record(record)
+
     # ------------------------------------------------------------------
     # Event dispatch
     # ------------------------------------------------------------------

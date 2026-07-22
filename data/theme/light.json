@@ -11,6 +11,7 @@
   "FG_PRIMARY": "#1a1a1a",
   "FG_SECONDARY": "#555555",
   "FG_TERTIARY": "#888888",
+  "FG_DIM": "#9a9a9a",
   "FG_DISABLED": "#b0b0b0",
   "BORDER": "#d0d0d0",
   "BORDER_STRONG": "#a8a8a8",

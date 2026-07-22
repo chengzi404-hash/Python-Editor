@@ -21,7 +21,7 @@ class _Debouncer:
         self._cancel = cancel
         self._after_id = None
 
-    def schedule(self, callback, delay_ms: int) -> None:
+    def schedule(self, delay_ms: int, callback) -> None:
         if self._after_id is not None:
             with contextlib.suppress(Exception):
                 self._cancel(self._after_id)
