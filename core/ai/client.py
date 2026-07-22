@@ -357,6 +357,13 @@ def _extract_stream_delta(provider: AIProvider, obj: dict[str, Any]) -> str:
 # ---- The main client -----------------------------------------------------
 
 
+_PROVIDERS_REQUIRING_API_KEY = (
+    AIProvider.OPENAI,
+    AIProvider.ANTHROPIC,
+    AIProvider.GOOGLE,
+)
+
+
 @dataclass
 class _Config:
     base_url: str = ""
@@ -470,13 +477,13 @@ class AIClient:
             self._cfg.reasoning_effort = (reasoning_effort or "").strip()
 
     def is_configured(self) -> bool:
-        """Return True if the client has the minimum required config (base_url + model).
+        """Return whether the client has the minimum configuration for its provider."""
 
-        We deliberately do not require ``api_key`` — local servers like Ollama
-        happily accept unauthenticated requests.
-        """
-
-        return bool(self._cfg.base_url) and bool(self.model)
+        if not self._cfg.base_url or not self.model:
+            return False
+        if self.provider in _PROVIDERS_REQUIRING_API_KEY:
+            return bool(self._cfg.api_key.strip())
+        return True
 
     # -- Request execution --------------------------------------------------
 
@@ -736,6 +743,8 @@ class AIClient:
             raise AIRequestError("AI base_url is not configured")
         if not self.model:
             raise AIRequestError("AI model could not be resolved from base_url")
+        if self.provider in _PROVIDERS_REQUIRING_API_KEY and not self._cfg.api_key.strip():
+            raise AIRequestError("AI api_key is not configured")
 
 
 # ---- Free helpers --------------------------------------------------------

@@ -117,6 +117,22 @@ class TestAIClientBasics:
         assert AIClient(base_url="http://x", model="").is_configured() is False
         assert AIClient(base_url="http://x", model="y").is_configured() is True
 
+    @pytest.mark.parametrize(
+        "base_url",
+        [
+            "https://api.openai.com/v1",
+            "https://api.anthropic.com",
+            "https://generativelanguage.googleapis.com/v1beta",
+        ],
+    )
+    def test_hosted_provider_requires_api_key(self, base_url):
+        assert AIClient(base_url=base_url, model="x").is_configured() is False
+        assert AIClient(base_url=base_url, api_key="key", model="x").is_configured() is True
+
+    def test_ollama_does_not_require_api_key(self):
+        client = AIClient(base_url="http://localhost:11434", model="qwen2.5-coder")
+        assert client.is_configured() is True
+
     def test_trailing_slash_is_normalized(self):
         client = AIClient(base_url="https://api.openai.com/v1/")
         assert client.base_url == "https://api.openai.com/v1"
@@ -154,6 +170,11 @@ class TestAIClientChat:
     def test_unconfigured_raises(self):
         client = AIClient(base_url="", model="")
         with pytest.raises(AIRequestError):
+            client.chat([ChatMessage(role="user", content="x")])
+
+    def test_hosted_provider_without_api_key_raises_before_request(self):
+        client = AIClient(base_url="https://api.openai.com/v1", model="gpt-4o-mini")
+        with pytest.raises(AIRequestError, match="api_key"):
             client.chat([ChatMessage(role="user", content="x")])
 
 
