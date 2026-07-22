@@ -1,0 +1,43 @@
+PS D:\Code\Python Editor> \ = [Console]::OpenStandardOutput()
+PS D:\Code\Python Editor> \ = New-Object System.Text.UTF8Encoding(\False)
+PS D:\Code\Python Editor> \ = New-Object System.IO.StreamWriter(\, \)
+PS D:\Code\Python Editor> [Console]::SetOut(\)
+PS D:\Code\Python Editor> ls
+
+
+    Ŀ¼: D:\Code\Python Editor
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+d-----         2026/7/17     19:12                .docs                                                                
+d-----         2026/7/17     19:14                .github                                                              
+d-----         2026/7/17     19:36                .mypy_cache                                                          
+d-----         2026/7/17     19:27                .pytest_cache                                                        
+d-----         2026/7/17     19:22                .ruff_cache                                                          
+d-----         2026/7/18     12:51                .venv                                                                
+d-----         2026/7/17     19:27                cache                                                                
+d-----         2026/7/17     19:21                core                                                                 
+d-----         2026/7/19     12:24                data                                                                 
+d-----         2026/7/15     20:00                docs                                                                 
+d-----         2026/7/21     12:06                tests                                                                
+d-----         2026/7/18     11:30                ui                                                                   
+d-----          2026/7/3     19:23                utils                                                                
+d-----         2026/7/16     20:56                __pycache__                                                          
+-a----         2026/7/18     10:43            235 .gitignore                                                           
+-a----         2026/7/18     10:51           3218 AGENTS.md                                                            
+-a----         2026/7/15     20:04           7289 build.ps1                                                            
+-a----         2026/7/15     19:55           5331 CODE_OF_CONDUCT.md                                                   
+-a----         2026/7/17     19:26           1615 CONTRIBUTING.md                                                      
+-a----         2026/7/18     12:13           1072 LICENSE                                                              
+-a----         2026/7/16     20:19            518 main.py                                                              
+-a----         2026/7/18     12:50           4008 pyproject.toml                                                       
+-a----         2026/7/10     15:16           2838 PythonEditor.spec                                                    
+-a----         2026/7/18     12:01           2848 README.md                                                            
+-a----         2026/7/18     11:55           2383 README.zh.md                                                         
+-a----         2026/7/18     10:44             42 reasonix.toml                                                        
+-a----         2026/7/18     12:51             13 requirements.txt                                                     
+-a----         2026/7/18     12:47          65089 uv.lock                                                              
+
+
+PS D:\Code\Python Editor> exit
