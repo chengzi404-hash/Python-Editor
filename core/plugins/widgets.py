@@ -340,18 +340,18 @@ class UPluginManagerWindow:
             ]
             d = discovered[idx]
             m = d.manifest
-            text = (
-                f"Name: {m.name}\n"
-                f"ID: {m.id}\n"
-                f"Version: {m.version}\n"
-                f"Author: {m.author or '(not provided)'}\n"
-                f"Scope: {m.scope}\n"
-                f"Source: {d.location}\n"
-                f"Status: not enabled"
+            text = t(
+                "plugin.info.template_discovered",
+                name=m.name,
+                id=m.id,
+                version=m.version or t("plugin.info.version_unknown"),
+                author=m.author or t("plugin.info.author_unknown"),
+                scope=m.scope,
+                location=d.location,
+                status=t("plugin.info.status.not_enabled"),
+                description=m.description or t("plugin.info.description_none"),
             )
-            if m.description:
-                text += f"\n\n{m.description}"
-            messagebox.showinfo(f"Plugin: {m.name}", text, parent=self._win)
+            messagebox.showinfo(t("dialog.title.plugin", name=m.name), text, parent=self._win)
             return
         messagebox.showinfo(
             t("plugin.manager.msg.details_title"),

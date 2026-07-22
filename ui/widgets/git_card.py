@@ -321,15 +321,18 @@ class GitCard(UFrame):
         # Staged panel
         self._staged_frame = tk.Frame(self._lists_panels, bg=theme.BG_PANEL)
         self._staged_frame.grid(row=0, column=0, sticky="nsew")
+        col_git_status = t("sidebar.git.col_status")
+        col_git_file = t("sidebar.git.col_file")
         self._build_section_header(
             self._staged_frame,
             title=t("sidebar.git.staged_changes"),
             empty_hint=t("sidebar.git.no_staged"),
+            kind="staged",
         )
         self._staged_view = UListView(
             self._staged_frame,
-            columns=["Status", "File"],
-            column_widths={"Status": 36, "File": 200},
+            columns=[col_git_status, col_git_file],
+            column_widths={col_git_status: 36, col_git_file: 200},
             show_header=False,
         )
         self._staged_view.pack(fill=tk.BOTH, expand=True, padx=4, pady=(2, 4))
@@ -342,11 +345,12 @@ class GitCard(UFrame):
             self._unstaged_frame,
             title=t("sidebar.git.changes"),
             empty_hint=t("sidebar.git.working_clean"),
+            kind="unstaged",
         )
         self._unstaged_view = UListView(
             self._unstaged_frame,
-            columns=["Status", "File"],
-            column_widths={"Status": 36, "File": 200},
+            columns=[col_git_status, col_git_file],
+            column_widths={col_git_status: 36, col_git_file: 200},
             show_header=False,
         )
         self._unstaged_view.pack(fill=tk.BOTH, expand=True, padx=4, pady=(2, 4))
@@ -415,6 +419,7 @@ class GitCard(UFrame):
         *,
         title: str,
         empty_hint: str,
+        kind: str,
     ) -> None:
         """Generate a section header with chevron, title, count, and empty state hint."""
         header = tk.Frame(parent, bg=theme.BG_TITLE, height=_SECTION_HEADER_HEIGHT)
@@ -462,7 +467,7 @@ class GitCard(UFrame):
         )
         hint_lbl.pack(side=tk.RIGHT, padx=8)
 
-        if title.startswith("STAGED"):
+        if kind == "staged":
             self._staged_count_label = count_lbl
             self._staged_hint_label = hint_lbl
         else:
@@ -760,7 +765,10 @@ class GitCard(UFrame):
                 self._set_placeholder()
                 self.refresh()
             else:
-                showerror(t("sidebar.git.dialog.commit_error_title"), r.stderr or "Unknown error")
+                showerror(
+                    t("sidebar.git.dialog.commit_error_title"),
+                    r.stderr or t("plugin.error.unknown"),
+                )
         except Exception as e:
             showerror(t("sidebar.git.dialog.commit_error_title"), str(e))
 
@@ -779,7 +787,10 @@ class GitCard(UFrame):
             if r.returncode == 0:
                 self.refresh()
             else:
-                showerror(t("sidebar.git.dialog.push_error_title"), r.stderr or "Unknown error")
+                showerror(
+                    t("sidebar.git.dialog.push_error_title"),
+                    r.stderr or t("plugin.error.unknown"),
+                )
         except Exception as e:
             showerror(t("sidebar.git.dialog.push_error_title"), str(e))
 
@@ -798,7 +809,10 @@ class GitCard(UFrame):
             if r.returncode == 0:
                 self.refresh()
             else:
-                showerror(t("sidebar.git.dialog.pull_error_title"), r.stderr or "Unknown error")
+                showerror(
+                    t("sidebar.git.dialog.pull_error_title"),
+                    r.stderr or t("plugin.error.unknown"),
+                )
         except Exception as e:
             showerror(t("sidebar.git.dialog.pull_error_title"), str(e))
 

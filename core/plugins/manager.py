@@ -41,6 +41,8 @@ from typing import (
     Any,
 )
 
+from core.settings.i18n import t
+
 from .api import (
     LanguageContribution,
     PluginContext,
@@ -195,7 +197,7 @@ class PluginManager(PluginHostAPI):
             return PluginManifest(
                 id=os.path.basename(directory),
                 name=os.path.basename(directory),
-                description="(cannot read manifest)",
+                description=t("plugin.error.manifest_unreadable"),
             )
         module = importlib.util.module_from_spec(spec)
         try:
@@ -204,14 +206,14 @@ class PluginManager(PluginHostAPI):
             return PluginManifest(
                 id=os.path.basename(directory),
                 name=os.path.basename(directory),
-                description="(cannot read manifest)",
+                description=t("plugin.error.manifest_unreadable"),
             )
         manifest = getattr(module, "MANIFEST", None)
         if not isinstance(manifest, PluginManifest):
             return PluginManifest(
                 id=os.path.basename(directory),
                 name=os.path.basename(directory),
-                description="(MANIFEST undefined or type error)",
+                description=t("plugin.error.no_manifest"),
             )
         return manifest
 
@@ -494,7 +496,7 @@ class PluginManager(PluginHostAPI):
         return PluginManifest(
             id=fallback.manifest.id or os.path.basename(fallback.location),
             name=fallback.manifest.name or os.path.basename(fallback.location),
-            description="(plugin did not declare MANIFEST)",
+            description=t("plugin.error.no_manifest"),
         )
 
     # ------------------------------------------------------------------
@@ -626,7 +628,13 @@ class PluginManager(PluginHostAPI):
             tb = traceback.format_exc(limit=3)
             _log.warning("plugin command failed: %s\n%s", exc, tb)
             self.append_output(
-                f"[ERROR] [{cmd.plugin_id}] command {cmd.label!r} execution failed: {exc}\n"
+                t(
+                    "plugin.error.cmd_failed",
+                    id=cmd.plugin_id,
+                    label=cmd.label,
+                    err=exc,
+                )
+                + "\n"
             )
 
     def _safe_invoke_handler(
@@ -641,7 +649,13 @@ class PluginManager(PluginHostAPI):
             tb = traceback.format_exc(limit=3)
             _log.warning("plugin hook %s failed: %s\n%s", sub.hook, exc, tb)
             self.append_output(
-                f"[ERROR] [{sub.plugin_id}] hook {sub.hook!r} callback failed: {exc}\n"
+                t(
+                    "plugin.error.hook_failed",
+                    id=sub.plugin_id,
+                    hook=sub.hook,
+                    err=exc,
+                )
+                + "\n"
             )
 
     # ------------------------------------------------------------------

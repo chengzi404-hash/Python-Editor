@@ -6,8 +6,9 @@
   "menu.file.save": "Save",
   "menu.file.save_as": "Save As...",
   "menu.file.close_tab": "Close Tab",
-  "menu.file.run": "Run",
+  "menu.file.open_terminal": "Open Terminal",
   "menu.file.check": "Check",
+  "menu.file.run": "Run",
   "menu.file.clear_output": "Clear Output",
   "menu.file.exit": "Exit",
 
@@ -75,6 +76,24 @@
   "menu.language.en_US": "English",
 
   "panel.output": "  Output",
+  "panel.terminal": "  Terminal",
+  "panel.terminal.idle": "Idle",
+  "panel.terminal.running": "Running",
+  "panel.btn.shell": "PowerShell",
+  "panel.btn.stop": "Stop",
+  "panel.btn.clear": "Clear",
+  "output.interrupted": "Interrupted",
+  "output.shell_starting": "Starting PowerShell",
+  "output.shell_exited": "PowerShell exited (code {code})",
+  "output.error": "ERROR",
+  "output.checking": "Checking",
+  "output.check_done": "Check done",
+  "output.check_unsupported": "Check not supported for {lang}",
+  "output.terminal_prompt": "PS {path}> ",
+  "output.terminal_banner": "========================================",
+  "output.shell_check_error": "{msg}: {err}",
+
+  "tab.title.untitled": "Untitled",
 
   "sidebar.explorer": "EXPLORER",
 
@@ -135,6 +154,10 @@
   "sidebar.git.dialog.pull_msg": "No remote repository configured.",
   "sidebar.git.dialog.pull_error_title": "Pull Error",
 
+  "sidebar.tab.close": "Close",
+  "sidebar.tab.close_others": "Close Others",
+  "sidebar.tab.close_all": "Close All",
+
   "status.ready": "Ready",
   "status.loading": "Loading: {name} ({size})",
   "status.opened": "Opened: {name}",
@@ -162,6 +185,7 @@
   "status.reparsed": "Re-parsed",
   "status.goto_definition": "Jumped to line {line}",
   "status.editor_lang_changed": "Switched to {lang}",
+  "status.no_code_to_check": "No code to check",
 
   "status.pos": "Ln {line}, Col {col}",
 
@@ -206,6 +230,8 @@
   "dialog.title.plugin_error": "Plugin Error",
   "dialog.title.open_project": "Choose Project Root",
   "dialog.title.choose_project": "Choose Project Root",
+  "dialog.title.plugins_reloaded": "Plugins Reloaded",
+  "dialog.title.plugin_manager_error": "Plugin Manager",
 
   "dialog.unsaved_exit.message": "You have unsaved changes. Exit anyway?",
   "dialog.unsaved_discard.message": "Discard current changes?",
@@ -229,6 +255,8 @@
   "dialog.find_documentation.no_doc": "(No docstring)",
   "dialog.find_documentation.from_module": "From: {module}",
   "dialog.find_documentation.unsupported_lang": "Find Documentation is not supported for {lang}",
+  "dialog.find_documentation.title": "Documentation: {word}",
+  "dialog.find_documentation.header": "{word}  —  {type}",
   "dialog.settings.load_failed": "Failed to load settings panel: {err}",
   "dialog.project_settings.no_project": "No project attached. Select a project directory?",
   "dialog.project_settings.load_failed": "Failed to load settings panel: {err}",
@@ -240,6 +268,8 @@
   "dialog.plugin.error": "Plugin command failed: {err}",
   "dialog.plugin_manager.load_failed": "Failed to load plugin manager: {err}",
   "dialog.plugin_manager.open_failed": "Failed to open plugin manager: {err}",
+  "dialog.plugins_reloaded.message": "Plugins reloaded successfully",
+  "dialog.check_updates.message": "Already up to date (0.1.0)",
   "dialog.goto_line.prompt": "Line number:",
 
   "find.find_label": "Find:",
@@ -254,6 +284,7 @@
   "settings.project_settings": "Project Settings...",
 
   "dialog.about.message": "Python Editor\nVersion 0.1.0\n\nBuilt on Tkinter with the in-house Uui widget library.\nSyntax highlight / Smart completion / Static check / Run code",
+  "dialog.about.body": "Python Editor v0.1.0\nA Tkinter-based code editor",
   "dialog.docs.message": "Python Editor\n\nA lightweight multi-language code editor.\n\nFeatures:\n• Syntax highlight (Python / C / C++)\n• Smart completion\n• Static checks (Flake8 / Pyright / CPython)\n• Code runner (Python / GCC / G++)\n• Multiple themes\n\nSee Help → Shortcuts for the full keybinding list.",
   "dialog.updates.message": "Already up to date (0.1.0)",
   "dialog.report_issue.message": "Please open an issue on the GitHub repository.",
@@ -261,10 +292,21 @@
   "shortcuts.text": "File:\n  New            Ctrl+N\n  Open           Ctrl+O\n  Open Project   Ctrl+Shift+O\n  Save           Ctrl+S\n  Save As        Ctrl+Shift+S\n  Run            F5\n  Check          Ctrl+R\n  Clear Output   Ctrl+L\n\nEdit:\n  Undo           Ctrl+Z\n  Redo           Ctrl+Y\n  Cut            Ctrl+X\n  Copy            Ctrl+C\n  Paste          Ctrl+V\n  Select All     Ctrl+A\n  Find           Ctrl+F\n  Replace        Ctrl+H\n  Go to Line     Ctrl+G\n  Toggle Comment Ctrl+/\n\nQuery:\n  Go to Definition  F12\n  Find References   Shift+F12\n  Reparse           F6\n  Refresh Highlight F7\n  Trigger Suggest   Ctrl+Space\n  Hide Suggest      Esc\n\nHelp:\n  Documentation  F1\n  Shortcuts      Ctrl+K",
 
   "plugin.info.template": "Name: {name}\nID: {id}\nVersion: {version}\nAuthor: {author}\nScope: {scope}\nSource: {location}\nStatus: {status}",
+  "plugin.info.template_discovered": "Name: {name}\nID: {id}\nVersion: {version}\nAuthor: {author}\nScope: {scope}\nSource: {location}\nStatus: {status}\n\n{description}",
   "plugin.info.author_unknown": "(not provided)",
   "plugin.info.status.enabled": "Enabled",
   "plugin.info.status.disabled": "Disabled",
+  "plugin.info.status.not_enabled": "not enabled",
   "plugin.info.errors_header": "Errors:",
+  "plugin.info.description_none": "(No description)",
+  "plugin.info.version_unknown": "(not provided)",
+  "plugin.info.source_unknown": "(unknown)",
+  "plugin.info.error": "Errors: {err}",
+  "plugin.error.manifest_unreadable": "(cannot read manifest)",
+  "plugin.error.no_manifest": "(plugin did not declare MANIFEST)",
+  "plugin.error.unknown": "Unknown error",
+  "plugin.error.cmd_failed": "[ERROR] [{id}] command {label!r} execution failed: {err}",
+  "plugin.error.hook_failed": "[ERROR] [{id}] hook {hook!r} callback failed: {err}",
   "plugin.menu.item": "● {name}  ({status}){error}",
   "plugin.menu.errors_prefix": "  [Error: {err}]",
 
@@ -400,6 +442,10 @@
   "settings.runner.clear_output_before_run.desc": "Clear output before running.",
   "settings.runner.stream_output.label": "Streaming Output",
   "settings.runner.stream_output.desc": "Output subprocess stdout/stderr in real-time line by line during execution. When off, output all at once after subprocess completes.",
+  "settings.terminal.shell_cmd.label": "Terminal Shell Command",
+  "settings.terminal.shell_cmd.desc": "Command and arguments used to launch the integrated terminal. Leave empty for the default Windows PowerShell in interactive mode (`powershell.exe -NoLogo`). Examples: `pwsh -NoLogo`, `cmd.exe /Q /K`, `bash -i`.",
+  "settings.terminal.auto_start.label": "Auto-Start Terminal",
+  "settings.terminal.auto_start.desc": "Launch the integrated shell automatically when the editor opens. When off, the terminal stays idle until you press F5 or click the PowerShell button.",
   "settings.startup.restore_files.label": "Restore Last Opened Files",
   "settings.startup.restore_files.desc": "Restore files opened in the last session.",
   "settings.i18n.language.label": "Interface Language",
@@ -464,6 +510,11 @@
   "settings.button.restore_defaults": "Restore Defaults",
   "settings.confirm.restore": "Clear all custom values in the current scope?",
 
+  "dialog.btn.ok": "OK",
+  "dialog.btn.yes": "Yes",
+  "dialog.btn.no": "No",
+  "dialog.btn.cancel": "Cancel",
+
   "dialog.title.shortcut_config": "Shortcut Configuration",
   "shortcut.column.action": "Action",
   "shortcut.column.current": "Current Shortcut",
@@ -479,7 +530,7 @@
   "shortcut.action_names.save_file": "Save",
   "shortcut.action_names.save_file_as": "Save As",
   "shortcut.action_names.run_check": "Check Code",
-  "shortcut.action_names.run_code": "Run Code",
+  "shortcut.action_names.open_shell": "Open PowerShell",
   "shortcut.action_names.clear_output": "Clear Output",
   "shortcut.action_names.undo": "Undo",
   "shortcut.action_names.redo": "Redo",
@@ -504,5 +555,10 @@
   "suggestion.kind.class": "class",
   "suggestion.kind.variable": "variable",
   "suggestion.kind.attribute": "attribute",
-  "suggestion.kind.module": "module"
+  "suggestion.kind.module": "module",
+
+  "suggestion.footer.hint": "↑↓ Navigate   Tab Select   Esc Close",
+  "suggestion.footer.navigate": "↑↓ Navigate",
+  "suggestion.footer.select": "Tab Select",
+  "suggestion.footer.close": "Esc Close"
 }

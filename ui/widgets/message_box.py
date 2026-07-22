@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import tkinter as tk
 
+from core.settings.i18n import t
+
 from . import theme
 from .button import UButton
 from .frame import UFrame
@@ -62,7 +64,9 @@ def showinfo(title: str, message: str, parent=None, **kwargs):
     def close():
         dlg.destroy()
 
-    UButton(dlg.btn_area, text="OK", variant="primary", command=close, width=80).pack(side=tk.RIGHT)
+    UButton(dlg.btn_area, text=t("dialog.btn.ok"), variant="primary", command=close, width=80).pack(
+        side=tk.RIGHT
+    )
     dlg.wait_window()
 
 
@@ -78,7 +82,9 @@ def showerror(title: str, message: str, parent=None, **kwargs):
     def close():
         dlg.destroy()
 
-    UButton(dlg.btn_area, text="OK", variant="danger", command=close, width=80).pack(side=tk.RIGHT)
+    UButton(dlg.btn_area, text=t("dialog.btn.ok"), variant="danger", command=close, width=80).pack(
+        side=tk.RIGHT
+    )
     dlg.wait_window()
 
 
@@ -94,7 +100,9 @@ def showwarning(title: str, message: str, parent=None, **kwargs):
     def close():
         dlg.destroy()
 
-    UButton(dlg.btn_area, text="OK", variant="warning", command=close, width=80).pack(side=tk.RIGHT)
+    UButton(dlg.btn_area, text=t("dialog.btn.ok"), variant="warning", command=close, width=80).pack(
+        side=tk.RIGHT
+    )
     dlg.wait_window()
 
 
@@ -121,10 +129,12 @@ def askyesno(title: str, message: str, parent=None, **kwargs) -> bool:
 
     btn_frame = UFrame(dlg.btn_area, variant="panel")
     btn_frame.pack(side=tk.RIGHT)
-    UButton(btn_frame, text="Yes", variant="primary", command=on_yes, width=70).pack(
+    UButton(btn_frame, text=t("dialog.btn.yes"), variant="primary", command=on_yes, width=70).pack(
         side=tk.LEFT, padx=5
     )
-    UButton(btn_frame, text="No", variant="ghost", command=on_no, width=70).pack(side=tk.LEFT)
+    UButton(btn_frame, text=t("dialog.btn.no"), variant="ghost", command=on_no, width=70).pack(
+        side=tk.LEFT
+    )
 
     dlg.wait_window()
     return result
@@ -163,12 +173,12 @@ def askstring_custom(parent, title: str, prompt: str, initialvalue: str = "") ->
 
     btn_frame = UFrame(dlg.btn_area, variant="panel")
     btn_frame.pack(side=tk.RIGHT)
-    UButton(btn_frame, text="OK", variant="primary", command=on_ok, width=70).pack(
+    UButton(btn_frame, text=t("dialog.btn.ok"), variant="primary", command=on_ok, width=70).pack(
         side=tk.LEFT, padx=5
     )
-    UButton(btn_frame, text="Cancel", variant="ghost", command=on_cancel, width=70).pack(
-        side=tk.LEFT
-    )
+    UButton(
+        btn_frame, text=t("dialog.btn.cancel"), variant="ghost", command=on_cancel, width=70
+    ).pack(side=tk.LEFT)
 
     dlg.wait_window()
     return result

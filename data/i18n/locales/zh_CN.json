@@ -6,8 +6,9 @@
   "menu.file.save": "保存",
   "menu.file.save_as": "另存为...",
   "menu.file.close_tab": "关闭标签",
-  "menu.file.run": "运行",
+  "menu.file.open_terminal": "打开终端",
   "menu.file.check": "检查",
+  "menu.file.run": "运行",
   "menu.file.clear_output": "清除输出",
   "menu.file.exit": "退出",
 
@@ -75,6 +76,24 @@
   "menu.language.en_US": "English",
 
   "panel.output": "  输出",
+  "panel.terminal": "  终端",
+  "panel.terminal.idle": "空闲",
+  "panel.terminal.running": "运行中",
+  "panel.btn.shell": "PowerShell",
+  "panel.btn.stop": "停止",
+  "panel.btn.clear": "清空",
+  "output.interrupted": "已中断",
+  "output.shell_starting": "正在启动 PowerShell",
+  "output.shell_exited": "PowerShell 已退出 (code {code})",
+  "output.error": "错误",
+  "output.checking": "正在检查",
+  "output.check_done": "检查完成",
+  "output.check_unsupported": "{lang} 语言暂不支持检查",
+  "output.terminal_prompt": "PS {path}> ",
+  "output.terminal_banner": "========================================",
+  "output.shell_check_error": "{msg}:{err}",
+
+  "tab.title.untitled": "未命名",
 
   "sidebar.explorer": "资源管理器",
 
@@ -135,6 +154,10 @@
   "sidebar.git.dialog.pull_msg": "未配置远程仓库。",
   "sidebar.git.dialog.pull_error_title": "拉取错误",
 
+  "sidebar.tab.close": "关闭",
+  "sidebar.tab.close_others": "关闭其他",
+  "sidebar.tab.close_all": "全部关闭",
+
   "status.ready": "就绪",
   "status.loading": "加载中: {name} ({size})",
   "status.opened": "已打开: {name}",
@@ -162,6 +185,7 @@
   "status.reparsed": "已重新解析",
   "status.goto_definition": "已跳转到第 {line} 行",
   "status.editor_lang_changed": "已切换到 {lang}",
+  "status.no_code_to_check": "无代码可检查",
 
   "status.pos": "第 {line} 行, 第 {col} 列",
 
@@ -206,6 +230,8 @@
   "dialog.title.plugin_error": "插件错误",
   "dialog.title.open_project": "选择项目根目录",
   "dialog.title.choose_project": "选择项目根目录",
+  "dialog.title.plugins_reloaded": "插件已重新加载",
+  "dialog.title.plugin_manager_error": "插件管理",
 
   "dialog.unsaved_exit.message": "有未保存的修改,确认退出?",
   "dialog.unsaved_discard.message": "丢弃当前修改?",
@@ -229,6 +255,8 @@
   "dialog.find_documentation.no_doc": "(无文档字符串)",
   "dialog.find_documentation.from_module": "来自: {module}",
   "dialog.find_documentation.unsupported_lang": "{lang} 语言暂不支持查找文档",
+  "dialog.find_documentation.title": "文档: {word}",
+  "dialog.find_documentation.header": "{word}  —  {type}",
   "dialog.settings.load_failed": "设置面板加载失败:{err}",
   "dialog.project_settings.no_project": "当前没有附加项目。是否选择一个项目目录?",
   "dialog.project_settings.load_failed": "设置面板加载失败:{err}",
@@ -240,6 +268,8 @@
   "dialog.plugin.error": "插件命令执行失败:{err}",
   "dialog.plugin_manager.load_failed": "加载插件管理窗口失败:{err}",
   "dialog.plugin_manager.open_failed": "打开插件管理失败:{err}",
+  "dialog.plugins_reloaded.message": "插件已重新加载",
+  "dialog.check_updates.message": "已是最新版本 (0.1.0)",
   "dialog.goto_line.prompt": "行号:",
 
   "find.find_label": "查找内容:",
@@ -254,6 +284,7 @@
   "settings.project_settings": "项目设置...",
 
   "dialog.about.message": "Python Editor\n版本 0.1.0\n\n基于 Tkinter + 自研 Uui 组件库\n语法高亮 / 智能补全 / 静态检查 / 代码运行",
+  "dialog.about.body": "Python Editor v0.1.0\n基于 Tkinter 的代码编辑器",
   "dialog.docs.message": "Python Editor\n\n一个轻量级多语言代码编辑器。\n\n功能:\n• 语法高亮 (Python / C / C++)\n• 智能补全\n• 静态检查 (Flake8 / Pyright / CPython)\n• 代码运行 (Python / GCC / G++)\n• 多主题切换\n\n快捷键详见 帮助 → 快捷键",
   "dialog.updates.message": "已是最新版本 (0.1.0)",
   "dialog.report_issue.message": "请前往 GitHub 仓库提交 Issue。",
@@ -261,10 +292,21 @@
   "shortcuts.text": "文件:\n  新建         Ctrl+N\n  打开         Ctrl+O\n  打开项目     Ctrl+Shift+O\n  保存         Ctrl+S\n  另存为       Ctrl+Shift+S\n  运行         F5\n  检查         Ctrl+R\n  清除输出     Ctrl+L\n\n编辑:\n  撤销         Ctrl+Z\n  重做         Ctrl+Y\n  剪切         Ctrl+X\n  复制         Ctrl+C\n  粘贴         Ctrl+V\n  全选         Ctrl+A\n  查找         Ctrl+F\n  替换         Ctrl+H\n  转到行       Ctrl+G\n  切换注释     Ctrl+/\n\n查询:\n  跳转到定义   F12\n  查找引用     Shift+F12\n  重新解析     F6\n  刷新高亮     F7\n  触发建议     Ctrl+Space\n  隐藏建议     Esc\n\n帮助:\n  文档         F1\n  快捷键       Ctrl+K",
 
   "plugin.info.template": "名称: {name}\nID: {id}\n版本: {version}\n作者: {author}\n作用域: {scope}\n来源: {location}\n状态: {status}",
+  "plugin.info.template_discovered": "名称: {name}\nID: {id}\n版本: {version}\n作者: {author}\n作用域: {scope}\n来源: {location}\n状态: {status}\n\n{description}",
   "plugin.info.author_unknown": "(未提供)",
   "plugin.info.status.enabled": "启用",
   "plugin.info.status.disabled": "禁用",
+  "plugin.info.status.not_enabled": "未启用",
   "plugin.info.errors_header": "错误:",
+  "plugin.info.description_none": "(无描述)",
+  "plugin.info.version_unknown": "(未提供)",
+  "plugin.info.source_unknown": "(未知)",
+  "plugin.info.error": "错误: {err}",
+  "plugin.error.manifest_unreadable": "(无法读取清单)",
+  "plugin.error.no_manifest": "(插件未声明 MANIFEST)",
+  "plugin.error.unknown": "未知错误",
+  "plugin.error.cmd_failed": "[错误] [{id}] 命令 {label!r} 执行失败: {err}",
+  "plugin.error.hook_failed": "[错误] [{id}] 钩子 {hook!r} 回调失败: {err}",
   "plugin.menu.item": "● {name}  ({status}){error}",
   "plugin.menu.errors_prefix": "  [错误: {err}]",
 
@@ -400,6 +442,10 @@
   "settings.runner.clear_output_before_run.desc": "运行前清空输出。",
   "settings.runner.stream_output.label": "流式输出",
   "settings.runner.stream_output.desc": "运行过程中实时逐行输出子进程 stdout/stderr。关闭时等待子进程结束后一次性输出。",
+  "settings.terminal.shell_cmd.label": "终端命令",
+  "settings.terminal.shell_cmd.desc": "启动集成终端所用的命令与参数; 留空使用默认的 Windows PowerShell 交互模式 (`powershell.exe -NoLogo`)。示例: `pwsh -NoLogo`, `cmd.exe /Q /K`, `bash -i`。",
+  "settings.terminal.auto_start.label": "启动时自动打开终端",
+  "settings.terminal.auto_start.desc": "编辑器启动时自动拉起集成 shell。关闭后, 终端面板保持空闲, 直到按 F5 或点击 PowerShell 按钮。",
   "settings.startup.restore_files.label": "恢复上次打开的文件",
   "settings.startup.restore_files.desc": "恢复上次会话中打开的文件。",
   "settings.i18n.language.label": "界面语言",
@@ -464,6 +510,11 @@
   "settings.button.restore_defaults": "恢复默认",
   "settings.confirm.restore": "确认将当前作用域的全部自定义值清除?",
 
+  "dialog.btn.ok": "确定",
+  "dialog.btn.yes": "是",
+  "dialog.btn.no": "否",
+  "dialog.btn.cancel": "取消",
+
   "dialog.title.shortcut_config": "快捷键配置",
   "shortcut.column.action": "操作",
   "shortcut.column.current": "当前快捷键",
@@ -479,7 +530,7 @@
   "shortcut.action_names.save_file": "保存",
   "shortcut.action_names.save_file_as": "另存为",
   "shortcut.action_names.run_check": "检查代码",
-  "shortcut.action_names.run_code": "运行代码",
+  "shortcut.action_names.open_shell": "打开 PowerShell",
   "shortcut.action_names.clear_output": "清除输出",
   "shortcut.action_names.undo": "撤销",
   "shortcut.action_names.redo": "重做",
@@ -504,5 +555,10 @@
   "suggestion.kind.class": "类",
   "suggestion.kind.variable": "变量",
   "suggestion.kind.attribute": "属性",
-  "suggestion.kind.module": "模块"
+  "suggestion.kind.module": "模块",
+
+  "suggestion.footer.hint": "↑↓ 切换   Tab 选择   Esc 关闭",
+  "suggestion.footer.navigate": "↑↓ 切换",
+  "suggestion.footer.select": "Tab 选择",
+  "suggestion.footer.close": "Esc 关闭"
 }

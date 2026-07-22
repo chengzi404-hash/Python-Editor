@@ -384,10 +384,12 @@ class DebugCard(UFrame):
         self._variables_panel_frame = tk.Frame(self._panels_frame, bg=theme.BG_PANEL)
         self._variables_panel_frame.grid(row=0, column=0, sticky="nsew")
         self._build_section(t("sidebar.debug.variables"), self._variables_panel_frame)
+        col_var_name = t("sidebar.debug.col_name")
+        col_var_value = t("sidebar.debug.col_value")
         self._variables_view = UListView(
             self._variables_panel_frame,
-            columns=[t("sidebar.debug.col_name"), t("sidebar.debug.col_value")],
-            column_widths={"Name": 120, "Value": 120},
+            columns=[col_var_name, col_var_value],
+            column_widths={col_var_name: 120, col_var_value: 120},
             show_header=True,
         )
         self._variables_view.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -396,14 +398,13 @@ class DebugCard(UFrame):
         self._stack_panel_frame = tk.Frame(self._panels_frame, bg=theme.BG_PANEL)
         self._stack_panel_frame.grid(row=1, column=0, sticky="nsew")
         self._build_section(t("sidebar.debug.call_stack"), self._stack_panel_frame)
+        col_stack_num = t("sidebar.debug.col_num")
+        col_stack_function = t("sidebar.debug.col_function")
+        col_stack_location = t("sidebar.debug.col_location")
         self._call_stack_view = UListView(
             self._stack_panel_frame,
-            columns=[
-                t("sidebar.debug.col_num"),
-                t("sidebar.debug.col_function"),
-                t("sidebar.debug.col_location"),
-            ],
-            column_widths={"#": 30, "Function": 100, "Location": 100},
+            columns=[col_stack_num, col_stack_function, col_stack_location],
+            column_widths={col_stack_num: 30, col_stack_function: 100, col_stack_location: 100},
             show_header=True,
         )
         self._call_stack_view.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -412,10 +413,13 @@ class DebugCard(UFrame):
         self._breakpoints_panel_frame = tk.Frame(self._panels_frame, bg=theme.BG_PANEL)
         self._breakpoints_panel_frame.grid(row=2, column=0, sticky="nsew")
         self._build_section(t("sidebar.debug.breakpoints"), self._breakpoints_panel_frame)
+        col_bp_index = ""
+        col_bp_file = t("sidebar.debug.col_file")
+        col_bp_line = t("sidebar.debug.col_line")
         self._breakpoints_view = UListView(
             self._breakpoints_panel_frame,
-            columns=["", t("sidebar.debug.col_file"), t("sidebar.debug.col_line")],
-            column_widths={"": 20, "File": 120, "Line": 40},
+            columns=[col_bp_index, col_bp_file, col_bp_line],
+            column_widths={col_bp_index: 20, col_bp_file: 120, col_bp_line: 40},
             show_header=True,
         )
         self._breakpoints_view.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)

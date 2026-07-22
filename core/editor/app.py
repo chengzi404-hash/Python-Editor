@@ -27,7 +27,7 @@ from core.language.highlighter import (
 from core.language.suggestion import SuggestionBlock
 from core.plugins import HookEvents, LanguageContribution, PluginManager, plugin_marketplace
 from core.plugins.widgets import UPluginManagerWindow
-from core.runner import RunResult, stream_command
+from core.runner import RunHandle, RunResult, stream_command
 from core.settings import SettingsChangeEvent, SettingsManager, SettingsScope
 from core.settings.i18n import AVAILABLE_LANGUAGES, get_translator, language_marketplace, t
 from core.settings.logging import get_logger as get_core_logger
@@ -46,6 +46,7 @@ from ui.widgets import (
     UMarketplaceWindow,
     UMenuBar,
     UShortcutConfigWindow,
+    UTerminal,
     UText,
     theme,
     ui_theme_marketplace,
@@ -121,6 +122,7 @@ class CodeEditor:
         self._highlighted_line_color: str = theme.YELLOW
         self._context_click_x: int | None = None
         self._context_click_y: int | None = None
+        self._run_handle: RunHandle | None = None
 
         self._font_family_tk_var: tk.StringVar | None = None
         self._font_size_tk_var: tk.IntVar | None = None
@@ -139,6 +141,11 @@ class CodeEditor:
         self._init_first_document()
         self._build_output_panel()
         self._build_status_bar()
+        # Kick off the integrated PowerShell session once the event loop is
+        # running, so the drain threads see a fully-constructed widget tree.
+        # ``terminal.auto_start`` lets users opt out and start it manually.
+        if bool(self._settings.global_settings.get("terminal.auto_start", True)):
+            self.window.after(0, self._open_shell)
 
         self._plugin_manager = PluginManager()
         self._plugin_menus: dict[str, Any] = {}
@@ -179,7 +186,7 @@ class CodeEditor:
     def _tab_title(self, doc: Document) -> str:
         if doc.path:
             return os.path.basename(doc.path)
-        return f"Untitled-{doc.seq}"
+        return f"{t('tab.title.untitled')}-{doc.seq}"
 
     def _update_tab_bar(self) -> None:
         if self._tab_bar is None:
@@ -256,15 +263,15 @@ class CodeEditor:
     def _tab_context_menu(self, doc_id: str, x_root: int, y_root: int) -> None:
         menu = UContextMenu(self.window)
         menu.add_command(
-            label=t("sidebar.tab.close", default="Close"),
+            label=t("sidebar.tab.close"),
             command=lambda: self._tab_close(doc_id),
         )
         menu.add_command(
-            label=t("sidebar.tab.close_others", default="Close Others"),
+            label=t("sidebar.tab.close_others"),
             command=lambda: self._close_other_tabs(doc_id),
         )
         menu.add_command(
-            label=t("sidebar.tab.close_all", default="Close All"),
+            label=t("sidebar.tab.close_all"),
             command=self._close_all_tabs,
         )
         menu.show(x_root, y_root)
@@ -558,6 +565,9 @@ class CodeEditor:
 
         self._cancel_pending_highlight()
         self._cancel_pending_suggestions()
+        if self._run_handle is not None:
+            with contextlib.suppress(Exception):
+                self._run_handle.terminate()
         app_logger.info("Editor closing...")
         self._emit(HookEvents.EDITOR_CLOSING)
         with contextlib.suppress(Exception):
@@ -610,7 +620,7 @@ class CodeEditor:
         file_menu.add_separator()
         file_menu.add_command(t("menu.file.close_tab"), self._close_active_tab, "Ctrl+W")
         file_menu.add_separator()
-        file_menu.add_command(t("menu.file.run"), self._run_code, "F5")
+        file_menu.add_command(t("menu.file.open_terminal"), self._open_shell, "F5")
         file_menu.add_command(t("menu.file.check"), self._run_check, "Ctrl+R")
         file_menu.add_command(t("menu.file.clear_output"), self._clear_output, "Ctrl+L")
         file_menu.add_separator()
@@ -762,7 +772,7 @@ class CodeEditor:
             "save_file": "Ctrl+S",
             "save_file_as": "Ctrl+Shift+S",
             "run_check": "Ctrl+R",
-            "run_code": "F5",
+            "open_shell": "F5",
             "clear_output": "Ctrl+L",
             "undo": "Ctrl+Z",
             "redo": "Ctrl+Y",
@@ -801,8 +811,8 @@ class CodeEditor:
             "run_check": self.window.bind(
                 self._tk_shortcut(shortcuts["run_check"]), lambda e: self._run_check()
             ),
-            "run_code": self.window.bind(
-                self._tk_shortcut(shortcuts["run_code"]), lambda e: self._run_code()
+            "open_shell": self.window.bind(
+                self._tk_shortcut(shortcuts["open_shell"]), lambda e: self._open_shell()
             ),
             "clear_output": self.window.bind(
                 self._tk_shortcut(shortcuts["clear_output"]), lambda e: self._clear_output()
@@ -971,9 +981,9 @@ class CodeEditor:
         self._sidebar = SideBar(
             main_paned,
             items=[
-                ("explorer", "Explorer", "explorer"),
-                ("debug", "Debug", "debug"),
-                ("git", "Git", "git"),
+                ("explorer", t("sidebar.explorer"), "explorer"),
+                ("debug", t("sidebar.debug"), "debug"),
+                ("git", t("sidebar.git.title"), "git"),
             ],
             on_select=self._on_sidebar_select,
         )
@@ -1176,19 +1186,70 @@ class CodeEditor:
         return f"{nbytes} B"
 
     def _build_output_panel(self):
-        self._output_frame = UFrame(self.window, variant="panel", height=120)
+        self._output_frame = UFrame(self.window, variant="panel", height=180)
         self._output_frame.pack(fill=tk.X, padx=0, pady=0)
         self._output_frame.pack_propagate(False)
 
         header = UFrame(self._output_frame, variant="title")
         header.pack(fill=tk.X)
-        ULabel(header, text=t("panel.output"), variant="secondary", bg=theme.BG_TITLE).pack(
+
+        ULabel(header, text=t("panel.terminal"), variant="secondary", bg=theme.BG_TITLE).pack(
             side=tk.LEFT, padx=4, pady=2
         )
 
-        self._output = UText(self._output_frame, width=80, height=5)
+        self._output_status_indicator = tk.Frame(
+            header, width=10, height=10, bg=theme.FG_DISABLED, highlightthickness=0, bd=0
+        )
+        self._output_status_indicator.pack(side=tk.LEFT, padx=(4, 2), pady=4)
+
+        self._output_status_label = ULabel(
+            header, text=t("panel.terminal.idle"), variant="secondary", bg=theme.BG_TITLE
+        )
+        self._output_status_label.pack(side=tk.LEFT, padx=(2, 8))
+
+        buttons = UFrame(header, variant="title", bg=theme.BG_TITLE)
+        buttons.pack(side=tk.RIGHT, padx=4, pady=2)
+
+        self._output_run_btn = UButton(
+            buttons,
+            text=t("panel.btn.shell"),
+            command=self._open_shell,
+            variant="primary",
+            width=84,
+            height=22,
+        )
+        self._output_run_btn.pack(side=tk.LEFT, padx=2)
+
+        self._output_stop_btn = UButton(
+            buttons,
+            text=t("panel.btn.stop"),
+            command=self._stop_running,
+            variant="danger",
+            width=64,
+            height=22,
+        )
+        self._output_stop_btn.config(state="disabled")
+        self._output_stop_btn.pack(side=tk.LEFT, padx=2)
+
+        self._output_clear_btn = UButton(
+            buttons,
+            text=t("panel.btn.clear"),
+            command=self._clear_output,
+            variant="default",
+            width=64,
+            height=22,
+        )
+        self._output_clear_btn.pack(side=tk.LEFT, padx=2)
+
+        self._output = UTerminal(
+            self._output_frame,
+            width=80,
+            height=6,
+            submit_callback=self._on_terminal_submit,
+            on_active_change=self._on_terminal_active_change,
+        )
         self._output.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
-        self._output._text.config(state="disabled")
+        self._set_terminal_idle()
 
     def _build_status_bar(self):
         status = UFrame(self.window, variant="title", height=24)
@@ -1200,10 +1261,15 @@ class CodeEditor:
         )
         self._status_label.pack(side=tk.LEFT, padx=10, pady=2)
 
-        self._lang_label = ULabel(status, text="Python", variant="secondary", bg=theme.BG_TITLE)
+        self._lang_label = ULabel(status, text=self._lang, variant="secondary", bg=theme.BG_TITLE)
         self._lang_label.pack(side=tk.RIGHT, padx=10, pady=2)
 
-        self._pos_label = ULabel(status, text="Ln 1, Col 1", variant="secondary", bg=theme.BG_TITLE)
+        self._pos_label = ULabel(
+            status,
+            text=t("status.pos", line=1, col=1),
+            variant="secondary",
+            bg=theme.BG_TITLE,
+        )
         self._pos_label.pack(side=tk.RIGHT, padx=10, pady=2)
 
     def _switch_language(self, lang, *, from_doc_switch: bool = False):
@@ -1335,11 +1401,12 @@ class CodeEditor:
             elif event and event.keysym == "Up":
                 self._suggestion_popup.select_prev()
                 return "break"
-            elif event and event.keysym in ("Return", "Tab"):
+            elif event and event.keysym == "Tab":
                 item = self._suggestion_popup.selected()
                 self._suggestion_popup.hide()
                 if item is not None:
                     self._on_suggestion_select(item)
+                return "break"
 
     def _on_click(self, event=None):
         self._update_status()
@@ -2122,7 +2189,7 @@ class CodeEditor:
 
         # Show documentation in a scrolled messagebox-style dialog
         dlg = tk.Toplevel(self.window)
-        dlg.title(t("dialog.title.find_documentation") + f": {word}")
+        dlg.title(t("dialog.find_documentation.title", word=word))
         dlg.configure(bg=theme.BG_PANEL)
         dlg.transient(self.window)
         dlg.geometry("520x400")
@@ -2130,7 +2197,7 @@ class CodeEditor:
 
         header = ULabel(
             dlg,
-            text=f"**{word}**  " + doc.get("type", ""),
+            text=t("dialog.find_documentation.header", word=word, type=doc.get("type", "")),
             bg=theme.BG_PANEL,
             fg=theme.FG_PRIMARY,
             font=(self._font_family, self._font_size + 2, "bold"),
@@ -2747,19 +2814,21 @@ class CodeEditor:
             t("plugin.info.status.enabled") if record.enabled else t("plugin.info.status.disabled")
         )
         error_info = t("plugin.info.error", err=record.error) if record.error else ""
-        info = "\n".join(
-            [
-                f"Name: {m.name}",
-                f"ID: {m.id}",
-                f"Version: {version}",
-                f"Author: {author}",
-                f"Description: {desc}",
-                f"Source: {src}",
-                f"Status: {status}",
-                error_info,
-            ]
+        info = t(
+            "plugin.info.template",
+            name=m.name,
+            id=m.id,
+            version=version,
+            author=author,
+            scope=m.scope,
+            location=src,
+            status=status,
         )
-        tk.messagebox.showinfo(t("dialog.title.plugin_info", name=m.name), info, parent=self.window)
+        if error_info:
+            info = f"{info}\n{error_info}"
+        if desc:
+            info = f"{info}\n\n{desc}"
+        tk.messagebox.showinfo(t("dialog.title.plugin", name=m.name), info, parent=self.window)
 
     def _reload_all_plugins(self) -> None:
         with contextlib.suppress(Exception):
@@ -2791,71 +2860,181 @@ class CodeEditor:
                 parent=self.window,
             )
 
-    def _append_output(self, text: str) -> None:
-        try:
-            self._output._text.config(state="normal")
-            self._output._text.insert("end", text)
-            self._output._text.see("end")
-            self._output._text.config(state="disabled")
-        except Exception:
-            pass
+    def _append_output(self, text: str, stream: str = "system") -> None:
+        # Detect the prompt marker injected after each user command.
+        # Strip it from the displayed output and schedule the next prompt.
+        if stream == "stdout" and self._SHELL_PROMPT_MARKER in text:
+            parts = text.split(self._SHELL_PROMPT_MARKER, 1)
+            if parts[0].strip():
+                self._output.append_output(stream, parts[0])
+            self.window.after(0, self._show_terminal_prompt)
+            return
+        with contextlib.suppress(Exception):
+            self._output.append_output(stream, text)
 
     def _clear_output(self) -> None:
-        try:
-            self._output._text.config(state="normal")
-            self._output._text.delete("1.0", "end")
-            self._output._text.config(state="disabled")
-        except Exception:
-            pass
+        with contextlib.suppress(Exception):
+            self._output.clear()
 
-    def _run_code(self) -> None:
-        code = self._editor.get("1.0", "end-1c")
-        if not code.strip():
-            self._status_label.config(text=t("status.no_code_to_run"))
+    # ------------------------------------------------------------------
+    # Terminal lifecycle helpers
+    # ------------------------------------------------------------------
+
+    def _set_terminal_idle(self) -> None:
+        with contextlib.suppress(Exception):
+            self._output_status_indicator.config(bg=theme.FG_DISABLED)
+        with contextlib.suppress(Exception):
+            self._output_status_label.config(text=t("panel.terminal.idle"))
+        with contextlib.suppress(Exception):
+            self._output_run_btn.config(state="normal")
+        with contextlib.suppress(Exception):
+            self._output_stop_btn.config(state="disabled")
+        with contextlib.suppress(Exception):
+            self._output.set_active(False)
+
+    def _set_terminal_running(self) -> None:
+        with contextlib.suppress(Exception):
+            self._output_status_indicator.config(bg=theme.GREEN)
+        with contextlib.suppress(Exception):
+            self._output_status_label.config(text=t("panel.terminal.running"))
+        with contextlib.suppress(Exception):
+            self._output_run_btn.config(state="disabled")
+        with contextlib.suppress(Exception):
+            self._output_stop_btn.config(state="normal")
+        with contextlib.suppress(Exception):
+            self._output.set_active(True)
+            self._output.focus_input()
+
+    def _on_terminal_submit(self, line: str) -> None:
+        handle = self._run_handle
+        if handle is None or not handle.running:
             return
-        self._append_output(f"{'=' * 40}\n")
-        self._append_output(f"{t('output.running')}...\n")
-        self._status_label.config(text=t("status.running"))
-        lang = self._lang
-        self._emit(HookEvents.EDITOR_BEFORE_RUN, lang)
-        if lang == "Python":
-            self._run_python_code(code)
-        elif lang in ("C", "C++"):
-            self._run_cpp_code(code)
+        # The typed text is already visible in the buffer (the user just typed
+        # it). ``_on_return`` already inserted the trailing newline; we only
+        # need to forward the line to the subprocess here. No extra echo.
+        handle.write_stdin(line + "\n")
+        # Inject a unique marker so we know when the command output has
+        # finished and can display the next prompt.
+        handle.write_stdin(f"'{self._SHELL_PROMPT_MARKER}'\n")
+
+    def _show_terminal_prompt(self) -> None:
+        if not self._run_handle or not self._run_handle.running:
+            return
+        path = self._current_project_root or os.getcwd()
+        with contextlib.suppress(Exception):
+            self._output.append_output("stdout", t("output.terminal_prompt", path=path))
+
+    def _on_terminal_active_change(self, active: bool) -> None:
+        # Keep header indicator / button states in sync with widget state.
+        if active:
+            with contextlib.suppress(Exception):
+                self._output_status_indicator.config(bg=theme.GREEN)
+            with contextlib.suppress(Exception):
+                self._output_stop_btn.config(state="normal")
         else:
-            self._append_output(f"{t('output.unsupported_lang', lang=lang)}\n")
+            with contextlib.suppress(Exception):
+                self._output_stop_btn.config(state="disabled")
 
-    def _run_python_code(self, code: str) -> None:
-        python_path = sys.executable
-        temp_path = None
+    def _stop_running(self) -> None:
+        handle = self._run_handle
+        if handle is None or not handle.running:
+            return
+        handle.terminate()
+        self._append_output(f"\n[{t('output.interrupted')}]\n", "system")
+        self._status_label.config(text=t("status.run_failed"))
+
+    # ------------------------------------------------------------------
+    # PowerShell session dispatch
+    # ------------------------------------------------------------------
+
+    # Unique marker injected after each command to detect when PowerShell
+    # output is complete, so we can display the next prompt.
+    _SHELL_PROMPT_MARKER = "<<<__SHELL_READY__>>>"
+
+    def _shell_command(self) -> list[str]:
+        r"""Return the argv for the integrated shell.
+
+        Honours the ``terminal.shell_cmd`` setting, but defaults to Windows
+        PowerShell 5.x (``powershell.exe``) which ships with every Windows
+        install.
+
+        We use ``-Command -`` so PowerShell runs in non-interactive /
+        pipeline mode.  In this mode PowerShell does **not** echo input
+        back to stdout and does **not** output prompts  —  both of those
+        are handled by the terminal widget ourselves, avoiding the mojibake
+        and ordering issues that arise when PowerShell's ``prompt()``
+        function emits text without a trailing newline into a pipe.
+        """
+
+        configured = self._settings.global_settings.get("terminal.shell_cmd")
+        if isinstance(configured, list) and configured:
+            return [str(x) for x in configured]
+        if isinstance(configured, str) and configured.strip():
+            import shlex
+
+            return shlex.split(configured)
+        return ["powershell.exe", "-NoLogo", "-Command", "-"]
+
+    def _open_shell(self) -> None:
+        # If a session is already running, just focus its input line so the
+        # user can keep typing without spawning a second PowerShell.
+        if self._run_handle is not None and self._run_handle.running:
+            with contextlib.suppress(Exception):
+                self._output.focus_input()
+            return
+
+        clear_first = bool(
+            self._settings.global_settings.get("runner.clear_output_before_run", True)
+        )
+        if clear_first:
+            self._clear_output()
+        self._append_output(f"{t('output.terminal_banner')}\n", "system")
+        self._append_output(f"{t('output.shell_starting')}...\n", "system")
+        self._status_label.config(text=t("status.running"))
+
+        def on_line(stream: str, line: str) -> None:
+            self._append_output(line, stream)
+
+        def on_done(result: RunResult) -> None:
+            # Supervisor thread — bounce back onto the Tk main thread.
+            self.window.after(0, self._on_shell_finished, result)
+
         try:
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".py", delete=False, encoding="utf-8"
-            ) as f:
-                f.write(code)
-                temp_path = f.name
-
-            def on_line(line: str):
-                self._append_output(line)
-
-            def on_done(result: RunResult):
-                self._append_output(f"\n{t('output.exit_code')}: {result.returncode}\n")
-                self._status_label.config(text=t("status.ready"))
-
             self._cancel_pending_suggestions()
-            stream_command(
-                [python_path, temp_path],
-                cwd=os.path.dirname(temp_path),
+            self._set_terminal_running()
+            # Default ``encoding="auto"`` lets the runner decode ASCII as
+            # UTF-8 and seamlessly switch to ``cp936`` when PowerShell's
+            # ``Format-Table`` emits GBK-encoded Chinese strings (a known
+            # quirk of PowerShell 5.x in pipe mode).  No extra boilerplate
+            # is needed in the shell — the runner handles mixed encoding.
+            self._run_handle = stream_command(
+                self._shell_command(),
                 line_callback=on_line,
                 done_callback=on_done,
+                timeout_s=24 * 3600.0,
             )
+            # Show initial prompt once the shell is up.
+            self.window.after(100, self._show_terminal_prompt)
         except Exception as exc:
-            self._append_output(f"{t('output.error')}: {exc}\n")
+            self._append_output(f"{t('output.error')}: {exc}\n", "system")
+            self._set_terminal_idle()
             self._status_label.config(text=t("status.ready"))
 
-    def _run_cpp_code(self, code: str) -> None:
-        self._append_output(f"{t('output.cpp_not_implemented')}\n")
-        self._status_label.config(text=t("status.ready"))
+    def _on_shell_finished(self, result: RunResult) -> None:
+        self._run_handle = None
+        if result.timed_out:
+            self._append_output(
+                f"\n[{t('status.timeout')}]\n{t('output.shell_exited', code=result.returncode)}\n",
+                "system",
+            )
+            self._status_label.config(text=t("status.timeout"))
+        else:
+            self._append_output(
+                f"\n[{t('output.shell_exited', code=result.returncode)}]\n",
+                "system",
+            )
+            self._status_label.config(text=t("status.ready"))
+        self._set_terminal_idle()
 
     def _run_check(self) -> None:
         code = self._editor.get("1.0", "end-1c")
@@ -2866,7 +3045,7 @@ class CodeEditor:
         if lang == "Python":
             self._check_python_code(code)
         else:
-            self._append_output(f"{t('output.check_unsupported', lang=lang)}\n")
+            self._append_output(f"{t('output.check_unsupported', lang=lang)}\n", "system")
 
     def _check_python_code(self, code: str) -> None:
         temp_path = None
@@ -2877,35 +3056,29 @@ class CodeEditor:
                 f.write(code)
                 temp_path = f.name
 
-            self._append_output(f"{t('output.checking')}...\n")
+            self._append_output(f"{t('output.checking')}...\n", "system")
 
             checker = CPythonChecker()
             result = checker.check(temp_path)
             for row in result.row:
-                self._append_output(f"{row}\n")
-            self._append_output(f"{t('output.check_done')}\n")
+                self._append_output(f"{row}\n", "system")
+            self._append_output(f"{t('output.check_done')}\n", "system")
         except Exception as exc:
-            self._append_output(f"{t('output.error')}: {exc}\n")
+            self._append_output(f"{t('output.error')}: {exc}\n", "system")
 
     def _show_documentation(self):
-        tk.messagebox.showinfo(
-            t("dialog.title.documentation"), t("dialog.documentation.message"), parent=self.window
-        )
+        tk.messagebox.showinfo(t("dialog.title.docs"), t("dialog.docs.message"), parent=self.window)
 
     def _show_shortcuts(self):
         win = UShortcutConfigWindow(self.window, self._settings, on_apply=self._rebind_shortcuts)
         win.wait_window()
 
     def _show_about(self):
-        tk.messagebox.showinfo(
-            t("dialog.title.about"),
-            "Python Editor v0.1.0\nA Tkinter-based code editor",
-            parent=self.window,
-        )
+        tk.messagebox.showinfo(t("dialog.title.about"), t("dialog.about.body"), parent=self.window)
 
     def _check_updates(self):
         tk.messagebox.showinfo(
-            t("dialog.title.check_updates"), t("dialog.check_updates.message"), parent=self.window
+            t("dialog.title.check_updates"), t("dialog.updates.message"), parent=self.window
         )
 
     def _report_issue(self):

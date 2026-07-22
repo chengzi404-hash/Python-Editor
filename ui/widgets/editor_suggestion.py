@@ -378,10 +378,11 @@ class UEditorSuggestion(tk.Toplevel):
     def _update_footer(self) -> None:
         item = self.selected()
         width = max(self.winfo_width() - 2 * self._PAD_X, 1)
+        hint = t("suggestion.footer.hint")
         if item and self._show_description and item.description:
-            text = f"{item.description}   |   ↑↓ Navigate   Tab Select   Esc Close"
+            text = f"{item.description}   |   {hint}"
         else:
-            text = "↑↓ Navigate   Tab Select   Esc Close"
+            text = hint
         self._footer.config(text=text, wraplength=width)
 
     def _on_root_click(self, event: tk.Event) -> None:

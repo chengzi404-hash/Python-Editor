@@ -146,9 +146,10 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
 
         row = 0
         for group_key in order:
+            group_label = t(f"settings.label.group.{group_key}", default=group_key.capitalize())
             ULabel(
                 self,
-                text=group_key,
+                text=group_label,
                 variant="secondary",
                 font=theme.LABEL_FONT_BOLD,
             ).grid(
@@ -212,7 +213,7 @@ class USettingPanel(UFrame if _UUI_AVAILABLE else object):  # type: ignore[misc]
         if spec.type is SettingValueType.BUTTON:
             widget = UButton(
                 self,
-                text=spec.label or spec.key,
+                text=t(f"settings.{spec.key}.label", default=spec.label or spec.key),
                 variant="primary",
                 command=lambda k=spec.key: self._on_button(k),
                 width=200,
