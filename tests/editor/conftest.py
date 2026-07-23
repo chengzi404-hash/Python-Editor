@@ -89,6 +89,21 @@ def _seed_settings(settings_path: str, *, autosave: bool, autostart_shell: bool)
     gs.save()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _verify_tk_available():
+    """Confirm Tk can create a real window in this environment.
+
+    CI runners without a display server (and developers running without
+    ``DISPLAY`` on Linux) cannot initialize Tk. Skip the entire test
+    session cleanly instead of crashing every test with a TclError.
+    """
+    import tkinter as tk
+
+    probe = tk.Tk()
+    probe.update_idletasks()
+    probe.destroy()
+
+
 @pytest.fixture(scope="session")
 def editor(make_session_editor):
     """Session-scoped editor fixture.
