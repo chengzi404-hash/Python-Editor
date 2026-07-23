@@ -204,9 +204,9 @@ class AISkillsWindow:
             ]
         self._items_view.set_data(data)
         self._info_label.config(
-            text=f"{len(data)} {t('marketplace.items_count')}"
-            if data
-            else t("marketplace.no_items")
+            text=(
+                f"{len(data)} {t('marketplace.items_count')}" if data else t("marketplace.no_items")
+            )
         )
         self._update_action_button()
 
@@ -274,9 +274,11 @@ class AISkillsWindow:
             installed = bool(self._get_selected_skill_id())
             self._action_btn.config(state="normal" if installed else "disabled")
             self._activate_btn.config(
-                state="normal"
-                if self._get_selected_skill_id() != self._registry.active_id
-                else "disabled"
+                state=(
+                    "normal"
+                    if self._get_selected_skill_id() != self._registry.active_id
+                    else "disabled"
+                )
             )
         else:
             self._action_btn.config(text=t("ai.skills.detail.install"))
