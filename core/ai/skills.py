@@ -203,9 +203,7 @@ class AISkillRegistry:
         # whose file disappeared.
         try:
             on_disk = {
-                os.path.splitext(fn)[0]
-                for fn in os.listdir(self._root)
-                if fn.endswith(".json")
+                os.path.splitext(fn)[0] for fn in os.listdir(self._root) if fn.endswith(".json")
             }
         except OSError:
             return

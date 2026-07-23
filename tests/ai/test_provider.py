@@ -22,7 +22,9 @@ class TestDetectProvider:
         assert detect_provider("https://api.anthropic.com") is AIProvider.ANTHROPIC
 
     def test_google_genai(self):
-        assert detect_provider("https://generativelanguage.googleapis.com/v1beta") is AIProvider.GOOGLE
+        assert (
+            detect_provider("https://generativelanguage.googleapis.com/v1beta") is AIProvider.GOOGLE
+        )
 
     def test_google_other(self):
         assert detect_provider("https://translation.googleapis.com") is AIProvider.GOOGLE

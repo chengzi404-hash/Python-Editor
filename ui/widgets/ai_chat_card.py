@@ -134,7 +134,9 @@ class AIChatCard(UFrame):
         input_row.pack(fill=tk.X, padx=self._PAD, pady=(0, self._PAD))
 
         self._input_var = tk.StringVar()
-        self._entry = UEntry(input_row, textvariable=self._input_var, placeholder=t("ai.chat.placeholder"))
+        self._entry = UEntry(
+            input_row, textvariable=self._input_var, placeholder=t("ai.chat.placeholder")
+        )
         self._entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
         self._entry._entry.bind("<Return>", self._on_return)
 
@@ -427,4 +429,3 @@ class AIChatCard(UFrame):
 
 
 __all__ = ["AIChatCard"]
-

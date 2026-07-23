@@ -597,7 +597,11 @@ class AIClient:
         except json.JSONDecodeError as exc:
             raise AIRequestError(f"Invalid JSON response: {exc.msg}") from exc
 
-        text = _extract_text(provider, raw) if provider is AIProvider.ANTHROPIC else _extract_fim_text(raw)
+        text = (
+            _extract_text(provider, raw)
+            if provider is AIProvider.ANTHROPIC
+            else _extract_fim_text(raw)
+        )
         return AIResponse(text=text, model=model, raw=raw)
 
     def stream_chat(

@@ -199,7 +199,7 @@ class AISkillMarketplaceProvider(MarketplaceProvider):
                 )
                 with urllib.request.urlopen(req, timeout=self._timeout_s) as resp:
                     payload = json.loads(resp.read().decode("utf-8", errors="replace"))
-                for raw in (payload.get("skills") or []):
+                for raw in payload.get("skills") or []:
                     if not isinstance(raw, dict):
                         continue
                     item = _item_from_dict(raw)

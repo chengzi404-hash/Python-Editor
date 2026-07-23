@@ -54,6 +54,7 @@ def register(ctx: PluginContext) -> None:
         import os
 
         from core.settings.settings.global_settings import default_global_path
+
         return os.path.dirname(default_global_path())
 
     registry = AISkillRegistry(_settings_root_dir())
@@ -61,6 +62,7 @@ def register(ctx: PluginContext) -> None:
         index_url=str(gs.get("ai.skills_marketplace_url", "") or "")
     )
     from core.plugins import plugin_marketplace
+
     plugin_marketplace.get_plugin_marketplace().register_provider(marketplace)
 
     fim_epoch: int = 0
@@ -150,6 +152,7 @@ def register(ctx: PluginContext) -> None:
         if "\n" in text:
             remainder = text.split("\n", 1)[1]
             from core.settings.i18n import t
+
             editor._append_output(
                 f"{t('ai.tab_complete.inserted', chars=len(text))}\n{remainder}\n",
                 "system",
@@ -161,6 +164,7 @@ def register(ctx: PluginContext) -> None:
         if not snap.get("fim_enabled", True):
             return
         from core.ai import AIRequestError
+
         if client is None or not client.is_configured():
             tk.messagebox.showwarning(
                 "AI",
@@ -177,9 +181,7 @@ def register(ctx: PluginContext) -> None:
             line, col = (int(p) for p in cursor.split("."))
         except (tk.TclError, ValueError, IndexError):
             return
-        offset = sum(
-            len(line_text) + 1 for line_text in code.split("\n")[: line - 1]
-        ) + col
+        offset = sum(len(line_text) + 1 for line_text in code.split("\n")[: line - 1]) + col
         prefix = code[:offset]
         suffix = code[offset:]
         if not prefix.strip():
@@ -220,9 +222,12 @@ def register(ctx: PluginContext) -> None:
     def _ai_compact_buffer() -> None:
         from core.ai import AIRequestError
         from core.ai.client import compact_prompt
+
         if client is None or not client.is_configured():
             tk.messagebox.showwarning(
-                "AI", "No AI provider configured.", parent=editor.window,
+                "AI",
+                "No AI provider configured.",
+                parent=editor.window,
             )
             return
         try:
@@ -242,8 +247,12 @@ def register(ctx: PluginContext) -> None:
             )
 
         client.request_async(
-            client.chat, _on_done, _on_error, messages,
-            max_tokens=2048, temperature=0.1,
+            client.chat,
+            _on_done,
+            _on_error,
+            messages,
+            max_tokens=2048,
+            temperature=0.1,
         )
 
     # ------------------------------------------------------------------
@@ -331,9 +340,7 @@ def register(ctx: PluginContext) -> None:
             chat_card = None
         if marketplace is not None:
             with contextlib.suppress(Exception):
-                plugin_marketplace.get_plugin_marketplace().unregister_provider(
-                    marketplace.name()
-                )
+                plugin_marketplace.get_plugin_marketplace().unregister_provider(marketplace.name())
             marketplace = None
         for attr in ("_ai_chat_card", "_open_ai_chat"):
             if hasattr(editor, attr):

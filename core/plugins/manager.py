@@ -621,9 +621,7 @@ class PluginManager(PluginHostAPI):
 
         manifest = getattr(module, "MANIFEST", None)
         if not isinstance(manifest, PluginManifest):
-            raise PluginLoadError(
-                f"built-in plugin {plugin_id!r} missing a valid PluginManifest"
-            )
+            raise PluginLoadError(f"built-in plugin {plugin_id!r} missing a valid PluginManifest")
         if plugin_id in self._plugins:
             _log.warning("built-in plugin %r already loaded, skipping", plugin_id)
             return

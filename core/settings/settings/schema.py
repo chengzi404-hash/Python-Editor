@@ -483,9 +483,9 @@ GLOBAL_SPECS: tuple = (
         default="",
         label="AI Reasoning Effort",
         description=(
-            "Controls how much the model \"thinks\" before responding. "
-            "\"off\" disables reasoning; \"low\" saves tokens; \"medium\" "
-            "balances speed and depth; \"high\" maximises reasoning quality. "
+            'Controls how much the model "thinks" before responding. '
+            '"off" disables reasoning; "low" saves tokens; "medium" '
+            'balances speed and depth; "high" maximises reasoning quality. '
             "Only supported by OpenAI o-series models (o1, o3, etc.)."
         ),
         choices=("", "off", "low", "medium", "high"),

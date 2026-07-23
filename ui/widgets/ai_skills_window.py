@@ -125,7 +125,9 @@ class AISkillsWindow:
         detail_frame.pack(fill=tk.X, padx=0, pady=0)
         detail_frame.pack_propagate(False)
 
-        self._detail_text = UText(detail_frame, width=40, height=6, wrap="word", show_line_numbers=False)
+        self._detail_text = UText(
+            detail_frame, width=40, height=6, wrap="word", show_line_numbers=False
+        )
         self._detail_text.pack(fill=tk.BOTH, expand=True, padx=8, pady=6)
         self._detail_text.config(state="disabled")
 
@@ -272,11 +274,15 @@ class AISkillsWindow:
             installed = bool(self._get_selected_skill_id())
             self._action_btn.config(state="normal" if installed else "disabled")
             self._activate_btn.config(
-                state="normal" if self._get_selected_skill_id() != self._registry.active_id else "disabled"
+                state="normal"
+                if self._get_selected_skill_id() != self._registry.active_id
+                else "disabled"
             )
         else:
             self._action_btn.config(text=t("ai.skills.detail.install"))
-            self._action_btn.config(state="normal" if self._get_selected_item() is not None else "disabled")
+            self._action_btn.config(
+                state="normal" if self._get_selected_item() is not None else "disabled"
+            )
             self._activate_btn.config(state="disabled")
 
     def _get_selected_skill_id(self) -> str | None:
