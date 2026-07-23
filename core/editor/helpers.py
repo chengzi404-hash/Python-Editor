@@ -137,6 +137,9 @@ def format_autosave_path(fmt: str) -> str:
 
     now = time.localtime()
     ts = time.time()
+    # Use underscore-separated keys — Python's ``str.format_map`` treats ``.``
+    # as attribute access, which clashes with our token names. The caller can
+    # still write ``{unix_seconds}`` in their format string.
     fields = {
         "year": f"{now.tm_year:04d}",
         "month": f"{now.tm_mon:02d}",
@@ -144,10 +147,10 @@ def format_autosave_path(fmt: str) -> str:
         "hour": f"{now.tm_hour:02d}",
         "minute": f"{now.tm_min:02d}",
         "second": f"{now.tm_sec:02d}",
-        "unix.seconds": f"{int(ts)}",
-        "unix.float": f"{ts:.3f}",
+        "unix_seconds": f"{int(ts)}",
+        "unix_float": f"{ts:.3f}",
     }
-    name = fmt.format_map(dict(fields.items()))
+    name = fmt.format_map(fields)
     name = "".join(c if c.isalnum() or c in "._- " else "_" for c in name)
     cache = os.path.join(tempfile.gettempdir(), "PythonEditor", "autosave")
     return os.path.join(cache, f"{name}.py")

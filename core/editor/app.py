@@ -131,7 +131,7 @@ class CodeEditor:
         self._suggestions_enabled = bool(self._settings.effective("completion.enabled", True))
         self._autosave_enabled = bool(self._settings.effective("editor.auto_save", False))
         self._autosave_format = self._settings.effective(
-            "editor.auto_save_format", "{unix.seconds}"
+            "editor.auto_save_format", "{unix_seconds}"
         )
         self._autosave_delay_ms = int(self._settings.effective("editor.auto_save_delay_ms", 800))
         self._autosave_paths: dict[str, str] = {}
@@ -396,6 +396,25 @@ class CodeEditor:
     # ------------------------------------------------------------------
     # Hook / shell helpers used by components
     # ------------------------------------------------------------------
+
+    @property
+    def text_widget(self) -> tk.Text:
+        """Return the underlying :class:`tk.Text` widget for component hosts.
+
+        The :class:`~core.editor.tabs.TabManager` :class:`~core.editor.tabs.TabHost`
+        protocol expects this attribute; exposing it here keeps the buffer/tabs
+        wiring decoupled from ``_editor._text``.
+        """
+        return self._editor._text  # type: ignore[attr-defined]
+
+    @property
+    def editor_text(self) -> tk.Text:
+        """Alias for :attr:`text_widget` used by the :class:`RunnerHost` protocol."""
+        return self._editor._text  # type: ignore[attr-defined]
+
+    def apply_highlight(self) -> None:
+        """Forward :meth:`EditorBuffer.apply_highlight` to satisfy :class:`TabHost`."""
+        self.buffer.apply_highlight()
 
     def emit(self, hook: str, *args: Any, **kwargs: Any) -> None:
         manager = getattr(self, "_plugin_manager", None)
@@ -689,7 +708,7 @@ class CodeEditor:
             if self._autosave_tk_var is not None:
                 self._autosave_tk_var.set(bool(event.new))
         elif key == "editor.auto_save_format":
-            self._autosave_format = str(event.new) if event.new else "{unix.seconds}"
+            self._autosave_format = str(event.new) if event.new else "{unix_seconds}"
         elif key == "editor.auto_save_delay_ms":
             try:
                 self._autosave_delay_ms = max(100, int(event.new))

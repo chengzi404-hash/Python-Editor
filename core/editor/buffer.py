@@ -157,12 +157,16 @@ class EditorBuffer:
         if lang not in LANG_CONFIG:
             return
         config = LANG_CONFIG[lang]
-        if "highlighter_factory" in config:
-            self._editor_highlighter = config["highlighter_factory"]()
-            self._suggestion_expert = config["suggestion_factory"]()
-        else:
-            self._editor_highlighter = config["highlighter"]()
-            self._suggestion_expert = config["suggestion"]()
+        self._editor_highlighter = (
+            config["highlighter_factory"]()
+            if "highlighter_factory" in config
+            else config["highlighter"]()
+        )
+        self._suggestion_expert = (
+            config["suggestion_factory"]()
+            if "suggestion_factory" in config
+            else (config["suggestion"]() if callable(config["suggestion"]) else None)
+        )
         self._host.suggestion_expert = self._suggestion_expert  # type: ignore[attr-defined]
         self._host.highlighter = self._editor_highlighter  # type: ignore[attr-defined]
         self._stream_epoch += 1
@@ -564,11 +568,11 @@ class EditorBuffer:
             line_text = text.get(line_start, f"{ln}.end")
             stripped = line_text.lstrip()
             removed = len(line_text) - len(stripped)
-            for i in range(min(self._host.tab_width, removed)):
-                if line_text[i] == " ":
-                    text.delete(f"{ln}.{i}")
-                else:
-                    break
+            for _ in range(min(self._host.tab_width, removed)):
+                # Always delete the *first* character of the line. Indexing by
+                # an absolute column number would silently consume the
+                # trailing newline once we run past the line content.
+                text.delete(line_start)
 
     def toggle_comment(self) -> None:
         if self._host.current_language != "Python":
@@ -738,7 +742,7 @@ class EditorBuffer:
             on_change=self.apply_highlight,
         )
         dlg.show()
-        self._find_dialog = dlg.window  # type: ignore[attr-defined]
+        self._find_dialog = dlg._window  # type: ignore[attr-defined]
         self._find_dialog_impl = dlg
 
     def pull_find_state(self) -> None:

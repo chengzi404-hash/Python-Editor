@@ -77,12 +77,22 @@ class TabManager:
     # ------------------------------------------------------------------
 
     def init_first_document(self) -> None:
+        # Ensure the freshly minted id is greater than any seq we may have
+        # previously allocated — closing all tabs and respawning must not reuse
+        # an id that's already in flight elsewhere in the editor's lifetime.
+        if self._next_seq < 2:
+            self._next_seq = 2
+        seq = self._next_seq
         doc_id = self._new_doc_id()
         self._documents[doc_id] = Document(
-            path=None, content="", dirty=False, lang=self._host.current_language, seq=1
+            path=None,
+            content="",
+            dirty=False,
+            lang=self._host.current_language,
+            seq=seq,
         )
         self._active_id = doc_id
-        self._next_seq = 2
+        self._next_seq = seq + 1
         self._update_tab_bar()
 
     def new_file(self, *, emit: bool = True) -> bool:
