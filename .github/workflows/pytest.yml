@@ -28,11 +28,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install Tk (Ubuntu only)
+      - name: Install Tk + Xvfb (Ubuntu only)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk
+          sudo apt-get install -y python3-tk xvfb
 
       - name: Install pytest
         run: |
@@ -43,7 +43,16 @@ jobs:
         run: python -m pip install -e .
 
       - name: Run tests
-        run: python -m pytest -v --tb=short --junit-xml=junit.xml
+        shell: bash
+        run: |
+          # Tk tests need a display. On Ubuntu, wrap pytest under xvfb-run so
+          # the Tk subsystem can create (hidden) windows; on Windows, DISPLAY
+          # is irrelevant so we just invoke pytest directly.
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a python -m pytest -v --tb=short --junit-xml=junit.xml
+          else
+            python -m pytest -v --tb=short --junit-xml=junit.xml
+          fi
 
       - name: Upload JUnit test report
         if: always()

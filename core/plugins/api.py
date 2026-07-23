@@ -102,6 +102,9 @@ class PluginHostAPI(Protocol):
     def setting(self, key: str, default: Any = None) -> Any: ...
     def set_setting(self, key: str, value: Any) -> None: ...
 
+    @property
+    def editor(self) -> Any: ...
+
 
 class PluginContext:
     """Single entry point for plugin-editor interaction."""
@@ -204,6 +207,11 @@ class PluginContext:
 
     def set_setting(self, key: str, value: Any) -> None:
         self._host.set_setting(self._settings_key(key), value)
+
+    @property
+    def editor(self) -> Any:
+        """Access the CodeEditor instance for deep UI integration."""
+        return self._host.editor
 
     def is_enabled(self) -> bool:
         return bool(self.setting("enabled", True))
