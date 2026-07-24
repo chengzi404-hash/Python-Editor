@@ -1,8 +1,0 @@
-ls
-
-
-    Ŀ¼: D:\Code\Python Editor
-
-
-Mode                 LastWriteTime         Length Name                                                                 
-----                 -------------  
